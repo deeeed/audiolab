@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- iOS now honours `output.compressed.preferRawStream` for AAC. With the flag on, the compressed file is written as `.aac` and `AVAudioRecorder` produces raw ADTS AAC instead of an M4A container, so every chunk streamed through `onAudioStream` is independently decodable. Previously iOS always wrote M4A: the first streamed chunk was only the `ftyp` box and the `moov` atom was written at stop, so concatenated chunks could not be decoded. The default (flag off) is unchanged.
+
 ## [4.0.0-beta.0] - 2026-08-24
 
 ### Fixed
