@@ -37,9 +37,6 @@
     },
     "devDependencies": {
         "@expo/config-plugins": "~57.0.8",
-        "@farmslot/adapter-sdk": "0.13.0",
-        "@farmslot/recipe-cli": "0.17.0",
-        "@farmslot/recipe-runner": "0.34.1",
         "@storybook/react-native-web-vite": "^10.2.10",
         "commander": "^12.0.0",
         "eslint-import-resolver-typescript": "^3.7.0",

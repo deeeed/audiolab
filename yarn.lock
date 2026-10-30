@@ -5034,67 +5034,76 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@farmslot/adapter-sdk@npm:0.13.0":
-  version: 0.13.0
-  resolution: "@farmslot/adapter-sdk@npm:0.13.0"
+"@farmslot/adapter-sdk@npm:0.25.2":
+  version: 0.25.2
+  resolution: "@farmslot/adapter-sdk@npm:0.25.2"
   dependencies:
-    "@farmslot/protocol": "npm:0.43.0"
-    "@farmslot/recipe-runner": "npm:0.34.1"
+    "@farmslot/protocol": "npm:0.74.0"
+    "@farmslot/recipe-runner": "npm:0.46.2"
     "@noble/hashes": "npm:^1.8.0"
-  checksum: 10/3125940f97b2a5c390b63abdd958b3a20f6de688012cbad21a67f94c0ba42047e5e67baa60e31d811fb7b9803d9de6bc73341eaea4b134ce7f49d1d5e5ff5607
+  checksum: 10/de4f14f5f5a70cac86e4e1660bfb35032492908e9cdd8f34f9d70b71f6340e461142e3a3c5f95b01d768bcb078270c54d8c703b57d2ddfeac0fe7d1460194f0b
   languageName: node
   linkType: hard
 
-"@farmslot/agent-runtime@npm:0.21.2":
-  version: 0.21.2
-  resolution: "@farmslot/agent-runtime@npm:0.21.2"
+"@farmslot/agent-runtime@npm:0.39.8":
+  version: 0.39.8
+  resolution: "@farmslot/agent-runtime@npm:0.39.8"
   dependencies:
-    "@farmslot/adapter-sdk": "npm:0.13.0"
-    "@farmslot/protocol": "npm:0.43.0"
+    "@farmslot/adapter-sdk": "npm:0.25.2"
+    "@farmslot/protocol": "npm:0.74.0"
   bin:
     farmslot-agent: ./bin/farmslot-agent.mjs
-  checksum: 10/c4ee01f7effb9da231960a80687cc4db9e758a454947816ca7e5b4f04695a96b67ed851bafffc0e91c03ded47bd4bdeb5fd25192b6208f511cc6954bb8b4554a
+  checksum: 10/b7dbdb685fd892b6545481266a398800f50c7546fceb8152491e62922c5f87517a2ec0fd85c3568e1b334c9ef4b90f100e65e87c3b8e99623db20941d532fae7
   languageName: node
   linkType: hard
 
-"@farmslot/protocol@npm:0.43.0":
-  version: 0.43.0
-  resolution: "@farmslot/protocol@npm:0.43.0"
+"@farmslot/protocol@npm:0.73.1":
+  version: 0.73.1
+  resolution: "@farmslot/protocol@npm:0.73.1"
   dependencies:
     "@noble/hashes": "npm:1.4.0"
-  checksum: 10/23e0fd2330601f64f0db6da7f1aaed340e6200b278f2b9df2425f03a52412c8008c3bccad9006166164f2add8144ecb32b0dd200592c4c3fedcb93c1442d7d21
+  checksum: 10/b34e5999a091d83f73218e01a40991415b51884541912e2593cc7cc084888a11e99b3df3258221d05296ce93a64fa12ccb1cf3cb7024eac5a761bacf8c282f21
   languageName: node
   linkType: hard
 
-"@farmslot/recipe-cli@npm:0.17.0":
-  version: 0.17.0
-  resolution: "@farmslot/recipe-cli@npm:0.17.0"
+"@farmslot/protocol@npm:0.74.0":
+  version: 0.74.0
+  resolution: "@farmslot/protocol@npm:0.74.0"
   dependencies:
-    "@farmslot/adapter-sdk": "npm:0.13.0"
-    "@farmslot/agent-runtime": "npm:0.21.2"
-    "@farmslot/protocol": "npm:0.43.0"
-    "@farmslot/recipe-runner": "npm:0.34.1"
+    "@noble/hashes": "npm:1.4.0"
+  checksum: 10/34926f215561f56c5c2a4026019f874af92ff3e9a00bf2c4a61fd411efe199f9d8a88870ac5e37a6067569f8252be1d0da5a13bef89351b5bbb7f5aea3247ce0
+  languageName: node
+  linkType: hard
+
+"@farmslot/recipe-cli@npm:0.32.1":
+  version: 0.32.1
+  resolution: "@farmslot/recipe-cli@npm:0.32.1"
+  dependencies:
+    "@farmslot/adapter-sdk": "npm:0.25.2"
+    "@farmslot/agent-runtime": "npm:0.39.8"
+    "@farmslot/protocol": "npm:0.74.0"
+    "@farmslot/recipe-runner": "npm:0.46.2"
     commander: "npm:^12.0.0"
     es-module-lexer: "npm:2.3.1"
     esbuild: "npm:0.28.1"
     semver: "npm:^7.7.3"
-  bin:
-    farmslot-recipe: ./bin/farmslot-recipe.mjs
-  checksum: 10/62b538543955b6f17a0c460f00c398ac81402ff5fa5b0a4cd1fa0c38dc26fa4dff32f990e184db31d7150a9ae9a1a79a946dc329f489a0c20b8a361a768cce63
+  checksum: 10/9848ab6023f42c67e98ec4db83117cf329b5f89514263c45b8668d9a33087009a4200aa267da632327902569fc19df7acc522ce1b073187afff7a8c8183b7df0
   languageName: node
   linkType: hard
 
-"@farmslot/recipe-runner@npm:0.34.1":
-  version: 0.34.1
-  resolution: "@farmslot/recipe-runner@npm:0.34.1"
+"@farmslot/recipe-runner@npm:0.46.2":
+  version: 0.46.2
+  resolution: "@farmslot/recipe-runner@npm:0.46.2"
   dependencies:
-    "@farmslot/protocol": "npm:0.43.0"
+    "@farmslot/protocol": "npm:0.73.1"
+    "@jsquash/webp": "npm:^1.5.0"
     commander: "npm:^12.0.0"
+    pngjs: "npm:^7.0.0"
     semver: "npm:^7.7.3"
     ws: "npm:^8.18.0"
   bin:
     farmslot-visual-review: ./bin/farmslot-visual-review.mjs
-  checksum: 10/b188b99078a6c10f64ec1dda8ec13dd838847b180a14348166f5127ea34f92f3f10e36161643db5c1721335ccbecae32d114cbb5c5498cb75d82a195062dece2
+  checksum: 10/edb315f758459c230e3bc59510ab1809fce59c8da1546606b2f4afcab84219622926d5f07df043a18eecc12e7327003e3d2cfaa984b370354f08b5baca6a41da
   languageName: node
   linkType: hard
 
@@ -6237,6 +6246,15 @@ __metadata:
     "@jridgewell/resolve-uri": "npm:^3.1.0"
     "@jridgewell/sourcemap-codec": "npm:^1.4.14"
   checksum: 10/da0283270e691bdb5543806077548532791608e52386cfbbf3b9e8fb00457859d1bd01d512851161c886eb3a2f3ce6fd9bcf25db8edf3bddedd275bd4a88d606
+  languageName: node
+  linkType: hard
+
+"@jsquash/webp@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "@jsquash/webp@npm:1.5.0"
+  dependencies:
+    wasm-feature-detect: "npm:^1.2.11"
+  checksum: 10/727ce200d90875fdfa1919ff203a05ed5100c2e030467c08f27562680180cc98ddf1d4a8ee470c56cedd2afb1cdcf8f4539dca65f227f74ba42317321d9bdc2f
   languageName: node
   linkType: hard
 
@@ -8255,9 +8273,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@siteed/audiolab-agentic@workspace:scripts/agentic"
   dependencies:
-    "@farmslot/adapter-sdk": "npm:0.13.0"
-    "@farmslot/recipe-cli": "npm:0.17.0"
-    "@farmslot/recipe-runner": "npm:0.34.1"
+    "@farmslot/adapter-sdk": "npm:0.25.2"
+    "@farmslot/recipe-cli": "npm:0.32.1"
+    "@farmslot/recipe-runner": "npm:0.46.2"
     pngjs: "npm:^7.0.0"
   languageName: unknown
   linkType: soft
@@ -8311,9 +8329,6 @@ __metadata:
   resolution: "@siteed/expo-audio-studio-monorepo@workspace:."
   dependencies:
     "@expo/config-plugins": "npm:~57.0.8"
-    "@farmslot/adapter-sdk": "npm:0.13.0"
-    "@farmslot/recipe-cli": "npm:0.17.0"
-    "@farmslot/recipe-runner": "npm:0.34.1"
     "@storybook/react-native-web-vite": "npm:^10.2.10"
     commander: "npm:^12.0.0"
     eslint-import-resolver-typescript: "npm:^3.7.0"
@@ -36596,6 +36611,13 @@ __metadata:
   version: 0.1.1
   resolution: "warn-once@npm:0.1.1"
   checksum: 10/e6a5a1f5a8dba7744399743d3cfb571db4c3947897875d4962a7c5b1bf2195ab4518c838cb4cea652e71729f21bba2e98dc75686f5fccde0fabbd894e2ed0c0d
+  languageName: node
+  linkType: hard
+
+"wasm-feature-detect@npm:^1.2.11":
+  version: 1.9.0
+  resolution: "wasm-feature-detect@npm:1.9.0"
+  checksum: 10/d1f73402c2de141ccb55e4a9e9a7896c0ac83977880b7b9cb7abdd155d969d43fb8b88f1d1d8a248c2d1158e3eedac54d6b76c034708ac8e038c05ff9b4e104d
   languageName: node
   linkType: hard
 
