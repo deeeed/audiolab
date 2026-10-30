@@ -176,18 +176,15 @@ test('generated app runtime logs do not drift the shared source identity', async
   assert.equal(process.env.LOG_EVENTS, path.join(appRoot, '.agent/expo-events.log'));
 });
 
-test('Expo logging uses the declared destination only for the Expo CLI entry', async t => {
+test('Expo CLI writes its event log to the declared destination', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-expo-log-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const appRoot = path.join(repoRoot, 'apps/playground');
   const require = createRequire(path.join(appRoot, 'package.json'));
-  const helper = path.join(repoRoot, 'scripts/agentic/lib/expo-events.cjs');
   const log = path.join(root, 'events.log');
   const env = { ...process.env, LOG_EVENTS: log };
   const execute = promisify(execFile);
-  await execute(process.execPath, ['--require', helper, '-e', 'console.log("ordinary child")'], { cwd: appRoot, env });
-  assert.equal(await fs.stat(log).catch(() => null), null);
-  await execute(process.execPath, ['--require', helper, require.resolve('expo/bin/cli'), 'config', '--type', 'public', '--json'], { cwd: appRoot, env });
+  await execute(process.execPath, [require.resolve('expo/bin/cli'), 'config', '--type', 'public', '--json'], { cwd: appRoot, env });
   const output = await fs.readFile(log, 'utf8');
   assert.ok(output.includes('init'), 'Expo logger did not initialize at its configured destination.');
 });

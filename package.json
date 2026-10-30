@@ -30,13 +30,11 @@
         "**/react-native/**"
     ],
     "resolutions": {
-        "hermes-compiler@npm:250829098.0.16": "250829098.0.17",
-        "react": "19.2.3",
-        "react-dom": "19.2.3",
-        "react-native@npm:0.86.2": "patch:react-native@npm%3A0.86.2#~/.yarn/patches/react-native-npm-0.86.2-c9d546616f.patch"
+        "react": "19.3.0",
+        "react-dom": "19.3.0"
     },
     "devDependencies": {
-        "@expo/config-plugins": "~57.0.8",
+        "@expo/config-plugins": "~58.0.11",
         "@storybook/react-native-web-vite": "^10.2.10",
         "commander": "^12.0.0",
         "eslint-import-resolver-typescript": "^3.7.0",

@@ -175,7 +175,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                         }
                     }
                 }
-            ]
+            ],
+            "expo-asset",
+            "expo-font",
+            "expo-localization",
+            "expo-sharing",
+            "expo-status-bar",
+            "expo-web-browser"
         ],
         extra: {
             eas: {

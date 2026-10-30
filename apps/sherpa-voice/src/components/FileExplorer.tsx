@@ -556,7 +556,7 @@ export function FileExplorer({
                 {isVirtualRootDisplay ? 'No downloaded models found' : 'Folder is empty'}
               </Text>
             </View>
-          ) : null
+          ) : undefined
         }
       />
 

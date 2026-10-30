@@ -104,7 +104,8 @@ const NavigationControls: React.FC<NavigationControlsProps> = ({
             <MaterialCommunityIcons
                 name="waveform"
                 size={16}
-                color={theme.text.color}
+                // RN 0.88's ColorValue also admits null and numbers, which the icon color prop omits.
+                color={theme.text.color as string | undefined}
                 style={{ opacity: 0.7 }}
             />
             <Text style={[styles.samplesInfo, theme.text]}>

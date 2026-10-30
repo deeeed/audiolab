@@ -39,7 +39,7 @@ const AudioWaveformPreview: React.FC<AudioWaveformPreviewProps> = ({
     }, [])
 
     const drawWaveform = useCallback((): SkPath => {
-        const path = Skia.Path.Make()
+        const path = Skia.PathBuilder.Make()
         const step = canvasWidth / waveformBuffer.length
         const midY = canvasHeight / 2
 
@@ -53,7 +53,7 @@ const AudioWaveformPreview: React.FC<AudioWaveformPreviewProps> = ({
             }
         })
 
-        return path
+        return path.detach()
     }, [canvasHeight, canvasWidth, waveformBuffer])
 
     const styles = useMemo(() => getStyles(canvasWidth), [canvasWidth])

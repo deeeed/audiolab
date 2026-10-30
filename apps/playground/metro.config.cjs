@@ -61,7 +61,7 @@ const generatedPathBlocks = [
     path.join(projectRoot, 'ios', 'build-raw-main'),
 ].map((blockedPath) => new RegExp(`^${escape(blockedPath)}\\/.*$`))
 
-const blacklistRE = exclusionList([
+const blockList = exclusionList([
     ...duplicatePackageBlocks,
     ...generatedPathBlocks,
 ])
@@ -132,7 +132,7 @@ config.resolver.nodeModulesPaths = [
 config.resolver = {
     ...config.resolver,
     extraNodeModules,
-    blacklistRE,
+    blockList,
     sourceExts: [...config.resolver.sourceExts, 'cjs', 'mjs'],
     assetExts: [
         ...config.resolver.assetExts,
