@@ -1,7 +1,7 @@
 {
   "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
   "title": "Playground record and playback through the UI",
-  "description": "Records a short take from the Record tab's start and stop buttons, asserts the recorder reports a growing duration and size and then shows its result view, and plays the bundled sample on the audio-player screen until playback position advances. Used as the before/after proof for SDK upgrades. Needs microphone permission granted. The take is saved to the app's files like any UI recording; teardown restores the starting route. Pass live_mic=false on a target whose host denies microphone access (opening the input there aborts the app); the record claim then reports missing.",
+  "description": "Records a short take from the Record tab's start and stop buttons, asserts the recorder reports a growing duration and size and then opens the saved take's page, and plays the bundled sample on the audio-player screen until playback position advances. Used as the before/after proof for SDK upgrades. Needs microphone permission granted. The take is saved to the app's files like any UI recording; teardown restores the starting route. Pass live_mic=false on a target whose host denies microphone access (opening the input there aborts the app); the record claim then reports missing.",
   "paramsSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -15,7 +15,7 @@
   "proofTargets": [
     {
       "id": "record",
-      "claim": "A recording started and stopped from the Record tab buttons captures audio and shows its result.",
+      "claim": "A recording started and stopped from the Record tab buttons captures audio and opens the saved take.",
       "proofMode": "state"
     },
     {
@@ -257,33 +257,42 @@
         "poll": true,
         "timeout_ms": 30000,
         "intent": "The recorder reports it stopped.",
-        "next": "wait-result"
+        "next": "wait-saved"
       },
-      "wait-result": {
+      "wait-saved": {
         "action": "audiolab.query",
-        "ref": "record-page-state",
+        "ref": "route",
         "assert": {
-          "operator": "eq",
-          "field": "hasRecordingResult",
-          "value": true
+          "all": [
+            {
+              "operator": "matches",
+              "field": "pathname",
+              "value": "\\.wav$"
+            },
+            {
+              "operator": "contains",
+              "field": "segments",
+              "value": "(recordings)"
+            }
+          ]
         },
         "poll": true,
         "timeout_ms": 30000,
-        "intent": "The Record tab shows the stopped take.",
+        "intent": "Stopping saves the take and opens its page.",
         "next": "prove-result"
       },
       "prove-result": {
         "action": "assert_output",
-        "source": "wait-result",
+        "source": "wait-saved",
         "assert": {
-          "path": "$.hasRecordingResult",
-          "operator": "eq",
-          "value": true
+          "path": "$.pathname",
+          "operator": "matches",
+          "value": "\\.wav$"
         },
         "proves": [
           "record"
         ],
-        "intent": "The Record tab shows the stopped take.",
+        "intent": "The app opened the saved take's page.",
         "next": "shot-result"
       },
       "shot-result": {
@@ -292,8 +301,8 @@
         "covers": [
           "record"
         ],
-        "label": "Record tab result",
-        "intent": "Show the recorded take's result view.",
+        "label": "Saved take page",
+        "intent": "Show the saved take's page.",
         "next": "nav-player"
       },
       "nav-player": {
