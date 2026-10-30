@@ -88,14 +88,15 @@ See **[Getting Started: Web](docs/GETTING_STARTED_WEB.md)** for the full guide i
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 import type { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 
-// Initialize TTS with a Kokoro model
+// Initialize TTS with a Kokoro model. sherpa-onnx v2.0 removed espeak-ng, so
+// English voices need a lexicon such as upstream's tts-models/lexicon-en-us.txt.
 const config: TtsModelConfig = {
   modelDir: `${FileSystem.documentDirectory}models/kokoro-en-v0_19/`,
   ttsModelType: 'kokoro',
   modelFile: 'model.onnx',
   tokensFile: 'tokens.txt',
   voicesFile: 'voices.bin',
-  dataDir: `${FileSystem.documentDirectory}models/kokoro-en-v0_19/espeak-ng-data`,
+  lexiconFile: 'lexicon-en-us.txt',
 };
 
 const initResult = await SherpaOnnx.TTS.initialize(config);
@@ -301,8 +302,8 @@ interface TtsModelConfig {
   tokensFile: string;            // Tokens file (e.g., tokens.txt)
   voicesFile?: string;           // Voices file for Kokoro models
   vocoderFile?: string;          // Vocoder file for Matcha models
-  lexiconFile?: string;          // Lexicon file
-  dataDir?: string;              // Data directory (espeak-ng-data)
+  lexiconFile?: string;          // Lexicon file(s); Kokoro accepts a comma-separated list
+  dataDir?: string;              // Deprecated: ignored since sherpa-onnx v2.0 (espeak-ng removed)
   dictDir?: string;              // Dictionary directory
   lang?: string;                 // Language code for multi-lingual Kokoro
   ruleFstsFile?: string;         // Rule FSTs file paths

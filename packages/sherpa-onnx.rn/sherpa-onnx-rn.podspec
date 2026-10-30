@@ -45,10 +45,8 @@ Pod::Spec.new do |s|
     "libsherpa-onnx-kaldifst-core.a",
     "libsherpa-onnx-core.a",
     "libsherpa-onnx-c-api.a",
-    "libpiper_phonemize.a",
-    "libespeak-ng.a",
     "libssentencepiece_core.a",
-    "libucd.a",
+    "libutf8proc.a",
     "libonnxruntime.a"
   ]
 

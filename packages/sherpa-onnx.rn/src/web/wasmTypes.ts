@@ -124,7 +124,12 @@ export interface OfflineTtsInstance {
   handle: number;
   sampleRate: number;
   numSpeakers: number;
-  generate: (config: { text: string; sid: number; speed: number }) => {
+  generate: (config: {
+    text: string;
+    sid: number;
+    speed: number;
+    phonemeCodepoints?: number[][];
+  }) => {
     samples: Float32Array;
     sampleRate: number;
   };
@@ -208,7 +213,6 @@ export interface SherpaOnnxTtsModule {
     model?: string;
     tokens?: string;
     lexicon?: string;
-    espeakDataZip?: string;
     debug?: boolean | number;
     modelDir?: string;
   }) => Promise<{

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- iOS: the xcframework's embedded ONNX Runtime 1.23 exported global `Ort*` symbols. In apps that also link Sherpa, these shadowed Sherpa's runtime, and Sherpa 2.x (ORT API 28) crashed on its first model load. `scripts/build-isolated-ios-xcframework.sh` rebuilds the 0.4.1 asset so it exports only `_moonshine_*`, and `moonshineArtifacts.ios.xcframeworkSha256` now pins that asset. Upload it as `Moonshine.xcframework.zip` with the next release.
+
 ## [0.4.1] - 2026-08-25
 
 ### Changed

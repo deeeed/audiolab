@@ -87,13 +87,13 @@ export interface Spec extends TurboModule {
   // TTS methods
   initTts(config: {
     modelDir: string;
-    modelType?: string;
+    ttsModelType?: string;
     modelFile?: string;
     tokensFile?: string;
     acousticModelName?: string;
-    vocoder?: string;
-    voices?: string;
-    lexicon?: string;
+    vocoderFile?: string;
+    voicesFile?: string;
+    lexiconFile?: string;
     dataDir?: string;
     dictDir?: string;
     ruleFsts?: string;
@@ -120,6 +120,7 @@ export interface Spec extends TurboModule {
     lengthScale?: number;
     noiseScale?: number;
     noiseScaleW?: number;
+    phonemeCodepoints?: number[][];
   }): Promise<{
     filePath: string;
     success: boolean;

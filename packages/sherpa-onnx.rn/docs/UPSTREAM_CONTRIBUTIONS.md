@@ -1,25 +1,20 @@
 # Upstream Contributions Tracker
 
-Changes the wrapper carries against vendored sherpa-onnx (currently pinned at `v1.13.0`) and adjacent upstreams. Each item should land upstream so we can drop the local patch.
+Changes the wrapper carries against vendored sherpa-onnx (currently pinned at `v2.0.1`) and adjacent upstreams. Each item should land upstream so we can drop the local patch.
 
 ## Pin
-- `third_party/sherpa-onnx` → `v1.13.0` (upstream `k2-fsa/sherpa-onnx`)
-- iOS ORT (wrapper-overridden) → `1.22.1` (upstream pin: `1.17.1`)
-- Wasm ORT (wrapper-overridden) → `1.20.0` (upstream pin: `1.24.4`) — links cleanly via libcxx ABI shim, see #4
-- Android ORT → `1.24.3` (upstream-aligned)
-- emsdk → `4.0.7` (was `3.1.53`; bump required for ORT 1.20+ LLVM bitcode reader)
+- `third_party/sherpa-onnx` → `v2.0.1` (upstream `k2-fsa/sherpa-onnx`)
+- ONNX Runtime → `1.28.2` on iOS, Android and wasm (upstream default; no wrapper override)
+- emsdk → `4.0.23` (upstream hint in `build-wasm-simd-*.sh`)
 
 ## Active wrapper patches in `patches/`
 
 | Patch | Touches | Why |
 |---|---|---|
-| `OrtAndroidOverrides.patch` | `build-android-{arm64-v8a,armv7-eabi,x86-64}.sh` | Honour `SITEED_SHERPA_ONNX_ORT_*` env vars + reproducible ORT lib/include override |
-| `OrtIOSOverrides.patch` | `build-ios.sh` | Bump iOS ORT pin `1.17.1`→`1.22.1`; honour `SITEED_SHERPA_ONNX_IOS_ORT_VERSION` |
-| `OrtWasmOverrides.patch` | `cmake/onnxruntime-wasm-simd.cmake` | Pin wasm ORT to `1.20.0` (last known LLVM/libcxx-compatible release usable with the `__fs::filesystem` ABI shim, see #4) |
-| `CombinedWasmTarget.patch` | `CMakeLists.txt`, `wasm/CMakeLists.txt`, `wasm/asr/CMakeLists.txt`, `build-wasm-simd-combined.sh`, `wasm/combined/{CMakeLists.txt,sherpa-onnx-wasm-main-combined.cc}` | Adds a single-bundle wasm target that exports all feature C-APIs (ASR/TTS/VAD/KWS/denoiser/diarization), wires `wasm-shim/libcxx_fs_shim.cc` into the asr+combined link to satisfy ORT 1.20+ `std::__2::__fs::filesystem::*` symbol references with emsdk's libc++ |
+| `CombinedWasmTarget.patch` | `CMakeLists.txt`, `wasm/CMakeLists.txt`, `build-wasm-simd-combined.sh`, `wasm/combined/{CMakeLists.txt,sherpa-onnx-wasm-main-combined.cc}` | Adds a single-bundle wasm target that exports all feature C-APIs (ASR/TTS/VAD/KWS/denoiser/diarization) |
 | `KotlinApiOverrides.patch` | `sherpa-onnx/kotlin-api/*.kt` | Wrapper-side tweaks to vendored Kotlin API (signature/abi adjustments) |
 
-Plus `wasm-shim/libcxx_fs_shim.cc` (wrapper-tracked, **not** a submodule patch) — provides 4 forwarding functions whose mangled names match the missing `std::__2::__fs::filesystem::*` symbols. They delegate to emsdk libc++'s `std::__2::filesystem::*` equivalents. Because `inline namespace __fs` makes the types layout-identical, this is ABI-safe.
+`OrtAndroidOverrides.patch`, `OrtIOSOverrides.patch`, `OrtWasmOverrides.patch` and `wasm-shim/libcxx_fs_shim.cc` were dropped in the v2.0.1 upgrade: upstream reads `SHERPA_ONNX_ONNXRUNTIME_VERSION` / `SHERPA_ONNXRUNTIME_{LIB,INCLUDE}_DIR` since v1.13.3, pins ORT 1.28.2 on every platform, and the wasm ORT 1.28.2 archive links against emsdk 4.0.23's libc++ without the filesystem shim.
 
 Plus the iOS Swift fork at `ios/native/SherpaOnnx.swift` (the wrapper owns its copy of upstream `swift-api-examples/SherpaOnnx.swift` because v1.13.0 made `recognizer`/`stream` `private`, breaking direct field access). Drift surfaced via `scripts/check-swift-drift.sh`.
 
@@ -36,7 +31,7 @@ A `wasm/combined/` target compiling all features into one binary so web apps don
 `Ssentencepiece` constructor spawns `std::thread` workers; emscripten without `-sUSE_PTHREADS=1` aborts. Default `num_threads=0` under `__EMSCRIPTEN__`. Upstream repo: <https://github.com/pkufool/simple-sentencepiece>.
 
 ### 3. Build script env-var override convention (NEW)
-**Status**: Not submitted. **Priority**: Medium.
+**Status**: Resolved upstream by v2.0.1; wrapper patch dropped. **Priority**: Medium.
 Several build scripts hardcode the ORT version (Android arm64 / armv7 / x86_64; iOS; wasm cmake). The wrapper carries patches that introduce a uniform env-var override pattern:
 
 - `onnxruntime_version=${SITEED_SHERPA_ONNX_*_ORT_VERSION:-<default>}`
@@ -45,7 +40,7 @@ Several build scripts hardcode the ORT version (Android arm64 / armv7 / x86_64; 
 Upstream proposal: accept generic `ORT_VERSION` / `ORT_LIB_DIR` env vars across the whole build matrix so per-arch local overrides don't require a fork or maintained patch.
 
 ### 4. Wasm ORT `std::filesystem` link incompatibility (NEW — root cause for the wasm pin downgrade)
-**Status**: Not submitted. **Priority**: High.
+**Status**: Resolved upstream by v2.0.1; wrapper patch dropped. **Priority**: High.
 
 #### Symptom
 Building `wasm/asr` (or any module that links `libonnxruntime.a`) against ORT `1.20.x`+ wasm prebuilts fails with:
@@ -105,7 +100,7 @@ Each `wasm/<module>/CMakeLists.txt` aborts the build if a hardcoded ONNX file is
 Upstream proposal: emit a soft warning instead of `FATAL_ERROR` when assets are missing, and document the asset rename steps in a single `wasm/README.md` rather than 7 per-module READMEs.
 
 ### 6. iOS ORT default pin is stale (NEW)
-**Status**: Not submitted. **Priority**: Medium.
+**Status**: Resolved upstream by v2.0.1; wrapper patch dropped. **Priority**: Medium.
 
 `build-ios.sh` pins `onnxruntime_version=1.17.1`. Newer ASR models (Cohere Transcribe `2026-04-01`) silent-fail on 1.17.1 — `Init` returns success but `Decode` returns an empty transcript in ~13 ms. There is no error surfaced.
 

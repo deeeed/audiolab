@@ -26,6 +26,7 @@
     "prebuilt",
     "!prebuilt/ios/Moonshine.xcframework/**",
     "!prebuilt/ios/current/**",
+    "!prebuilt/ios/Moonshine.xcframework.zip",
     "!prebuilt/android/moonshine-voice-source-release.aar",
     "!prebuilt/android/moonshine-voice-isolated.aar",
     "!prebuilt/web/model/**",
@@ -121,7 +122,7 @@
       "isolatedAarSha256": "c83f8bc94cccc42e7d89fce0d3b74df83c50d789641281ddd430bdb51f36b5dc"
     },
     "ios": {
-      "xcframeworkSha256": "06a7cd98e6a479f3ed919d16d54675a86d3f86bc7ab4bb5e32dc9ba58cdd24fe"
+      "xcframeworkSha256": "57e0386252aca361f64094bb567f14ce16080bb6aed2fc674dceaac5d3ffcc93"
     }
   },
   "eslintConfig": {

@@ -36,9 +36,6 @@
         if (debug) console.log(`Cleaning model directory to prevent conflicts: ${modelDir}`);
         SherpaOnnx.FileSystem.removePath(modelDir, debug);
         
-        // Flag to track if we need espeak data
-        let needsEspeakData = false;
-        
         // Prepare file list based on model type
         const files = [];
         
@@ -55,17 +52,14 @@
             filename: 'tokens.txt'
           });
           
-          // Add lexicon if provided
+          // Add lexicon if provided. sherpa-onnx v2.0 removed espeak-ng, so
+          // VITS/Piper models need it (or phonemeCodepoints at generation).
           if (modelConfig.lexicon) {
             files.push({
               url: modelConfig.lexicon,
               filename: 'lexicon.txt'
             });
           }
-          
-          // Flag that we need espeak-ng-data
-          if (debug) console.log("Will load espeak-ng-data after model directory creation");
-          needsEspeakData = true;
         } else if (modelConfig.type === 'matcha') {
           // Add required files for matcha
           files.push({
@@ -123,28 +117,6 @@
           throw new Error("Failed to load TTS model files");
         }
         
-        // Handle espeak-ng-data for VITS models
-        if (modelConfig.type === 'vits' && needsEspeakData) {
-          if (debug) console.log(`Loading espeak-ng-data.zip into ${result.modelDir}`);
-          
-          try {
-            // Use configurable URL if provided, otherwise use default
-            const espeakZipUrl = modelConfig.espeakDataZip || 'assets/tts/espeak-ng-data.zip';
-            if (debug) console.log(`Fetching espeak-ng-data from ${espeakZipUrl}`);
-            
-            const zipResponse = await fetch(espeakZipUrl);
-            const zipData = await zipResponse.arrayBuffer();
-            
-            await SherpaOnnx.FileSystem.extractZip(
-              zipData,
-              result.modelDir,
-              debug
-            );
-          } catch (zipError) {
-            console.error("Error processing espeak-ng-data.zip:", zipError);
-          }
-        }
-        
         // Organize files by type
         const modelFiles = {};
         const successFiles = result.files.filter(f => f.success);
@@ -200,7 +172,7 @@
           model: loadedModel.files.model,
           lexicon: loadedModel.files.lexicon || '',
           tokens: loadedModel.files.tokens,
-          dataDir: `${loadedModel.modelDir}/espeak-ng-data`, // Path to espeak-ng-data in model directory
+          dataDir: '', // Ignored since sherpa-onnx v2.0 (espeak-ng removed)
           dictDir: '',
           noiseScale: options.noiseScale || 0.667,
           noiseScaleW: options.noiseScaleW || 0.8,
@@ -539,10 +511,12 @@
     const voicesLen = Module.lengthBytesUTF8(config.voices || '') + 1;
     const tokensLen = Module.lengthBytesUTF8(config.tokens || '') + 1;
     const dataDirLen = Module.lengthBytesUTF8(config.dataDir || '') + 1;
+    const lexiconLen = Module.lengthBytesUTF8(config.lexicon || '') + 1;
 
-    const n = modelLen + voicesLen + tokensLen + dataDirLen;
+    const n = modelLen + voicesLen + tokensLen + dataDirLen + lexiconLen;
     const buffer = Module._malloc(n);
-    const len = 5 * 4;
+    // v2.0.0+ appends `const char* lexicon` after length_scale
+    const len = 6 * 4;
     const ptr = Module._malloc(len);
 
     let offset = 0;
@@ -554,6 +528,8 @@
     offset += tokensLen;
     Module.stringToUTF8(config.dataDir || '', buffer + offset, dataDirLen);
     offset += dataDirLen;
+    Module.stringToUTF8(config.lexicon || '', buffer + offset, lexiconLen);
+    offset += lexiconLen;
 
     offset = 0;
     Module.setValue(ptr, buffer + offset, 'i8*');
@@ -565,6 +541,7 @@
     Module.setValue(ptr + 12, buffer + offset, 'i8*');
     offset += dataDirLen;
     Module.setValue(ptr + 16, config.lengthScale || 1.0, 'float');
+    Module.setValue(ptr + 20, buffer + offset, 'i8*');
 
     return { buffer: buffer, ptr: ptr, len: len };
   }
@@ -776,11 +753,16 @@
     const pocketModelConfig = initSherpaOnnxOfflineTtsPocketModelConfig(
       config.offlineTtsPocketModelConfig, Module);
 
+    // The C struct ends with a supertonic config (7 pointers) that this glue
+    // does not expose; it is zeroed so the fields after the model config in
+    // SherpaOnnxOfflineTtsConfig land at the offsets the C API expects.
+    const supertonicLen = 7 * 4;
     const len = vitsModelConfig.len + matchaModelConfig.len +
         kokoroModelConfig.len + kittenModelConfig.len + zipVoiceModelConfig.len +
-        pocketModelConfig.len + 3 * 4;
+        pocketModelConfig.len + 3 * 4 + supertonicLen;
 
     const ptr = Module._malloc(len);
+    Module.HEAPU8.fill(0, ptr, ptr + len);
 
     let offset = 0;
     Module._CopyHeap(vitsModelConfig.ptr, vitsModelConfig.len, ptr + offset);
@@ -862,6 +844,47 @@
   }
   
   /**
+   * Allocate a SherpaOnnxGenerationConfig (15 4-byte fields in v2.0.1).
+   * Only sid, speed and phoneme_codepoints are set; silence_scale and num_steps
+   * get the C defaults and the reference-audio/extra/tokens fields stay zero.
+   * Ported from upstream sherpa-onnx v2.0.1 wasm/tts/sherpa-onnx-tts.js.
+   */
+  function initSherpaOnnxGenerationConfig(config, Module) {
+    const len = 15 * 4;
+    const ptr = Module._malloc(len);
+    Module.HEAPU8.fill(0, ptr, ptr + len);
+
+    Module.setValue(ptr + 0 * 4, 0.2, 'float'); // silence_scale
+    Module.setValue(ptr + 1 * 4, config.speed || 1.0, 'float');
+    Module.setValue(ptr + 2 * 4, config.sid || 0, 'i32');
+    Module.setValue(ptr + 7 * 4, 5, 'i32'); // num_steps
+
+    // phoneme_codepoints is flattened; phoneme_codepoints_lens holds the
+    // length of each sentence.
+    let codepointsPtr = 0;
+    let codepointsLensPtr = 0;
+    const sentences = config.phonemeCodepoints || [];
+    if (sentences.length > 0) {
+      const flat = sentences.flat();
+      codepointsPtr = Module._malloc(flat.length * 4);
+      codepointsLensPtr = Module._malloc(sentences.length * 4);
+      Module.HEAP32.set(Int32Array.from(flat), codepointsPtr / 4);
+      Module.HEAP32.set(Int32Array.from(sentences, (s) => s.length), codepointsLensPtr / 4);
+    }
+    Module.setValue(ptr + 9 * 4, codepointsPtr, 'i8*');
+    Module.setValue(ptr + 10 * 4, codepointsLensPtr, 'i8*');
+    Module.setValue(ptr + 11 * 4, sentences.length, 'i32');
+
+    return { ptr, codepointsPtr, codepointsLensPtr };
+  }
+
+  function freeSherpaOnnxGenerationConfig(config, Module) {
+    if (config.codepointsPtr) Module._free(config.codepointsPtr);
+    if (config.codepointsLensPtr) Module._free(config.codepointsLensPtr);
+    Module._free(config.ptr);
+  }
+
+  /**
    * OfflineTts class for text-to-speech synthesis
    */
   global.OfflineTts = global.OfflineTts || function(configObj, Module) {
@@ -896,25 +919,28 @@
     
     /**
      * Generate speech from text
-     * @param {Object} config - Generation config: {text, sid, speed}
+     * @param {Object} config - Generation config: {text, sid, speed, phonemeCodepoints}
      * @returns {Object} - Object containing audio samples and sample rate
      */
     this.generate = function(config) {
-      const text = config.text;
-      const sid = config.sid || 0;
-      const speed = config.speed || 1.0;
+      const text = config.text || '';
 
       const textLen = this.Module.lengthBytesUTF8(text) + 1;
       const textPtr = this.Module._malloc(textLen);
       this.Module.stringToUTF8(text, textPtr, textLen);
 
-      const h = this.Module._SherpaOnnxOfflineTtsGenerate(
-        this.handle, textPtr, sid, speed);
+      const genConfig = initSherpaOnnxGenerationConfig(config, this.Module);
+      const h = this.Module._SherpaOnnxOfflineTtsGenerateWithConfig(
+        this.handle, textPtr, genConfig.ptr, 0, 0);
 
+      freeSherpaOnnxGenerationConfig(genConfig, this.Module);
       this.Module._free(textPtr);
 
       if (!h) {
-        throw new Error("Failed to generate speech - null pointer returned");
+        // The C API returns NULL for empty audio, which is what v2.0+ produces
+        // when a VITS/Piper model has no lexicon.
+        throw new Error("Failed to generate speech - null pointer returned. " +
+          "Since sherpa-onnx v2.0 this model may need a lexicon or phonemeCodepoints.");
       }
 
       const numSamples = this.Module.HEAP32[h / 4 + 1];

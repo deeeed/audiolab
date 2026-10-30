@@ -2222,7 +2222,8 @@ if (__DEV__) {
                         ttsModelType: 'vits',
                         modelFile: 'model.onnx',
                         tokensFile: 'tokens.txt',
-                        dataDir: 'espeak-ng-data',
+                        // Downloaded next to the extracted archive dir (sherpa-onnx v2.0+).
+                        lexiconFile: '../lexicon-en-us.txt',
                         numThreads: 1,
                         debug: false,
                     })
@@ -2276,7 +2277,8 @@ if (__DEV__) {
                         ttsModelType: 'vits',
                         modelFile: 'model.onnx',
                         tokensFile: 'tokens.txt',
-                        dataDir: 'espeak-ng-data',
+                        // Downloaded next to the extracted archive dir (sherpa-onnx v2.0+).
+                        lexiconFile: '../lexicon-en-us.txt',
                         numThreads: 1,
                         debug: false,
                     })
@@ -2330,7 +2332,8 @@ if (__DEV__) {
                         ttsModelType: 'vits',
                         modelFile: 'model.onnx',
                         tokensFile: 'tokens.txt',
-                        dataDir: 'espeak-ng-data',
+                        // Downloaded next to the extracted archive dir (sherpa-onnx v2.0+).
+                        lexiconFile: '../lexicon-en-us.txt',
                         numThreads: 1,
                         debug: false,
                     })
@@ -2395,32 +2398,33 @@ if (__DEV__) {
                 'vits-icefall-en-low': {
                     dir: `${BASE}/vits-icefall-en-low`,
                     modelType: 'vits',
-                    modelFile: 'model.onnx',
-                    tokensFile: 'tokens.txt',
-                    dataDir: 'espeak-ng-data',
+                    modelFile: 'vits-icefall-en_US-ljspeech-low/model.onnx',
+                    tokensFile: 'vits-icefall-en_US-ljspeech-low/tokens.txt',
+                    lexiconFile: 'lexicon-en-us.txt',
                 },
                 'vits-piper-en-medium': {
                     dir: `${BASE}/vits-piper-en-medium`,
                     modelType: 'vits',
-                    modelFile: 'en_US-ljspeech-medium.onnx',
-                    tokensFile: 'tokens.txt',
-                    lexiconFile: 'lexicon.txt',
-                    dataDir: 'espeak-ng-data',
+                    modelFile:
+                        'vits-piper-en_US-ljspeech-medium/en_US-ljspeech-medium.onnx',
+                    tokensFile: 'vits-piper-en_US-ljspeech-medium/tokens.txt',
+                    lexiconFile: 'lexicon-en-us.txt',
                 },
                 'vits-piper-en-libritts_r-medium': {
                     dir: `${BASE}/vits-piper-en-libritts_r-medium`,
                     modelType: 'vits',
-                    modelFile: 'en_US-libritts_r-medium.onnx',
-                    tokensFile: 'tokens.txt',
-                    dataDir: 'espeak-ng-data',
+                    modelFile:
+                        'vits-piper-en_US-libritts_r-medium/en_US-libritts_r-medium.onnx',
+                    tokensFile: 'vits-piper-en_US-libritts_r-medium/tokens.txt',
+                    lexiconFile: 'lexicon-en-us.txt',
                 },
                 'kokoro-en': {
                     dir: `${BASE}/kokoro-en`,
                     modelType: 'kokoro',
-                    modelFile: 'model.onnx',
-                    tokensFile: 'tokens.txt',
-                    voicesFile: 'voices.bin',
-                    dataDir: 'espeak-ng-data',
+                    modelFile: 'kokoro-en-v0_19/model.onnx',
+                    tokensFile: 'kokoro-en-v0_19/tokens.txt',
+                    voicesFile: 'kokoro-en-v0_19/voices.bin',
+                    lexiconFile: 'lexicon-en-us.txt',
                 },
                 'kokoro-multi-lang-v1_1': {
                     dir: `${BASE}/kokoro-multi-lang-v1_1`,
@@ -2428,7 +2432,7 @@ if (__DEV__) {
                     modelFile: 'model.onnx',
                     tokensFile: 'tokens.txt',
                     voicesFile: 'voices.bin',
-                    dataDir: 'espeak-ng-data',
+                    lexiconFile: 'lexicon-us-en.txt,lexicon-zh.txt',
                     lang: 'en',
                 },
                 'matcha-icefall-en': {
@@ -2438,7 +2442,7 @@ if (__DEV__) {
                         'matcha-icefall-en_US-ljspeech/model-steps-3.onnx',
                     tokensFile: 'matcha-icefall-en_US-ljspeech/tokens.txt',
                     vocoderFile: 'vocos-22khz-univ.onnx',
-                    dataDir: 'matcha-icefall-en_US-ljspeech/espeak-ng-data',
+                    lexiconFile: 'lexicon-en-us.txt',
                 },
             }
             const cfg = CONFIGS[modelId]

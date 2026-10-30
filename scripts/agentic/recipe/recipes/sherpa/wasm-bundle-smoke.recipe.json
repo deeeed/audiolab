@@ -1,7 +1,7 @@
 {
   "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
   "title": "Sherpa voice WASM bundle smoke test",
-  "description": "Verifies the v1.13.0-built combined wasm bundle loads in the browser and contains the Cohere/Qwen3 symbol references. Does not download model weights, so it runs in seconds and works on any network. Real ASR roundtrip with Cohere/Qwen3 requires the model files to be hosted at the configured WEB_FEATURES['asr'] CDN.",
+  "description": "Verifies the v2.0.1-built combined wasm bundle loads in the browser and contains the Cohere/Qwen3 symbol references. Does not download model weights, so it runs in seconds and works on any network. Real ASR roundtrip with Cohere/Qwen3 requires the model files to be hosted at the configured WEB_FEATURES['asr'] CDN.",
   "workflow": {
     "entry": "prepare-ready-0",
     "nodes": {

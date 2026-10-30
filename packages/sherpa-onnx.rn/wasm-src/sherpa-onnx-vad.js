@@ -66,10 +66,13 @@
      */
     front() {
       const segPtr = this.Module._SherpaOnnxVoiceActivityDetectorFront(this.handle);
-      // SherpaOnnxSpeechSegment: { int32 start; float* samples; int32 n; }
-      const start = this.Module.getValue(segPtr, 'i32');
-      const samplesPtr = this.Module.getValue(segPtr + 4, 'i32');
-      const n = this.Module.getValue(segPtr + 8, 'i32');
+      // SherpaOnnxSpeechSegment (v2.0.0+): { int64 start; float* samples; int32 n; }
+      // start spans bytes 0-7 (little-endian halves); a Number holds it exactly up to 2^53.
+      const startLo = this.Module.getValue(segPtr, 'i32') >>> 0;
+      const startHi = this.Module.getValue(segPtr + 4, 'i32');
+      const start = startHi * 4294967296 + startLo;
+      const samplesPtr = this.Module.getValue(segPtr + 8, 'i32');
+      const n = this.Module.getValue(segPtr + 12, 'i32');
 
       const samples = new Float32Array(n);
       for (let i = 0; i < n; i++) {
@@ -298,8 +301,8 @@
       const tenVadLen = 6 * 4; // model(ptr), threshold(f), min_silence(f), min_speech(f), window(i32), max_speech(f)
       const len = sileroVad.len + 4 * 4 + tenVadLen;
       const ptr = Module._malloc(len);
-      // Zero so ten_vad fields default to null/0 (unused)
-      Module.HEAP8.fill(0, ptr, ptr + len);
+      // Zero so ten_vad fields default to null/0 (unused). HEAPU8: the runtime does not export HEAP8.
+      Module.HEAPU8.fill(0, ptr, ptr + len);
       
       let offset = 0;
       Module._CopyHeap(sileroVad.ptr, sileroVad.len, ptr + offset);

@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** vendored sherpa-onnx goes from v1.13.0 to v2.0.1, with ONNX Runtime 1.28.2 on iOS, Android, and web. The next release of this package must be a major version. Prebuilt binaries come from the `sherpa-onnx-prebuilt-v2.0.1` release asset; the iOS archives drop `libespeak-ng.a`, `libpiper_phonemize.a`, and `libucd.a` and add `libutf8proc.a`.
+- **Breaking (TTS):** upstream removed espeak-ng and piper-phonemize. `dataDir` is ignored. VITS/Piper, Kokoro, and Matcha models need `lexiconFile` (for English, upstream `tts-models/lexicon-en-us.txt`) or `phonemeCodepoints`; without either, generation returns no audio and now fails with an error that says so. Words missing from the lexicon are skipped. Non-English Piper voices need external phonemization passed as `phonemeCodepoints`.
+- The ONNX Runtime override patches and the wasm `std::filesystem` shim are gone: upstream v2.0.1 covers both. The wasm build uses emsdk 4.0.23.
+- iOS apps that also link `@siteed/moonshine.rn` need its isolated xcframework (moonshine.rn Unreleased). The 0.4.1 asset exports ONNX Runtime 1.23 symbols that shadow this package's 1.28.2, and every model load crashes. Run `yarn ios:ort:check`.
+
+### Added
+
+- `phonemeCodepoints` on `generateTts` and `TtsOptions` (iOS, Android, web), one array of Unicode code points per sentence.
+- Kokoro accepts a comma-separated `lexiconFile` list on iOS and Android, and Android now passes the Kokoro lexicon to native code.
+
 ### Fixed
 
+- iOS `initTts` dropped `ttsModelType`, `lexiconFile`, `voicesFile`, and `vocoderFile` because the TurboModule spec declared different key names. Kokoro and Matcha models initialized as VITS, and no lexicon reached native code.
+- Web TTS now allocates and zeroes the Supertonic block of the model config the C API reads; it previously read past the end of the allocation.
+- Web wasm glue matches the v2.0.1 C structs: 64-bit VAD segment start, offline CTC FST decoder config, pyannote `window_shift_ratio`, fast-clustering `compute_confidence`, diarization segment `confidence`, and the denoiser DPDFNet/VoxLock fields.
+- Web VAD init threw `TypeError: Cannot read properties of undefined (reading 'fill')`: the glue zeroed its config through `Module.HEAP8`, which the wasm runtime does not export. It now uses `HEAPU8`. Published 1.3.1 had the same failure.
 - Remove the obsolete Android ONNX Runtime `pickFirst` rule. Moonshine now isolates its runtime under a private SONAME, so selecting an arbitrary shared library is unnecessary and unsafe.
 
 ## [1.3.2-beta.0] - 2026-08-24

@@ -63,13 +63,17 @@ export interface TtsModelConfig {
   vocoderFile?: string;
 
   /**
-   * Lexicon file name (e.g., lexicon.txt)
-   * Used by VITS and Matcha models
+   * Lexicon file name (e.g., lexicon.txt), relative to modelDir.
+   * Since sherpa-onnx v2.0 (espeak-ng removed), VITS/Piper, Kokoro and Matcha
+   * models need a lexicon, or phonemeCodepoints at generation time.
+   * Kokoro accepts a comma-separated list (e.g. "lexicon-us-en.txt,lexicon-zh.txt").
    */
   lexiconFile?: string;
 
   /**
    * Data directory path (usually points to espeak-ng-data)
+   * @deprecated Ignored since sherpa-onnx v2.0, which removed espeak-ng.
+   * Use lexiconFile or phonemeCodepoints instead.
    */
   dataDir?: string;
 
@@ -196,6 +200,11 @@ export interface TtsGenerateConfig {
   noiseScale?: number;
   /** Optional noise scale W for VITS model (affects speech quality) */
   noiseScaleW?: number;
+  /**
+   * Pre-phonemized input as Unicode code points, one inner array per sentence.
+   * When set it is used in place of `text` (sherpa-onnx v2.0+).
+   */
+  phonemeCodepoints?: number[][];
 }
 
 /**
@@ -240,6 +249,14 @@ export interface TtsOptions {
    * Controls randomness in phoneme duration (default: model setting)
    */
   noiseScaleW?: number;
+
+  /**
+   * Pre-phonemized input as Unicode code points, one inner array per sentence.
+   * When set it is used in place of the text (sherpa-onnx v2.0+). Use it for
+   * voices without a lexicon, e.g. non-English Piper voices phonemized by an
+   * external tool.
+   */
+  phonemeCodepoints?: number[][];
 }
 
 /**

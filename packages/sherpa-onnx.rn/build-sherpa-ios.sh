@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build-sherpa-ios.sh
-# Build Sherpa-onnx for iOS platforms from k2-fsa/sherpa-onnx v1.13.0
+# Build Sherpa-onnx for iOS platforms from k2-fsa/sherpa-onnx v2.0.1
 # Run ./setup.sh first to clone the upstream repository.
 
 set -e
@@ -53,6 +53,10 @@ if [ -z "$ORT_IOS_DIR" ] || [ ! -d "$ORT_IOS_DIR/onnxruntime.xcframework" ]; the
   exit 1
 fi
 
+# Start from empty dirs so libraries dropped upstream (espeak-ng, piper_phonemize
+# and ucd went away in v2.0.0) do not linger in the prebuilt tree.
+rm -rf prebuilt/ios/device prebuilt/ios/simulator
+
 # Copy the built libraries for device (arm64)
 mkdir -p prebuilt/ios/device
 cp third_party/sherpa-onnx/build-ios/build/os64/lib/*.a prebuilt/ios/device/
@@ -63,15 +67,14 @@ mkdir -p prebuilt/ios/simulator
 cp third_party/sherpa-onnx/build-ios/build/simulator/lib/*.a prebuilt/ios/simulator/
 cp third_party/sherpa-onnx/build-ios/build/simulator/lib/*.dylib prebuilt/ios/simulator/ 2>/dev/null || true
 
-# Copy OnnxRuntime libraries - device
+# Copy OnnxRuntime libraries - device. Since ORT 1.28 the static xcframework
+# wraps the archive as onnxruntime.framework/onnxruntime.
 echo -e "${BLUE}Copying ONNX Runtime libraries...${NC}"
-cp "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64/libonnxruntime.a" prebuilt/ios/device/
-cp -f "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64/onnxruntime.a" prebuilt/ios/device/
+cp "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/onnxruntime" prebuilt/ios/device/libonnxruntime.a
 
 # Copy OnnxRuntime libraries - simulator
 echo -e "${BLUE}Copying ONNX Runtime libraries for simulator...${NC}"
-cp "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64_x86_64-simulator/libonnxruntime.a" prebuilt/ios/simulator/
-cp -f "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64_x86_64-simulator/onnxruntime.a" prebuilt/ios/simulator/
+cp "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64_x86_64-simulator/onnxruntime.framework/onnxruntime" prebuilt/ios/simulator/libonnxruntime.a
 
 # Copy headers with correct structure
 mkdir -p prebuilt/include/sherpa-onnx/c-api
@@ -80,7 +83,7 @@ cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/sherpa-onnx/c-
 # Copy ONNX Runtime headers
 echo -e "${BLUE}Copying ONNX Runtime headers...${NC}"
 mkdir -p prebuilt/include/onnxruntime
-cp -R "$ORT_IOS_DIR/onnxruntime.xcframework/Headers/"* prebuilt/include/onnxruntime/
+cp -R "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64/onnxruntime.framework/Headers/"* prebuilt/include/onnxruntime/
 
 # Note: the wrapper now ships its own copy of SherpaOnnx.swift at
 # `ios/native/SherpaOnnx.swift` (forked from upstream `swift-api-examples/`).
