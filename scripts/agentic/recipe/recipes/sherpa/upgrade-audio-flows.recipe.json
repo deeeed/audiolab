@@ -1,22 +1,32 @@
 {
   "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
   "title": "Sherpa voice transcription, recording and playback through the UI",
-  "description": "Drives the sherpa-voice screens the way a user does: transcribes the bundled JFK sample with streaming-zipformer-en-20m-mobile on the ASR screen and asserts the shown transcript, records four seconds in Live Mic mode and asserts the on-screen duration, then generates speech with vits-icefall-en-low on the TTS screen and plays it until it finishes. Controls without a testID are pressed by their label through the React fiber tree. Models are downloaded through the bridge as setup when missing. Used as the before/after proof for SDK upgrades on Android and iOS. Needs microphone permission granted; downloaded models stay on the device.",
+  "description": "Drives the sherpa-voice screens the way a user does: transcribes the bundled JFK sample with streaming-zipformer-en-20m-mobile on the ASR screen and asserts the shown transcript, records four seconds in Live Mic mode and asserts the on-screen duration, then generates speech with vits-icefall-en-low on the TTS screen and plays it until it finishes. Controls without a testID are pressed by their label through the React fiber tree. Models are downloaded through the bridge as setup when missing. Used as the before/after proof for SDK upgrades on Android and iOS. Needs microphone permission granted; downloaded models stay on the device. Pass live_mic=false on a target whose host denies microphone access (opening the input there aborts the app); the record claim then reports missing.",
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "live_mic": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
   "proofTargets": [
     {
       "id": "transcription",
       "claim": "The ASR screen transcribes the bundled JFK sample and shows the words.",
-      "proofMode": "mixed"
+      "proofMode": "state"
     },
     {
       "id": "record",
       "claim": "Live Mic mode records from the microphone and stops from its buttons.",
-      "proofMode": "mixed"
+      "proofMode": "state"
     },
     {
       "id": "playback",
       "claim": "Generated speech plays from the TTS screen and finishes.",
-      "proofMode": "mixed"
+      "proofMode": "state"
     },
     {
       "id": "restored",
@@ -183,9 +193,37 @@
       "shot-transcript": {
         "action": "ui.screenshot",
         "path": "screenshots/sherpa-asr-transcript.png",
+        "covers": [
+          "transcription"
+        ],
         "label": "ASR transcript",
         "intent": "Show the transcript on screen.",
-        "next": "press-live-mode"
+        "next": "read-live-mic"
+      },
+      "read-live-mic": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({liveMic:'{{params.live_mic}}'==='true'})",
+        "assert": {
+          "operator": "not_null",
+          "field": "liveMic"
+        },
+        "intent": "Read whether this run may open the microphone.",
+        "next": "choose-live-mic"
+      },
+      "choose-live-mic": {
+        "action": "audiolab.choose",
+        "intent": "Skip Live Mic when the host gives the target no microphone.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.liveMic",
+            "value": false
+          }
+        ],
+        "cases": {
+          "case-0": "press-release-asr"
+        },
+        "default": "press-live-mode"
       },
       "press-live-mode": {
         "action": "audiolab.query",
@@ -277,6 +315,9 @@
       "shot-recording": {
         "action": "ui.screenshot",
         "path": "screenshots/sherpa-live-recording.png",
+        "covers": [
+          "record"
+        ],
         "label": "Live microphone recording",
         "intent": "Show the live recording state.",
         "next": "press-stop-listening"
@@ -461,6 +502,9 @@
       "shot-playing": {
         "action": "ui.screenshot",
         "path": "screenshots/sherpa-tts-playing.png",
+        "covers": [
+          "playback"
+        ],
         "label": "Generated speech playing",
         "intent": "Show playback in progress.",
         "next": "wait-playback-finished"

@@ -1,17 +1,27 @@
 {
   "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
   "title": "Playground record and playback through the UI",
-  "description": "Records a short take from the Record tab's start and stop buttons, asserts the recorder reports a growing duration and size and then shows its result view, and plays the bundled sample on the audio-player screen until playback position advances. Used as the before/after proof for SDK upgrades. Needs microphone permission granted. The take is saved to the app's files like any UI recording; teardown restores the starting route.",
+  "description": "Records a short take from the Record tab's start and stop buttons, asserts the recorder reports a growing duration and size and then shows its result view, and plays the bundled sample on the audio-player screen until playback position advances. Used as the before/after proof for SDK upgrades. Needs microphone permission granted. The take is saved to the app's files like any UI recording; teardown restores the starting route. Pass live_mic=false on a target whose host denies microphone access (opening the input there aborts the app); the record claim then reports missing.",
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "live_mic": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
   "proofTargets": [
     {
       "id": "record",
       "claim": "A recording started and stopped from the Record tab buttons captures audio and shows its result.",
-      "proofMode": "mixed"
+      "proofMode": "state"
     },
     {
       "id": "playback",
       "claim": "The audio-player screen loads the sample and plays it with an advancing position.",
-      "proofMode": "mixed"
+      "proofMode": "state"
     },
     {
       "id": "restored",
@@ -34,7 +44,32 @@
       "status": {
         "action": "app.status",
         "intent": "Read the starting route so teardown can restore it.",
-        "next": "nav-record"
+        "next": "read-live-mic"
+      },
+      "read-live-mic": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({liveMic:'{{params.live_mic}}'==='true'})",
+        "assert": {
+          "operator": "not_null",
+          "field": "liveMic"
+        },
+        "intent": "Read whether this run may open the microphone.",
+        "next": "choose-live-mic"
+      },
+      "choose-live-mic": {
+        "action": "audiolab.choose",
+        "intent": "Skip recording when the host gives the target no microphone.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.liveMic",
+            "value": false
+          }
+        ],
+        "cases": {
+          "case-0": "nav-player"
+        },
+        "default": "nav-record"
       },
       "nav-record": {
         "action": "ui.navigate",
@@ -198,6 +233,9 @@
       "shot-recording": {
         "action": "ui.screenshot",
         "path": "screenshots/playground-recording.png",
+        "covers": [
+          "record"
+        ],
         "label": "Record tab while recording",
         "intent": "Show the active recording view.",
         "next": "press-stop"
@@ -251,6 +289,9 @@
       "shot-result": {
         "action": "ui.screenshot",
         "path": "screenshots/playground-recording-result.png",
+        "covers": [
+          "record"
+        ],
         "label": "Record tab result",
         "intent": "Show the recorded take's result view.",
         "next": "nav-player"
@@ -360,6 +401,9 @@
       "shot-playing": {
         "action": "ui.screenshot",
         "path": "screenshots/playground-playing.png",
+        "covers": [
+          "playback"
+        ],
         "label": "Audio player while playing",
         "intent": "Show the player during playback.",
         "next": "pause"
