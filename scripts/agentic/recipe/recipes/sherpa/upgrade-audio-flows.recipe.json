@@ -1,0 +1,541 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice transcription, recording and playback through the UI",
+  "description": "Drives the sherpa-voice screens the way a user does: transcribes the bundled JFK sample with streaming-zipformer-en-20m-mobile on the ASR screen and asserts the shown transcript, records four seconds in Live Mic mode and asserts the on-screen duration, then generates speech with vits-icefall-en-low on the TTS screen and plays it until it finishes. Controls without a testID are pressed by their label through the React fiber tree. Models are downloaded through the bridge as setup when missing. Used as the before/after proof for SDK upgrades on Android and iOS. Needs microphone permission granted; downloaded models stay on the device.",
+  "proofTargets": [
+    {
+      "id": "transcription",
+      "claim": "The ASR screen transcribes the bundled JFK sample and shows the words.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "record",
+      "claim": "Live Mic mode records from the microphone and stops from its buttons.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "playback",
+      "claim": "Generated speech plays from the TTS screen and finishes.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "restored",
+      "claim": "The run ends on the route it started from."
+    }
+  ],
+  "workflow": {
+    "entry": "prepare-ready",
+    "nodes": {
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "download-asr"
+      },
+      "download-asr": {
+        "action": "audiolab.query",
+        "intent": "Make the streaming-zipformer-en-20m-mobile speech model available on the device.",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.downloadModel||!A.getState){return Promise.resolve({status:'error',error:'agentic bridge missing downloadModel/getState'});}var MODEL_ID=\"streaming-zipformer-en-20m-mobile\";function modelStatus(){var s=(A.getState().models||{}).statuses||{};return (s[MODEL_ID]||{}).status||'unknown';}if(modelStatus()==='downloaded'){return Promise.resolve({status:'success',already:true});}try{A.downloadModel(MODEL_ID);}catch(e){}return new Promise(function(resolve){var i=0;function tick(){if(modelStatus()==='downloaded'){resolve({status:'success',already:false});return;}i++;if(i>=3600){resolve({status:'timeout',lastStatus:modelStatus()});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "next": "download-tts",
+        "async": true,
+        "timeout_ms": 1800000
+      },
+      "download-tts": {
+        "action": "audiolab.query",
+        "intent": "Make the vits-icefall-en-low voice available on the device.",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.downloadModel||!A.getState){return Promise.resolve({status:'error',error:'agentic bridge missing downloadModel/getState'});}var MODEL_ID=\"vits-icefall-en-low\";function modelStatus(){var s=(A.getState().models||{}).statuses||{};return (s[MODEL_ID]||{}).status||'unknown';}if(modelStatus()==='downloaded'){return Promise.resolve({status:'success',already:true});}try{A.downloadModel(MODEL_ID);}catch(e){}return new Promise(function(resolve){var i=0;function tick(){if(modelStatus()==='downloaded'){resolve({status:'success',already:false});return;}i++;if(i>=3600){resolve({status:'timeout',lastStatus:modelStatus()});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "next": "nav-asr",
+        "async": true,
+        "timeout_ms": 1800000
+      },
+      "nav-asr": {
+        "action": "ui.navigate",
+        "path": "/features/asr",
+        "intent": "Open the speech recognition screen.",
+        "next": "press-file-mode"
+      },
+      "press-file-mode": {
+        "action": "audiolab.query",
+        "intent": "Switch the screen to file mode.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"File tab\";function match(f){var p=f.memoizedProps;return !!p&&(p.label===\"File\"||text(p)===\"File\");}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "select-asr-model",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "select-asr-model": {
+        "action": "audiolab.query",
+        "intent": "Pick the streaming English model in the model list.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"streaming-zipformer-en-20m-mobile\";function match(f){var p=f.memoizedProps;return !!p&&p.testID===\"model-option-streaming-zipformer-en-20m-mobile\";}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "press-init-asr",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "press-init-asr": {
+        "action": "audiolab.query",
+        "intent": "Initialize the selected model.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"btn-init-asr\";function match(f){var p=f.memoizedProps;return !!p&&p.testID===\"btn-init-asr\";}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-asr-ready",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-asr-ready": {
+        "action": "audiolab.query",
+        "intent": "The model is initialized and can be released.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}return {visible:!!find(function(f){var p=f.memoizedProps;return !!p&&p.testID===\"btn-release-asr\";})};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "next": "select-audio",
+        "poll": true,
+        "timeout_ms": 180000,
+        "poll_ms": 500
+      },
+      "select-audio": {
+        "action": "audiolab.query",
+        "intent": "Pick the bundled JFK speech sample.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"audio-option-1\";function match(f){var p=f.memoizedProps;return !!p&&p.testID===\"audio-option-1\";}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "press-recognize",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "press-recognize": {
+        "action": "audiolab.query",
+        "intent": "Recognize the selected sample.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"btn-recognize\";function match(f){var p=f.memoizedProps;return !!p&&p.testID===\"btn-recognize\";}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-transcript",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-transcript": {
+        "action": "audiolab.query",
+        "intent": "The displayed transcript contains words from the JFK sample.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var f=find(function(f){var p=f.memoizedProps;return !!p&&p.testID===\"text-recognition-result\";});var t=f?text(f.memoizedProps):null;return {transcript:t,lower:t?t.toLowerCase():null};})())",
+        "assert": {
+          "operator": "contains",
+          "field": "lower",
+          "value": "country"
+        },
+        "next": "prove-transcript",
+        "poll": true,
+        "timeout_ms": 180000,
+        "poll_ms": 500
+      },
+      "prove-transcript": {
+        "action": "assert_output",
+        "source": "wait-transcript",
+        "assert": {
+          "path": "$.lower",
+          "operator": "contains",
+          "value": "country"
+        },
+        "proves": [
+          "transcription"
+        ],
+        "intent": "The transcript shown on screen contains \"country\".",
+        "next": "shot-transcript"
+      },
+      "shot-transcript": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-asr-transcript.png",
+        "label": "ASR transcript",
+        "intent": "Show the transcript on screen.",
+        "next": "press-live-mode"
+      },
+      "press-live-mode": {
+        "action": "audiolab.query",
+        "intent": "Switch the screen to live microphone mode.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"Live Mic tab\";function match(f){var p=f.memoizedProps;return !!p&&(p.label===\"Live Mic\"||text(p)===\"Live Mic\");}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "ensure-live-ready",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "ensure-live-ready": {
+        "action": "audiolab.query",
+        "intent": "Live mode shows the microphone controls, initializing the model again if the switch released it.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}return new Promise(function(resolve){var n=0;var inits=0;function tick(){if(find(function(f){var p=f.memoizedProps;return !!p&&(p.label===\"Start Listening\"||text(p)===\"Start Listening\");})){resolve({status:'ready',inits:inits});return;}var i=find(function(f){var p=f.memoizedProps;return !!p&&p.testID===\"btn-init-asr\";});var t=i&&target(i);if(t&&enabled(t)&&inits<3){inits++;try{t.memoizedProps.onPress();}catch(e){}}if(++n>=240){resolve({status:'timeout',inits:inits});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "ready"
+        },
+        "next": "press-start-listening",
+        "async": true,
+        "timeout_ms": 150000
+      },
+      "press-start-listening": {
+        "action": "audiolab.query",
+        "intent": "Start listening on the microphone.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"Start Listening\";function match(f){var p=f.memoizedProps;return !!p&&(p.label===\"Start Listening\"||text(p)===\"Start Listening\");}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-listening",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-listening": {
+        "action": "audiolab.query",
+        "intent": "The screen switches to its recording state.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}return {visible:!!find(function(f){var p=f.memoizedProps;return !!p&&(p.label===\"Stop Listening\"||text(p)===\"Stop Listening\");})};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "next": "record-window",
+        "poll": true,
+        "timeout_ms": 30000,
+        "poll_ms": 500
+      },
+      "record-window": {
+        "action": "wait",
+        "duration_ms": 4000,
+        "intent": "Record for four seconds.",
+        "next": "assert-recording-duration"
+      },
+      "assert-recording-duration": {
+        "action": "audiolab.query",
+        "intent": "The on-screen recording duration has passed three seconds.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var f=find(function(f){var t=text(f.memoizedProps);return typeof t==='string'&&t.indexOf('Recording: ')===0;});var t=f?text(f.memoizedProps):null;var m=t?/Recording: ([0-9.]+)s/.exec(t):null;return {label:t,seconds:m?Number(m[1]):null};})())",
+        "assert": {
+          "operator": "gte",
+          "field": "seconds",
+          "value": 3
+        },
+        "next": "prove-recording",
+        "poll": true,
+        "timeout_ms": 15000,
+        "poll_ms": 500
+      },
+      "prove-recording": {
+        "action": "assert_output",
+        "source": "assert-recording-duration",
+        "assert": {
+          "path": "$.seconds",
+          "operator": "gte",
+          "value": 3
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The on-screen recording duration reached three seconds.",
+        "next": "shot-recording"
+      },
+      "shot-recording": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-live-recording.png",
+        "label": "Live microphone recording",
+        "intent": "Show the live recording state.",
+        "next": "press-stop-listening"
+      },
+      "press-stop-listening": {
+        "action": "audiolab.query",
+        "intent": "Stop listening.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"Stop Listening\";function match(f){var p=f.memoizedProps;return !!p&&(p.label===\"Stop Listening\"||text(p)===\"Stop Listening\");}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-stopped",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-stopped": {
+        "action": "audiolab.query",
+        "intent": "The microphone controls return to idle.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}return {visible:!!find(function(f){var p=f.memoizedProps;return !!p&&(p.label===\"Start Listening\"||text(p)===\"Start Listening\");})};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "next": "prove-stopped",
+        "poll": true,
+        "timeout_ms": 30000,
+        "poll_ms": 500
+      },
+      "prove-stopped": {
+        "action": "assert_output",
+        "source": "wait-stopped",
+        "assert": {
+          "path": "$.visible",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The Start Listening control is back after stopping.",
+        "next": "press-release-asr"
+      },
+      "press-release-asr": {
+        "action": "audiolab.query",
+        "intent": "Release the speech model.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"btn-release-asr\";function match(f){var p=f.memoizedProps;return !!p&&p.testID===\"btn-release-asr\";}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "nav-tts",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "nav-tts": {
+        "action": "ui.navigate",
+        "path": "/features/tts",
+        "intent": "Open the text-to-speech screen.",
+        "next": "select-tts-model"
+      },
+      "select-tts-model": {
+        "action": "audiolab.query",
+        "intent": "Pick the small English voice.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"vits-icefall-en-low\";function match(f){return f.key===\"vits-icefall-en-low\"&&onPressOf(f);}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "press-init-tts",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "press-init-tts": {
+        "action": "audiolab.query",
+        "intent": "Initialize text-to-speech.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"Initialize TTS\";function match(f){var p=f.memoizedProps;return !!p&&(p.label===\"Initialize TTS\"||text(p)===\"Initialize TTS\");}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-generate-ready",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-generate-ready": {
+        "action": "audiolab.query",
+        "intent": "The generate control is shown once the voice is loaded.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}return {visible:!!find(function(f){var p=f.memoizedProps;return !!p&&(p.label===\"Generate Speech\"||text(p)===\"Generate Speech\");})};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "next": "press-generate",
+        "poll": true,
+        "timeout_ms": 120000,
+        "poll_ms": 500
+      },
+      "press-generate": {
+        "action": "audiolab.query",
+        "intent": "Generate speech from the default text.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"Generate Speech\";function match(f){var p=f.memoizedProps;return !!p&&(p.label===\"Generate Speech\"||text(p)===\"Generate Speech\");}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-generated",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-generated": {
+        "action": "audiolab.query",
+        "intent": "The generated audio file is offered for playback.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var b=find(function(f){var p=f.memoizedProps;return !!p&&p.label===\"Play Generated Audio\"&&typeof p.uri==='string';});return {visible:!!b,uri:b?b.memoizedProps.uri:null};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "visible",
+              "value": true
+            },
+            {
+              "operator": "matches",
+              "field": "uri",
+              "value": "^file://.+\\.wav$"
+            }
+          ]
+        },
+        "next": "press-play",
+        "poll": true,
+        "timeout_ms": 120000,
+        "poll_ms": 500
+      },
+      "press-play": {
+        "action": "audiolab.query",
+        "intent": "Play the generated audio.",
+        "expression": "(function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var WHAT=\"Play Generated Audio\";function match(f){var p=f.memoizedProps;return !!p&&p.label===\"Play Generated Audio\"&&typeof p.uri==='string';}return new Promise(function(resolve){var n=0;function tick(){var f=find(match);var t=f&&target(f);if(t&&enabled(t)){try{t.memoizedProps.onPress();resolve({status:'pressed',target:WHAT});}catch(e){resolve({status:'error',target:WHAT,error:String(e)});}return;}if(++n>=120){resolve({status:f?'disabled':'not-found',target:WHAT});return;}setTimeout(tick,500);}tick();});})()",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "next": "wait-playing",
+        "async": true,
+        "timeout_ms": 90000
+      },
+      "wait-playing": {
+        "action": "audiolab.query",
+        "intent": "The play button shows its playing state.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var b=find(function(f){var p=f.memoizedProps;return !!p&&p.label===\"Play Generated Audio\"&&typeof p.uri==='string';});return {playing:!!(b&&b.child&&walk(b.child,function(f){var p=f.memoizedProps;return !!p&&p.name===\"stop\";}))};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "playing",
+          "value": true
+        },
+        "next": "prove-playing",
+        "poll": true,
+        "timeout_ms": 15000,
+        "poll_ms": 500
+      },
+      "prove-playing": {
+        "action": "assert_output",
+        "source": "wait-playing",
+        "assert": {
+          "path": "$.playing",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "playback"
+        ],
+        "intent": "The play button shows its playing state.",
+        "next": "shot-playing"
+      },
+      "shot-playing": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-tts-playing.png",
+        "label": "Generated speech playing",
+        "intent": "Show playback in progress.",
+        "next": "wait-playback-finished"
+      },
+      "wait-playback-finished": {
+        "action": "audiolab.query",
+        "intent": "Playback finishes and the button returns to idle.",
+        "expression": "JSON.stringify((function(){function roots(){var h=globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__;var o=[];if(!h||!h.renderers||typeof h.getFiberRoots!=='function')return o;for(var id=1;id<=3;id++){if(!h.renderers.get(id))continue;var rs=h.getFiberRoots(id);if(rs)rs.forEach(function(r){o.push(r.current);});}return o;}function text(p){var c=p&&p.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}function walk(start,match){var st=[start];while(st.length){var f=st.pop();if(!f)continue;if(match(f))return f;if(f.sibling&&f!==start)st.push(f.sibling);if(f.child)st.push(f.child);}return null;}function find(match){var rs=roots();for(var i=0;i<rs.length;i++){var f=walk(rs[i],match);if(f)return f;}return null;}function onPressOf(f){return f&&f.memoizedProps&&typeof f.memoizedProps.onPress==='function';}function target(f){if(onPressOf(f))return f;var d=f.child?walk(f.child,onPressOf):null;if(d)return d;var u=f.return;while(u){if(onPressOf(u))return u;u=u.return;}return null;}function enabled(t){var p=t.memoizedProps;return p.disabled!==true&&p.loading!==true;}var b=find(function(f){var p=f.memoizedProps;return !!p&&p.label===\"Play Generated Audio\"&&typeof p.uri==='string';});return {playing:!!(b&&b.child&&walk(b.child,function(f){var p=f.memoizedProps;return !!p&&p.name===\"stop\";})),idle:!!(b&&b.child&&walk(b.child,function(f){var p=f.memoizedProps;return !!p&&p.name===\"play\";}))};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "playing",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "idle",
+              "value": true
+            }
+          ]
+        },
+        "next": "prove-finished",
+        "poll": true,
+        "timeout_ms": 60000,
+        "poll_ms": 500
+      },
+      "prove-finished": {
+        "action": "assert_output",
+        "source": "wait-playback-finished",
+        "assert": {
+          "path": "$.idle",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "playback"
+        ],
+        "intent": "Playback finished and the button is idle again.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Return to the starting route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoring it.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "The starting route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    },
+    "teardown": "restore"
+  }
+}
