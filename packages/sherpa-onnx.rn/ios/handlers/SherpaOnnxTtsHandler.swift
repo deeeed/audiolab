@@ -183,8 +183,8 @@ import CSherpaOnnx
                 throw NSError(domain: "SherpaOnnx", code: 104, userInfo: [NSLocalizedDescriptionKey: "Tokens file ('\(tokensFile)') not found at final path: \(tokensAbsPath)"])
             }
             // Optional file checks (log warning if missing)
-            if !lexiconAbsPath.isEmpty && !FileManager.default.fileExists(atPath: lexiconAbsPath) {
-                NSLog("Warning: Optional lexicon file not found at: \(lexiconAbsPath)")
+            for lexiconPath in lexiconAbsPath.split(separator: ",").map(String.init) where !FileManager.default.fileExists(atPath: lexiconPath) {
+                NSLog("Warning: Optional lexicon file not found at: \(lexiconPath)")
             }
             if !voicesAbsPath.isEmpty && !FileManager.default.fileExists(atPath: voicesAbsPath) {
                 NSLog("Warning: Optional voices/vocoder file not found at: \(voicesAbsPath)")

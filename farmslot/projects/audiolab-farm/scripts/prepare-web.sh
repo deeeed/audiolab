@@ -6,12 +6,15 @@ cd "${1:?repo path required}"
 # wasm-src glue copied below must match that binary's sherpa version.
 LOCAL="$PWD/packages/sherpa-onnx.rn/wasm"
 DEST="$PWD/apps/sherpa-voice/public/wasm"
-mkdir -p "$DEST"
+# deps.sh runs this for every slot; native slots must not need the web build.
 for name in sherpa-onnx-wasm-combined.js sherpa-onnx-wasm-combined.wasm; do
   if [ ! -s "$LOCAL/$name" ]; then
-    echo "Missing $LOCAL/$name; run packages/sherpa-onnx.rn/build-sherpa-wasm.sh --combined" >&2
-    exit 1
+    echo "Warning: skipping web WASM prep, missing $LOCAL/$name; run packages/sherpa-onnx.rn/build-sherpa-wasm.sh --combined for web" >&2
+    exit 0
   fi
+done
+mkdir -p "$DEST"
+for name in sherpa-onnx-wasm-combined.js sherpa-onnx-wasm-combined.wasm; do
   cp "$LOCAL/$name" "$DEST/$name"
 done
 cp packages/sherpa-onnx.rn/wasm-src/*.js "$DEST/"
