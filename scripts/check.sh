@@ -47,11 +47,6 @@ run_check "Moonshine JavaScript tests" yarn workspace @siteed/moonshine.rn test 
 run_check "Sherpa TypeScript" yarn workspace @siteed/sherpa-onnx.rn typecheck
 run_check "Sherpa JavaScript tests" yarn workspace @siteed/sherpa-onnx.rn test --runInBand
 
-# Builds patch the upstream checkout; a patch that only applies to a dirty local
-# checkout breaks the next clean web WASM build. Clones the pinned tag when no
-# local checkout exists.
-run_check "Sherpa upstream patches" yarn workspace @siteed/sherpa-onnx.rn check:patches
-
 # What each package publishes is otherwise invisible until someone runs `npm pack`.
 # In #455 a public CocoaPods header shipped in 1.3.1, and only a reviewer running
 # npm pack caught it (#459).

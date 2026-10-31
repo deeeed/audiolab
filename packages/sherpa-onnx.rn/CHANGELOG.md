@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** vendored sherpa-onnx goes from v1.13.0 to v2.0.1, with ONNX Runtime 1.28.2 on iOS, Android, and web. The next release of this package must be a major version. Prebuilt binaries come from the `sherpa-onnx-prebuilt-v2.0.1` release asset; the iOS archives drop `libespeak-ng.a`, `libpiper_phonemize.a`, and `libucd.a` and add `libutf8proc.a`.
 - **Breaking (TTS):** upstream removed espeak-ng and piper-phonemize. `dataDir` is ignored. VITS/Piper, Kokoro, and Matcha models need `lexiconFile` (for English, upstream `tts-models/lexicon-en-us.txt`) or `phonemeCodepoints`; without either, generation returns no audio and now fails with an error that says so. Words missing from the lexicon are skipped. Non-English Piper voices need external phonemization passed as `phonemeCodepoints`.
 - The ONNX Runtime override patches and the wasm `std::filesystem` shim are gone: upstream v2.0.1 covers both. The wasm build uses emsdk 4.0.23.
-- iOS apps that also link `@siteed/moonshine.rn` need its isolated xcframework (moonshine.rn Unreleased). The 0.4.1 asset exports ONNX Runtime 1.23 symbols that shadow this package's 1.28.2, and every model load crashes. Run `yarn ios:ort:check`.
+- iOS apps that also link `@siteed/moonshine.rn` need its isolated xcframework, first in moonshine.rn 0.4.2-beta.0. The 0.4.1 asset exports ONNX Runtime 1.23 symbols that shadow this package's 1.28.2, and every model load crashes. Run `yarn ios:ort:check`.
 
 ### Added
 

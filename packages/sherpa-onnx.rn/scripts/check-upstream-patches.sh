@@ -11,7 +11,7 @@ ROOT_DIR="$(cd "$PACKAGE_DIR/../.." && pwd)"
 LOCAL_UPSTREAM="$PACKAGE_DIR/third_party/sherpa-onnx"
 SHERPA_VERSION="$(sed -n 's/^SHERPA_VERSION="\(.*\)"$/\1/p' "$PACKAGE_DIR/setup.sh")"
 # The index, so a staged gitlink bump is checked before it is committed.
-PINNED="$(git -C "$ROOT_DIR" ls-files -s packages/sherpa-onnx.rn/third_party/sherpa-onnx | awk '{ print $2 }')"
+PINNED="$(git -C "$ROOT_DIR" ls-files -s packages/sherpa-onnx.rn/third_party/sherpa-onnx 2>/dev/null | awk '{ print $2 }' || true)"
 
 if [ -z "$SHERPA_VERSION" ] || [ -z "$PINNED" ]; then
   echo "Error: cannot read the pinned sherpa-onnx version from setup.sh and the gitlink." >&2
@@ -23,7 +23,7 @@ trap 'rm -rf "$(dirname "$CLEAN")"' EXIT
 
 # A local checkout holding the pinned commit saves the network clone; its working tree
 # is never used, only its objects.
-if [ -d "$LOCAL_UPSTREAM/.git" ] && git -C "$LOCAL_UPSTREAM" cat-file -e "$PINNED^{commit}" 2>/dev/null; then
+if [ -e "$LOCAL_UPSTREAM/.git" ] && git -C "$LOCAL_UPSTREAM" cat-file -e "$PINNED^{commit}" 2>/dev/null; then
   git clone --quiet --no-checkout "$LOCAL_UPSTREAM" "$CLEAN"
 else
   git clone --quiet --no-checkout --depth 1 --branch "$SHERPA_VERSION" https://github.com/k2-fsa/sherpa-onnx "$CLEAN"
