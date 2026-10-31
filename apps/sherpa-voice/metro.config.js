@@ -16,7 +16,8 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
 ];
-// 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
+// 3. Resolve app and workspace imports only from the `nodeModulesPaths`
+// (requests from installed packages are the exception in step 4)
 config.resolver.disableHierarchicalLookup = true;
 
 const appNodeModules = path.resolve(projectRoot, 'node_modules') + path.sep;
