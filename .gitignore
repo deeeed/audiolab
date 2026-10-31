@@ -109,3 +109,4 @@ CLAUDE.local.md
 
 # Farmslot task artifacts
 .task/
+.task.md
