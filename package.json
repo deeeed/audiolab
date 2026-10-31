@@ -23,7 +23,7 @@
         "check": "bash scripts/check.sh",
         "recipe": "node scripts/agentic/recipe/run.mjs",
         "recipe:validate": "node scripts/agentic/recipe/validate-all.mjs",
-        "test:recipes": "node --test scripts/agentic/recipe/*.test.mjs scripts/agentic/cdp-bridge.origin.test.mjs"
+        "test:recipes": "node --test scripts/agentic/recipe/*.test.mjs scripts/agentic/cdp-bridge.origin.test.mjs scripts/agentic/web-browser.close.test.mjs"
     },
     "nohoist": [
         "**/react-native",
