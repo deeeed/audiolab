@@ -1115,6 +1115,11 @@ function resolveAndroidDeviceRecord(deviceName) {
   } catch {
     return null;
   }
+  return selectAndroidDevice(output, deviceName, process.env.ADB_SERIAL);
+}
+
+/** Pick the device for deviceName from `adb devices -l` output. */
+function selectAndroidDevice(output, deviceName, assigned) {
   const lines = output.split('\n').filter((l) => l.includes('device '));
   if (lines.length === 0) return null;
   if (lines.length === 1) {
@@ -1155,7 +1160,6 @@ function resolveAndroidDeviceRecord(deviceName) {
       return named(model) || named(model.replaceAll(/_/g, ' '));
     });
     const candidates = fullName.length > 0 ? fullName : matching;
-    const assigned = process.env.ADB_SERIAL;
     const line = candidates.find((l) => l.split(/\s+/)[0] === assigned) ?? candidates[0];
     const serial = line.split(/\s+/)[0];
     return {
@@ -1543,6 +1547,7 @@ export {
   getInspectorOrigin,
   setLastGoodInspectorOrigin,
   findLocalMetroHost,
+  selectAndroidDevice,
 };
 
 if (!process.env.CDP_BRIDGE_IMPORT_ONLY) {
