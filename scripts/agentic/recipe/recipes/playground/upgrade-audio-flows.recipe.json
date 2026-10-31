@@ -362,9 +362,9 @@
         "next": "play"
       },
       "play": {
-        "action": "audiolab.query",
-        "ref": "audio-player-play",
-        "intent": "Start playback through the screen's player.",
+        "action": "ui.press",
+        "test_id": "audio-player-play",
+        "intent": "Start playback with the player's play button.",
         "next": "wait-playing"
       },
       "wait-playing": {
@@ -418,9 +418,9 @@
         "next": "pause"
       },
       "pause": {
-        "action": "audiolab.query",
-        "ref": "audio-player-pause",
-        "intent": "Pause playback.",
+        "action": "ui.press",
+        "test_id": "audio-player-pause",
+        "intent": "Pause playback with the player's pause button.",
         "next": "wait-paused"
       },
       "wait-paused": {
