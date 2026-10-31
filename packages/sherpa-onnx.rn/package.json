@@ -68,6 +68,7 @@
     "build:android:force": "./build-sherpa-android.sh --force",
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
+    "check:patches": "./scripts/check-upstream-patches.sh",
     "postinstall": "node ./install.js",
     "codegen": "yarn dlx @react-native-community/cli codegen",
     "regenerate-codegen": "yarn react-native codegen && mkdir -p ios/generated/SherpaOnnxSpec && cp -R build/generated/ios/SherpaOnnxSpec/* ios/generated/SherpaOnnxSpec/",
