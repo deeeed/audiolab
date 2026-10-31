@@ -1127,25 +1127,41 @@ function resolveAndroidDeviceRecord(deviceName) {
   }
   // Multiple devices — try to match by model name
   const filter = deviceName.toLowerCase();
-  for (const line of lines) {
+  const matching = lines.filter((line) => {
     const modelMatch = line.match(/model:(\S+)/);
-    if (modelMatch) {
-      const rawModel = modelMatch[1].toLowerCase();
-      const normalizedModel = rawModel.replaceAll(/_/g, ' ');
-      const firstToken = filter.split(' ')[0].toLowerCase();
-      if (
-        filter.includes(rawModel) ||
-        rawModel.includes(firstToken) ||
-        filter.includes(normalizedModel) ||
-        normalizedModel.includes(firstToken)
-      ) {
-        const serial = line.split(/\s+/)[0];
-        return {
-          serial,
-          targetType: serial.startsWith('emulator-') ? 'emulator' : 'physical',
-        };
-      }
-    }
+    if (!modelMatch) return false;
+    const rawModel = modelMatch[1].toLowerCase();
+    const normalizedModel = rawModel.replaceAll(/_/g, ' ');
+    const firstToken = filter.split(' ')[0].toLowerCase();
+    return (
+      filter.includes(rawModel) ||
+      rawModel.includes(firstToken) ||
+      filter.includes(normalizedModel) ||
+      normalizedModel.includes(firstToken)
+    );
+  });
+  if (matching.length > 0) {
+    // Prefer devices whose full model name was requested, since the first-word
+    // match also accepts siblings ("Pixel 6a" matches every Pixel). Identical
+    // emulators share a model name; the assigned ADB_SERIAL picks among the
+    // best matches but never overrides a different requested device
+    // The model must end where a word ends, so "Pixel 6" does not claim "Pixel 6a"
+    const named = (model) => {
+      const i = filter.indexOf(model);
+      return i >= 0 && /^($|[\s-])/.test(filter.slice(i + model.length));
+    };
+    const fullName = matching.filter((line) => {
+      const model = line.match(/model:(\S+)/)[1].toLowerCase();
+      return named(model) || named(model.replaceAll(/_/g, ' '));
+    });
+    const candidates = fullName.length > 0 ? fullName : matching;
+    const assigned = process.env.ADB_SERIAL;
+    const line = candidates.find((l) => l.split(/\s+/)[0] === assigned) ?? candidates[0];
+    const serial = line.split(/\s+/)[0];
+    return {
+      serial,
+      targetType: serial.startsWith('emulator-') ? 'emulator' : 'physical',
+    };
   }
   // No match — error loudly instead of silently using wrong device
   const available = lines
