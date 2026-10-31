@@ -300,15 +300,16 @@ export default function RecordScreen() {
             logger.debug(`Received transcription update for job ${data.id}: "${data.text.substring(0, 50)}..."`)
             
             // Important: Make sure we're actually receiving updates
-            setTranscripts((prev) => {
-                const existingIndex = prev.findIndex((t) => t.id === data.id)
-                if (existingIndex >= 0) {
-                    const updated = [...prev]
-                    updated[existingIndex] = data
-                    return updated
-                }
-                return [...prev, data]
-            })
+            const prev = transcriptsRef.current
+            const existingIndex = prev.findIndex((t) => t.id === data.id)
+            const next = [...prev]
+            if (existingIndex >= 0) {
+                next[existingIndex] = data
+            } else {
+                next.push(data)
+            }
+            transcriptsRef.current = next
+            setTranscripts(next)
             
             // Always update the active transcript when a new one arrives
             setActiveTranscript(data)
@@ -316,6 +317,8 @@ export default function RecordScreen() {
     })
 
     const [transcripts, setTranscripts] = useState<TranscriberData[]>([])
+    // The final realtime update lands while stopping, after the stop handler's render
+    const transcriptsRef = useRef<TranscriberData[]>([])
     const [activeTranscript, setActiveTranscript] = useState<TranscriberData | null>(null)
 
     const { show } = useToast()
@@ -1016,6 +1019,7 @@ export default function RecordScreen() {
                 webAudioChunks.current = new Float32Array(0)
                 currentSize.current = 0
                 setLiveWebAudio(null)
+                transcriptsRef.current = []
                 setTranscripts([])
                 setActiveTranscript(null)
                 setResult(null)
@@ -1363,7 +1367,7 @@ export default function RecordScreen() {
 
             // Add transcripts to the result
             if (enableLiveTranscriptionRef.current) {
-                result.transcripts = transcripts
+                result.transcripts = transcriptsRef.current
             }
 
             setResult(result)
@@ -1424,12 +1428,12 @@ export default function RecordScreen() {
             setProcessing(false)
             setCustomFileName('')
             // Reset transcripts
+            transcriptsRef.current = []
             setTranscripts([])
             setActiveTranscript(null)
         }
     }, [
         router,
-        transcripts,
         refreshFiles,
         stopRecording,
         isRealtimeTranscribing,

@@ -26,7 +26,7 @@
         "debug": "bash scripts/agentic/device-cmd.sh debug",
         "dev-menu": "bash scripts/agentic/device-cmd.sh dev-menu",
         "typecheck": "bash scripts/typecheck.sh",
-        "test:config": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' node -r ts-node/register --test config/validate-env.test.ts src/utils/moonshineDiarizationRuntime.test.ts src/utils/moonshineIntentModelFiles.test.ts",
+        "test:config": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' node -r ts-node/register --test config/validate-env.test.ts src/utils/moonshineDiarizationRuntime.test.ts src/utils/moonshineIntentModelFiles.test.ts src/utils/recordingAudioStream.test.ts",
         "lint": "eslint src",
         "lint:fix": "eslint src --fix",
         "lint:fix-nullish": "bash scripts/fix-nullish-coalescing.sh",

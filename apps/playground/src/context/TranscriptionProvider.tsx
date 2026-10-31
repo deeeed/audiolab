@@ -550,7 +550,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 // whisper.rn 0.7 transcribes audio it is given instead of opening the
                 // microphone, so it listens to the recording's own stream.
                 const audioStream = new RecordingAudioStream(
-                    (): boolean => transcriber.getStatistics().isTranscribing,
+                    (): RealtimeTranscriber => transcriber,
                     audioSliceSec
                 )
                 const transcriber = new RealtimeTranscriber(
@@ -564,6 +564,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                     {
                         onTranscribe: (event) => {
                             const { type, sliceIndex, isCapturing, data, processTime, recordingTime } = event
+                            // Slices finished while stopping are still busy: finish() sends the one final update
 
                             logger.debug(`Realtime event: type=${type}, slice=${sliceIndex}, capturing=${isCapturing}, hasData=${!!data}, processTime=${processTime}ms`)
 
@@ -604,7 +605,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                                 id: jobId,
                                 text: results.join(' '),
                                 chunks: chunks,
-                                isBusy: isCapturing,
+                                isBusy: true,
                                 startTime: Date.now() - offsetSec * 1000,
                                 endTime: Date.now(),
                             }
@@ -615,7 +616,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                                 type: 'UPDATE_STATE',
                                 payload: {
                                     transcript: transcriptionData,
-                                    isBusy: isCapturing,
+                                    isBusy: true,
                                 },
                             })
                             
@@ -656,7 +657,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                         finished = (async () => {
                             clearInterval(healthCheckInterval)
                             clearTimeout(maxDurationTimer)
-                            await transcriber.release()
+                            await audioStream.finish()
                             dispatch({
                                 type: 'UPDATE_STATE',
                                 payload: { isBusy: false },
