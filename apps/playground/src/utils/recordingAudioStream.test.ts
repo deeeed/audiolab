@@ -35,7 +35,7 @@ async function listen(sliceSec: number) {
 }
 
 // Stands in for a whisper context: reports how many samples each transcription
-// covered, and fails like the native context when two transcriptions overlap.
+// covered, and counts transcriptions that start while another is still running.
 function fakeWhisperContext(inferenceMs: number) {
     let running = false
     const context = {
