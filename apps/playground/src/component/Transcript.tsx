@@ -23,6 +23,7 @@ interface TranscriptProps {
     isBusy?: boolean
     onSelectChunk?: (_: { chunk: Chunk }) => void
     useScrollView?: boolean
+    testID?: string
 }
 
 export default function Transcript({
@@ -33,6 +34,7 @@ export default function Transcript({
     currentTimeMs,
     showActions = true,
     useScrollView = false,
+    testID,
 }: TranscriptProps) {
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
@@ -57,7 +59,7 @@ export default function Transcript({
     const ContentWrapper = useScrollView ? ScrollView : View
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} testID={testID}>
             <ContentWrapper
                 ref={useScrollView ? scrollViewRef : undefined}
                 style={styles.contentWrapper}
