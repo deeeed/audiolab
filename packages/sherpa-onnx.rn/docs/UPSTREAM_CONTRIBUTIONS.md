@@ -42,6 +42,8 @@ Upstream proposal: accept generic `ORT_VERSION` / `ORT_LIB_DIR` env vars across 
 ### 4. Wasm ORT `std::filesystem` link incompatibility (NEW — root cause for the wasm pin downgrade)
 **Status**: Resolved upstream by v2.0.1; wrapper patch dropped. **Priority**: High.
 
+The rest of this item is history. v2.0.1 links wasm ORT 1.28.2 against emsdk 4.0.23's libc++ with no override patch or shim.
+
 #### Symptom
 Building `wasm/asr` (or any module that links `libonnxruntime.a`) against ORT `1.20.x`+ wasm prebuilts fails with:
 
@@ -60,8 +62,8 @@ emscripten 3.1.x ships libcxx WITHOUT those symbol exports for wasm32 by default
 
 ORT 1.17.x and earlier did not use `std::filesystem` in those files — wasm builds linked cleanly.
 
-#### Workaround in this wrapper (RESOLVED for 1.20.0)
-The wrapper carries:
+#### Workaround this wrapper carried until v2.0.1
+The wrapper carried:
 1. `patches/OrtWasmOverrides.patch` — pins wasm ORT to `1.20.0` (newest filesystem-clean libcxx-compatible release that we ship a shim for).
 2. `wasm-shim/libcxx_fs_shim.cc` — 4 forwarding C++ functions whose mangled names are `std::__2::__fs::filesystem::*` (matching what ORT prebuilts emit) and which call into emsdk libc++'s `std::__2::filesystem::*` equivalents. Layout-safe because `inline namespace __fs` makes the types identical.
 3. `patches/CombinedWasmTarget.patch` — wires the shim into both the per-feature `wasm/asr` and the wrapper's combined wasm target.
@@ -73,7 +75,7 @@ Result: combined wasm bundle (~13 MB .wasm) compiled from sherpa-onnx v1.13.0 so
 - ORT `1.24.4` (upstream-stock) — fails at link with `std::__2::filesystem::*` undefined symbols.
 - ORT `1.20.0` + emsdk `3.1.53` — fails with `wasm-ld: error: Invalid attribute group entry (Producer: 'LLVM19.0.0git' Reader: 'LLVM 19.0.0git')`. ORT prebuilt bitcode built with newer LLVM than emsdk 3.1.53's bundled wasm-ld can read.
 - ORT `1.20.0` + emsdk `4.0.7` — LLVM mismatch resolved, but fails with `std::__2::__fs::filesystem::*` undefined symbols. ORT was built against a libc++ that uses the `__fs::filesystem` inline namespace; emsdk 4.0.7's libc++ uses `filesystem` directly. ABI mismatch; `-fexperimental-library` does not help.
-- ORT `1.17.1` + emsdk `3.1.53` or `4.0.7` — links cleanly. **Current pin.**
+- ORT `1.17.1` + emsdk `3.1.53` or `4.0.7` — links cleanly. The pin before the 1.20.0 shim.
 
 The fundamental blocker is that `csukuangfj/onnxruntime-libs` builds wasm prebuilts from upstream onnxruntime against a different libc++ than emscripten ships. Lifting the wrapper above ORT 1.17.1 on web requires one of:
 1. Patch upstream onnxruntime to skip `std::filesystem` use under `__EMSCRIPTEN__` (issue/PR on `microsoft/onnxruntime`).
@@ -83,11 +85,10 @@ The fundamental blocker is that `csukuangfj/onnxruntime-libs` builds wasm prebui
 #### Possible upstream fixes (any one would unblock)
 1. **Patch onnxruntime** to gate the new `std::filesystem` use behind a `defined(__EMSCRIPTEN__)` guard, falling back to the `<sys/stat.h>` / string manipulation it used pre-1.20. Submit upstream PR to <https://github.com/microsoft/onnxruntime>.
 2. **Have `csukuangfj/onnxruntime-libs` ship a wasm-compatible variant** of the modern ORT (likely requires building onnxruntime with emscripten's libcxx so the symbols match).
-3. **In sherpa-onnx**, switch `cmake/onnxruntime-wasm-simd.cmake` to a known-good wasm ORT release independent of the native pin. Upstream sherpa-onnx already maintains separate per-platform ORT pins, so this is the lightest fix — pin wasm at `1.17.1` (or whatever the last known-good is) until ORT itself is fixed. The wrapper effectively does this via patch already; we should propose it upstream as a default in sherpa-onnx.
+3. **In sherpa-onnx**, switch `cmake/onnxruntime-wasm-simd.cmake` to a known-good wasm ORT release independent of the native pin. Upstream sherpa-onnx already maintains separate per-platform ORT pins, so this is the lightest fix — pin wasm at `1.17.1` (or whatever the last known-good is) until ORT itself is fixed. The wrapper did this via patch until v2.0.1.
 
 #### Tracking
-- File issue on `k2-fsa/sherpa-onnx` describing the wasm link failure on `v1.13.0` (links to ORT 1.24.4) and proposing fix #3.
-- Cross-link the onnxruntime issue (option #1) so they know there is downstream pain.
+None needed since v2.0.1.
 
 ### 5. Each wasm module enforces a baked-in default model (NEW)
 **Status**: Not submitted. **Priority**: Medium.

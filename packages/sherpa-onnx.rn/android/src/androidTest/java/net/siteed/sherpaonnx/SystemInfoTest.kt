@@ -146,4 +146,25 @@ class SystemInfoTest {
         assertNotNull("Should have GPU info", result?.getMap("gpu"))
         assertNotNull("Should have thread info", result?.getMap("thread"))
     }
+
+    @Test
+    fun testOnnxIntegrationSucceedsWhenLibraryLoads() {
+        assertTrue("Sherpa ONNX JNI library should load", SherpaOnnxImpl.isLibraryLoaded)
+        val latch = CountDownLatch(1)
+        var result: ReadableMap? = null
+
+        sherpaOnnxImpl.testOnnxIntegration(createPromise(
+            onResolve = { value ->
+                result = value as? ReadableMap
+                latch.countDown()
+            },
+            onReject = { _, _, _ -> latch.countDown() }
+        ))
+
+        assertTrue("testOnnxIntegration should complete within 5 seconds", latch.await(5, TimeUnit.SECONDS))
+        assertTrue(
+            "testOnnxIntegration should succeed: ${result?.getString("status")}",
+            result?.getBoolean("success") == true
+        )
+    }
 }
