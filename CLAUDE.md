@@ -186,36 +186,6 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - **CDP bridge details**: `apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md`
 - **Testing strategy**: `packages/expo-audio-studio/docs/TESTING_STRATEGY.md`
 
-## Task Tracking
-
-Maintain a `.task.md` file in the project root. Update it:
-- **START** of any task → status: `working`, describe what you're doing
-- When **BLOCKED** → status: `blocked`, describe why
-- When **DONE** → status: `done`, summarize what was completed
-- When **IDLE** → status: `idle`
-
-Format:
-```
-## Current Task
-<one-liner describing the goal>
-
-## Status
-working|blocked|needs-validation|done|idle
-
-## Approach
-<1-2 sentences on HOW you're solving it — enough to judge direction>
-
-## Progress
-- bullet 1
-- bullet 2
-- bullet 3 (3-5 max)
-
-## Last Updated
-<timestamp>
-```
-
-This file is read by the orchestrator to track progress across sessions. Keep it high-level.
-
 ## HARD RULE: no library change merges without on-device validation
 
 **A change to library runtime code must be validated on every platform it affects before
@@ -283,8 +253,7 @@ Before merging a covered change:
      the fact. If you captured none of them, say so rather than presenting a partial log
      as full coverage
 4. State in the PR exactly what the evidence proves and what it does not
-5. `.task.md` status stays `needs-validation` until this is done, and nothing merges in
-   that state
+5. Don't mark the farm task complete until this is done, and nothing merges before it
 
 If validation seems impossible, that conclusion is probably wrong. #436 was first treated
 as an audio validation blocker, then reproduced and fixed at the runtime dependency.
