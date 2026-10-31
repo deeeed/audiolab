@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The podspec's slice-selection phase now runs on every build. Xcode used to skip it once `prebuilt/ios/current` existed, so an xcframework update or a simulator/device switch kept linking the previous library.
+
 ## [0.4.1] - 2026-08-25
 
 ### Changed
