@@ -13,7 +13,8 @@ import * as FileSystem from 'expo-file-system/legacy'
 import { fromByteArray } from 'react-native-quick-base64'
 import {
     initWhisper,
-} from 'whisper.rn'
+} from 'whisper.rn/index'
+import { RealtimeTranscriber } from 'whisper.rn/realtime-transcription/index'
 
 import type { TranscriberData } from '@siteed/audio-studio'
 
@@ -23,11 +24,13 @@ import {
     transcriptionReducer,
 } from './TranscriptionProvider.reducer'
 import { WHISPER_MODELS } from '../hooks/useWhisperModels'
+import { RecordingAudioStream } from '../utils/recordingAudioStream'
 
 import type {
     RealtimeTranscribeParams,
     RealtimeTranscribeResult,
     TranscribeParams,
+    TranscribeRealtimeOptions,
     TranscribeResult,
     TranscriptionContextProps,
     TranscriptionProviderProps,
@@ -36,9 +39,8 @@ import type {
 } from './TranscriptionProvider.types'
 import type {
     TranscribeFileOptions,
-    TranscribeRealtimeOptions,
     WhisperContext,
-} from 'whisper.rn'
+} from 'whisper.rn/index'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 
@@ -511,12 +513,17 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             
             try {
                 // Configure realtime options
-                const realtimeOptions: Partial<TranscribeRealtimeOptions> = {
+                const {
+                    realtimeAudioSec,
+                    realtimeAudioSliceSec,
+                    realtimeAudioMinSec,
+                    ...transcribeOptions
+                }: Partial<TranscribeRealtimeOptions> = {
                     language: state.language === 'auto' ? undefined : state.language,
                     ...options,
                 }
                 
-                logger.debug('Calling whisperContext.transcribeRealtime with options:', JSON.stringify(realtimeOptions))
+                logger.debug('Starting RealtimeTranscriber with options:', JSON.stringify(options))
                 
                 // Send initial update to indicate transcription has started
                 const initialData: TranscriberData = {
@@ -529,112 +536,141 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                 }
                 onTranscriptionUpdate(initialData)
                 
-                // Call the existing transcribeRealtime method
-                const { stop, subscribe } = await whisperContext.transcribeRealtime(realtimeOptions)
-                
-                logger.debug('Successfully started realtime transcription, setting up subscription')
-                
-                // Set up a failsafe for resetting if the realtime transcription hangs
+                let lastData = initialData
                 let lastUpdateTimestamp = Date.now()
+
+                // whisper.rn 0.7 reports each slice on its own, timed from the slice
+                // start; join them into one transcript as 0.6 did. Silent slices
+                // still count towards the offset of the slices after them.
+                // whisper.rn reads 0 as its 30 s default; so does the adapter
+                const audioSliceSec = realtimeAudioSliceSec || realtimeAudioSec || 30
+                const sliceDurations = new Map<number, number>()
+                const slices = new Map<number, { result: string; segments: { text: string; t0: number; t1: number }[] }>()
+
+                // whisper.rn 0.7 transcribes audio it is given instead of opening the
+                // microphone, so it listens to the recording's own stream.
+                const audioStream = new RecordingAudioStream(
+                    (): boolean => transcriber.getStatistics().isTranscribing,
+                    audioSliceSec
+                )
+                const transcriber = new RealtimeTranscriber(
+                    { whisperContext, audioStream },
+                    {
+                        audioSliceSec,
+                        initRealtimeAfterMs: (realtimeAudioMinSec ?? 1) * 1000,
+                        transcribeOptions,
+                        logger: (message) => logger.debug(message),
+                    },
+                    {
+                        onTranscribe: (event) => {
+                            const { type, sliceIndex, isCapturing, data, processTime, recordingTime } = event
+
+                            logger.debug(`Realtime event: type=${type}, slice=${sliceIndex}, capturing=${isCapturing}, hasData=${!!data}, processTime=${processTime}ms`)
+
+                            // Update timestamp on any data
+                            if (data) {
+                                lastUpdateTimestamp = Date.now()
+                                sliceDurations.set(sliceIndex, recordingTime)
+                            }
+                            if (!data?.result) return
+
+                            logger.debug(`Transcription result: "${data.result.substring(0, 100)}..." (${data.segments?.length || 0} segments)`)
+
+                            slices.set(sliceIndex, { result: data.result, segments: data.segments ?? [] })
+
+                            // Create chunks from segments, offset by the audio of earlier slices
+                            const results: string[] = []
+                            const chunks: TranscriberData['chunks'] = []
+                            let offsetSec = 0
+                            for (const [index, durationMs] of [...sliceDurations].sort(([a], [b]) => a - b)) {
+                                const slice = slices.get(index)
+                                if (slice) {
+                                    results.push(slice.result)
+                                    for (const segment of slice.segments) {
+                                        chunks.push({
+                                            text: segment.text.trim(),
+                                            timestamp: [
+                                                offsetSec + segment.t0 / 100,
+                                                segment.t1 ? offsetSec + segment.t1 / 100 : null,
+                                            ],
+                                        })
+                                    }
+                                }
+                                offsetSec += durationMs / 1000
+                            }
+
+                            // Create transcription data object
+                            const transcriptionData: TranscriberData = {
+                                id: jobId,
+                                text: results.join(' '),
+                                chunks: chunks,
+                                isBusy: isCapturing,
+                                startTime: Date.now() - offsetSec * 1000,
+                                endTime: Date.now(),
+                            }
+                            lastData = transcriptionData
+                            
+                            // Update state
+                            dispatch({
+                                type: 'UPDATE_STATE',
+                                payload: {
+                                    transcript: transcriptionData,
+                                    isBusy: isCapturing,
+                                },
+                            })
+                            
+                            // Call the callback with the transcription data
+                            onTranscriptionUpdate(transcriptionData)
+                        },
+                        onError: (error) => {
+                            logger.error('Realtime transcription error:', error)
+                        },
+                    }
+                )
+                await transcriber.start()
+                
+                logger.debug('Successfully started realtime transcription')
+
+                // Set up a failsafe for resetting if the realtime transcription hangs
                 const healthCheckInterval = setInterval(() => {
                     const now = Date.now()
                     // If no updates for more than 10 seconds, assume transcription has stalled
                     if (now - lastUpdateTimestamp > 10000) {
                         logger.warn('Realtime transcription appears to have stalled - no updates for 10s')
-                        // No need to clear the interval here since we're about to reset everything
-                        stop().catch((e) => logger.error('Error stopping stalled transcription:', e))
-                        
-                        // Provide error feedback
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { isBusy: false },
-                        })
-                        
-                        // throw new Error('Realtime transcription stalled - no updates received')
+                        finish().catch((e) => logger.error('Error stopping stalled transcription:', e))
                     }
                 }, 2000)
-                
-                // Set up subscription to transcription events
-                subscribe((event) => {
-                    const { isCapturing, data, processTime, recordingTime, error, code } = event
-                    
-                    logger.debug(`Realtime event: capturing=${isCapturing}, hasData=${!!data}, code=${code}, error=${error || 'none'}, processTime=${processTime}ms`)
-                    
-                    if (data?.result) {
-                        logger.debug(`Transcription result: "${data.result.substring(0, 100)}..." (${data.segments?.length || 0} segments)`)
-                        
-                        // Create chunks from segments
-                        const chunks = data.segments ? data.segments.map((segment) => ({
-                            text: segment.text.trim(),
-                            timestamp: [
-                                segment.t0 / 100,
-                                segment.t1 ? segment.t1 / 100 : null,
-                            ] as [number, number | null],
-                        })) : []
-                        
-                        // Create transcription data object
-                        const transcriptionData: TranscriberData = {
-                            id: jobId,
-                            text: data.result,
-                            chunks: chunks,
-                            isBusy: isCapturing,
-                            startTime: Date.now() - recordingTime,
-                            endTime: Date.now(),
-                        }
-                        
-                        // Update state
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: {
-                                transcript: transcriptionData,
-                                isBusy: isCapturing,
-                            },
-                        })
-                        
-                        // Call the callback with the transcription data
-                        onTranscriptionUpdate(transcriptionData)
-                    } else if (error) {
-                        // whisper.rn surfaces benign cases (no usable audio,
-                        // cancellation) as -999 / 1. Downgrade these to warn
-                        // so they don't spam LogBox in normal "user stopped
-                        // recording before speaking" flows.
-                        const benign = code === -999 || code === 1
-                        if (benign) {
-                            logger.warn(
-                                `Realtime transcription stopped (code=${code}): ${error}`
-                            )
-                        } else {
-                            logger.error('Realtime transcription error:', error)
-                        }
+
+                // whisper.rn 0.6 stopped capturing after realtimeAudioSec; keep that limit.
+                const maxDurationTimer = realtimeAudioSec
+                    ? setTimeout(() => {
+                        finish().catch((e) => logger.error('Error stopping realtime transcription at its limit:', e))
+                    }, realtimeAudioSec * 1000)
+                    : undefined
+
+                // Every way of stopping ends the same way: whisper.rn 0.6 sent a final
+                // non-capturing event, and callers rely on it to leave realtime mode.
+                let finished: Promise<void> | undefined
+                const finish = () => {
+                    if (!finished) {
+                        finished = (async () => {
+                            clearInterval(healthCheckInterval)
+                            clearTimeout(maxDurationTimer)
+                            await transcriber.release()
+                            dispatch({
+                                type: 'UPDATE_STATE',
+                                payload: { isBusy: false },
+                            })
+                            onTranscriptionUpdate({ ...lastData, isBusy: false, endTime: Date.now() })
+                        })()
                     }
-                    
-                    // If capturing has stopped, update state
-                    if (!isCapturing) {
-                        logger.debug('Realtime transcription finished')
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { isBusy: false },
-                        })
-                    }
-                    
-                    // Update timestamp on any data
-                    if (data) {
-                        lastUpdateTimestamp = Date.now()
-                    }
-                })
-                
-                // Return an enhanced stop function that cleans up the health check
+                    return finished
+                }
+
                 return {
                     stop: async () => {
                         logger.debug('Stopping realtime transcription')
-                        if (healthCheckInterval) {
-                            clearInterval(healthCheckInterval)
-                        }
-                        await stop()
-                        dispatch({
-                            type: 'UPDATE_STATE',
-                            payload: { isBusy: false },
-                        })
+                        await finish()
                     },
                 }
             } catch (error) {

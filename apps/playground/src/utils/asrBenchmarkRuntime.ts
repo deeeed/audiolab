@@ -13,7 +13,7 @@ import {
 } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Platform } from 'react-native'
-import { initWhisper, type WhisperContext } from 'whisper.rn'
+import { initWhisper, type WhisperContext } from 'whisper.rn/index'
 
 import { baseLogger } from '../config'
 import {

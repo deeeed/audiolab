@@ -6,10 +6,21 @@ import type { ReactNode } from 'react'
 
 import type { Chunk, TranscriberData } from '@siteed/audio-studio'
 
-import type { 
-  TranscribeFileOptions, 
+import type {
+  TranscribeFileOptions,
   TranscribeNewSegmentsResult,
-  TranscribeRealtimeOptions } from 'whisper.rn'
+  TranscribeOptions } from 'whisper.rn/index'
+
+// whisper.rn 0.7 replaced transcribeRealtime with RealtimeTranscriber; the native
+// provider maps these playground settings onto it.
+export type TranscribeRealtimeOptions = TranscribeOptions & {
+  /** Stop transcribing after this many seconds. */
+  realtimeAudioSec?: number
+  /** Length of each transcribed audio slice in seconds. */
+  realtimeAudioSliceSec?: number
+  /** Minimum audio in a slice before it is transcribed, in seconds. */
+  realtimeAudioMinSec?: number
+}
 
 export interface ProgressItem {
     file: string

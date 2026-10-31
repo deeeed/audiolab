@@ -49,6 +49,7 @@ import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
 import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
+import { recordingAudioStream } from '../../utils/recordingAudioStream'
 import { isWeb } from '../../utils/utils'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
 import { useMoonshineSherpaLiveDiarization } from '../../hooks/useMoonshineSherpaLiveDiarization'
@@ -493,6 +494,9 @@ export default function RecordScreen() {
                                 .catch(() => undefined)
                         }
                     }
+
+                    // Realtime transcription listens to this stream while it runs
+                    recordingAudioStream.push(data)
 
                     // Process if needed
                     if (isProgressiveBatchRunningRef.current &&

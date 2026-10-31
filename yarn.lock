@@ -13303,7 +13303,7 @@ __metadata:
     ts-node: "npm:^10.9.2"
     typescript: "npm:~6.0.3"
     webpack: "npm:^5.99.9"
-    whisper.rn: "npm:0.6.0-rc.0"
+    whisper.rn: "npm:0.7.4"
   languageName: unknown
   linkType: soft
 
@@ -37026,11 +37026,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^4.6.4 || ^5.2.2#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=b45daf"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/5d416ad4f2ea564f515a3f919e901edbfa4b497cc17dd325c5726046c3eef7ed22d1f59c787267d478311f6f0a265ff790f8a6c7e9df3ea3471458f5ec81e8b7
+  checksum: 10/696e1b017bc2635f4e0c94eb4435357701008e2f272f553d06e35b494b8ddc60aa221145e286c28ace0c89ee32827a28c2040e3a69bdc108b1a5dc8fb40b72e3
   languageName: node
   linkType: hard
 
@@ -37046,11 +37046,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A~6.0.3#optional!builtin<compat/typescript>":
   version: 6.0.3
-  resolution: "typescript@patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=b45daf"
+  resolution: "typescript@patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/a7487148ae5bae463e49e22f885e77e53a45bab250f02140dad35d4850d0afa422af5a5e69fd5102dc771421eaf8dc5507b35a55cb3e0422cde72ad47765206b
+  checksum: 10/22b67a18dafedf9b1468b64ca20d9aa02ea61d449b65413d8aa6552aeb63f52ef369e86beb25b6b4c91a803d9726ee5c196f391a9b64201263263410a4223ee6
   languageName: node
   linkType: hard
 
@@ -38507,15 +38507,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"whisper.rn@npm:0.6.0-rc.0":
-  version: 0.6.0-rc.0
-  resolution: "whisper.rn@npm:0.6.0-rc.0"
+"whisper.rn@npm:0.7.4":
+  version: 0.7.4
+  resolution: "whisper.rn@npm:0.7.4"
   dependencies:
     safe-buffer: "npm:^5.2.1"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 10/06d47dfe3a8ea64721b5adbddd79dab6914ec238b2d01deb4b1e69aae57386bfdf265cf5db618a27ac7a8b0ebc3e110dbfade6f1945d75e10d3b83dcc2c8e55c
+  checksum: 10/ea191ea49c3642c766ae4540823b9928d59b62d6cd9f2790f6063cd0b7c95783fab043dc816e50bf84d20b188e337d97f66cd9c4b1c473d87b921e7f4cd60f5e
   languageName: node
   linkType: hard
 
