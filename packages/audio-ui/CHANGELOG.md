@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2-beta.1] - 2026-11-01
+
+### Changed
+
+- Update Expo SDK 57/58 compatibility, including React Native and Skia development dependencies.
+
+### Fixed
+
+- Use Skia PathBuilder for waveform and visualizer paths with current Skia releases.
+- Match React Native icon color types in the player widgets.
+
 ## [1.1.1] - 2026-05-18
 
 ### Fixed
