@@ -41,17 +41,17 @@ export default function TabLayout() {
                     headerStyle: { backgroundColor: colors.background },
                     headerTintColor: colors.text,
                 }}
-                initialRouteName="record"
             >
                 <Tabs.Screen
                     name="record"
                     options={{
                         title: 'Record',
+                        // RN 0.88's ColorValue also admits null and numbers, which the icon color prop omits.
                         tabBarIcon: ({ color }) => (
                             <MaterialCommunityIcons
                                 name="record-circle"
                                 size={26}
-                                color={isRecording ? recordingColor : color}
+                                color={isRecording ? recordingColor : (color as string)}
                             />
                         ),
                     }}
@@ -61,7 +61,7 @@ export default function TabLayout() {
                     options={{
                         title: 'Import',
                         tabBarIcon: ({ color }) => (
-                            <MaterialCommunityIcons name="file-upload" size={28} color={color} />
+                            <MaterialCommunityIcons name="file-upload" size={28} color={color as string} />
                         ),
                     }}
                 />
@@ -70,7 +70,7 @@ export default function TabLayout() {
                     options={{
                         title: 'Transcription',
                         tabBarIcon: ({ color }) => (
-                            <MaterialCommunityIcons name="microphone-message" size={28} color={color} />
+                            <MaterialCommunityIcons name="microphone-message" size={28} color={color as string} />
                         ),
                     }}
                 />
@@ -79,7 +79,7 @@ export default function TabLayout() {
                     options={{
                         title: 'Files',
                         tabBarIcon: ({ color }) => (
-                            <MaterialCommunityIcons name="folder-multiple" size={28} color={color} />
+                            <MaterialCommunityIcons name="folder-multiple" size={28} color={color as string} />
                         ),
                     }}
                 />
@@ -88,7 +88,7 @@ export default function TabLayout() {
                     options={{
                         title: 'More',
                         tabBarIcon: ({ color }) => (
-                            <MaterialCommunityIcons name="dots-horizontal" size={28} color={color} />
+                            <MaterialCommunityIcons name="dots-horizontal" size={28} color={color as string} />
                         ),
                     }}
                 />

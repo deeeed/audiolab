@@ -242,6 +242,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             'expo-audio',
             '@react-native-community/datetimepicker',
             'expo-sharing',
+            'expo-asset',
+            'expo-status-bar',
         ],
         extra: {
             eas: {

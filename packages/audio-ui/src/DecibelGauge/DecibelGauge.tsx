@@ -2,11 +2,12 @@ import {
     Group,
     Path,
     SkFont,
-    Skia,
     Text as SkiaText,
 } from '@shopify/react-native-skia'
 import React, { useEffect, useMemo } from 'react'
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated'
+
+import { buildPath } from '../utils/buildPath'
 
 /**
  * Decibel measurement formats:
@@ -193,42 +194,42 @@ export function DecibelGauge({
 
     // Needle line path (stops before the arrowhead)
     const needleLinePath = useMemo(() => {
-        const path = Skia.Path.Make()
-        path.moveTo(centerX, centerY)
-        path.lineTo(centerX + radius - arrowLength, centerY)
-        return path
+        return buildPath((path) => {
+            path.moveTo(centerX, centerY)
+            path.lineTo(centerX + radius - arrowLength, centerY)
+        })
     }, [centerX, centerY, radius, arrowLength])
 
     // Arrowhead path (filled triangle)
     const arrowheadPath = useMemo(() => {
-        const path = Skia.Path.Make()
-        path.moveTo(centerX + radius - arrowLength, centerY - arrowWidth)
-        path.lineTo(centerX + radius, centerY)
-        path.lineTo(centerX + radius - arrowLength, centerY + arrowWidth)
-        path.close()
-        return path
+        return buildPath((path) => {
+            path.moveTo(centerX + radius - arrowLength, centerY - arrowWidth)
+            path.lineTo(centerX + radius, centerY)
+            path.lineTo(centerX + radius - arrowLength, centerY + arrowWidth)
+            path.close()
+        })
     }, [centerX, centerY, radius, arrowLength, arrowWidth])
 
     // Thicker center dot
     const needleBaseDot = useMemo(() => {
-        const path = Skia.Path.Make()
-        path.addCircle(centerX, centerY, 8) // Increased from 5 to 8
-        return path
+        return buildPath((path) => {
+            path.addCircle(centerX, centerY, 8) // Increased from 5 to 8
+        })
     }, [centerX, centerY])
 
     const gaugePath = useMemo(() => {
-        const path = Skia.Path.Make()
-        path.addArc(
-            {
-                x: centerX - radius,
-                y: centerY - radius,
-                width: radius * 2,
-                height: radius * 2,
-            },
-            GAUGE_START_ANGLE,
-            GAUGE_SWEEP_ANGLE
-        )
-        return path
+        return buildPath((path) => {
+            path.addArc(
+                {
+                    x: centerX - radius,
+                    y: centerY - radius,
+                    width: radius * 2,
+                    height: radius * 2,
+                },
+                GAUGE_START_ANGLE,
+                GAUGE_SWEEP_ANGLE
+            )
+        })
     }, [centerX, centerY, radius])
 
     const TICK_COUNT = 5
@@ -246,10 +247,10 @@ export function DecibelGauge({
             centerY + tickStartRadius * Math.sin((angle * Math.PI) / 180)
         const endX = centerX + tickEndRadius * Math.cos((angle * Math.PI) / 180)
         const endY = centerY + tickEndRadius * Math.sin((angle * Math.PI) / 180)
-        const tickPath = Skia.Path.Make()
-        tickPath.moveTo(startX, startY)
-        tickPath.lineTo(endX, endY)
-        return tickPath
+        return buildPath((tickPath) => {
+            tickPath.moveTo(startX, startY)
+            tickPath.lineTo(endX, endY)
+        })
     })
 
     // Calculate the display value based on format conversion if needed

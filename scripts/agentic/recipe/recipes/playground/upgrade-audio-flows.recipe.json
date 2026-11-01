@@ -1,0 +1,475 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground record and playback through the UI",
+  "description": "Records a short take from the Record tab's start and stop buttons, asserts the recorder reports a growing duration and size and then opens the saved take's page, and plays the bundled sample on the audio-player screen until playback position advances. Used as the before/after proof for SDK upgrades. Needs microphone permission granted. The take is saved to the app's files like any UI recording; teardown restores the starting route. Pass live_mic=false on a target whose host denies microphone access (opening the input there aborts the app); the record claim then reports missing.",
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "live_mic": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "proofTargets": [
+    {
+      "id": "record",
+      "claim": "A recording started and stopped from the Record tab buttons captures audio and opens the saved take.",
+      "proofMode": "state"
+    },
+    {
+      "id": "playback",
+      "claim": "The audio-player screen loads the sample and plays it with an advancing position.",
+      "proofMode": "state"
+    },
+    {
+      "id": "restored",
+      "claim": "The run ends on the route it started from."
+    }
+  ],
+  "workflow": {
+    "entry": "prepare-ready",
+    "nodes": {
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "read-live-mic"
+      },
+      "read-live-mic": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({liveMic:'{{params.live_mic}}'==='true'})",
+        "assert": {
+          "operator": "not_null",
+          "field": "liveMic"
+        },
+        "intent": "Read whether this run may open the microphone.",
+        "next": "choose-live-mic"
+      },
+      "choose-live-mic": {
+        "action": "audiolab.choose",
+        "intent": "Skip recording when the host gives the target no microphone.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.liveMic",
+            "value": false
+          }
+        ],
+        "cases": {
+          "case-0": "nav-player"
+        },
+        "default": "nav-record"
+      },
+      "nav-record": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/record",
+        "intent": "Open the Record tab.",
+        "next": "wait-record-screen"
+      },
+      "wait-record-screen": {
+        "action": "audiolab.query",
+        "ref": "playground.record_screen_visible",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The Record tab is rendered.",
+        "next": "read-record-page"
+      },
+      "read-record-page": {
+        "action": "audiolab.query",
+        "ref": "record-page-state",
+        "assert": {
+          "operator": "eq",
+          "field": "route",
+          "value": "/record"
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Read whether an earlier take is still shown.",
+        "next": "choose-reset"
+      },
+      "choose-reset": {
+        "action": "audiolab.choose",
+        "intent": "Clear an earlier take so the start button is shown.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.hasRecordingResult",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "press-record-again"
+        },
+        "default": "assert-idle"
+      },
+      "press-record-again": {
+        "action": "ui.press",
+        "test_id": "record-again-button",
+        "intent": "Dismiss the earlier take.",
+        "next": "assert-idle"
+      },
+      "assert-idle": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": false
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "The recorder starts idle.",
+        "next": "wait-start-button"
+      },
+      "wait-start-button": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('start-recording-button')})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The start button is visible.",
+        "next": "press-start"
+      },
+      "press-start": {
+        "action": "ui.press",
+        "test_id": "start-recording-button",
+        "intent": "Start recording from the Record tab.",
+        "next": "wait-recording"
+      },
+      "wait-recording": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "The recorder reports it is recording.",
+        "next": "record-window"
+      },
+      "record-window": {
+        "action": "wait",
+        "duration_ms": 4000,
+        "intent": "Record for four seconds.",
+        "next": "assert-recording-progress"
+      },
+      "assert-recording-progress": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": true
+            },
+            {
+              "operator": "gte",
+              "field": "durationMs",
+              "value": 3000
+            },
+            {
+              "operator": "gt",
+              "field": "size",
+              "value": 0
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Recording duration and captured bytes grow while recording.",
+        "next": "prove-recording"
+      },
+      "prove-recording": {
+        "action": "assert_output",
+        "source": "assert-recording-progress",
+        "assert": {
+          "path": "$.durationMs",
+          "operator": "gte",
+          "value": 3000
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The recorder reported at least three seconds while recording.",
+        "next": "prove-recording-bytes"
+      },
+      "prove-recording-bytes": {
+        "action": "assert_output",
+        "source": "assert-recording-progress",
+        "assert": {
+          "path": "$.size",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The recorder reported captured bytes.",
+        "next": "shot-recording"
+      },
+      "shot-recording": {
+        "action": "ui.screenshot",
+        "path": "screenshots/playground-recording.png",
+        "covers": [
+          "record"
+        ],
+        "label": "Record tab while recording",
+        "intent": "Show the active recording view.",
+        "next": "press-stop"
+      },
+      "press-stop": {
+        "action": "ui.press",
+        "test_id": "stop-recording-button",
+        "intent": "Stop recording from the Record tab.",
+        "next": "wait-stopped"
+      },
+      "wait-stopped": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": false
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "The recorder reports it stopped.",
+        "next": "wait-saved"
+      },
+      "wait-saved": {
+        "action": "audiolab.query",
+        "ref": "route",
+        "assert": {
+          "all": [
+            {
+              "operator": "matches",
+              "field": "pathname",
+              "value": "\\.wav$"
+            },
+            {
+              "operator": "contains",
+              "field": "segments",
+              "value": "(recordings)"
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "Stopping saves the take and opens its page.",
+        "next": "prove-result"
+      },
+      "prove-result": {
+        "action": "assert_output",
+        "source": "wait-saved",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "matches",
+          "value": "\\.wav$"
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The app opened the saved take's page.",
+        "next": "shot-result"
+      },
+      "shot-result": {
+        "action": "ui.screenshot",
+        "path": "screenshots/playground-recording-result.png",
+        "covers": [
+          "record"
+        ],
+        "label": "Saved take page",
+        "intent": "Show the saved take's page.",
+        "next": "nav-player"
+      },
+      "nav-player": {
+        "action": "ui.navigate",
+        "path": "/audio-player",
+        "intent": "Open the audio-player screen.",
+        "next": "wait-player-mounted"
+      },
+      "wait-player-mounted": {
+        "action": "audiolab.query",
+        "ref": "audio-player-state",
+        "assert": {
+          "operator": "eq",
+          "field": "mounted",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The audio player is mounted.",
+        "next": "press-load-sample"
+      },
+      "press-load-sample": {
+        "action": "ui.press",
+        "test_id": "audio-player-load-sample",
+        "intent": "Load the bundled sample from the screen's button.",
+        "next": "wait-loaded"
+      },
+      "wait-loaded": {
+        "action": "audiolab.query",
+        "ref": "audio-player-state",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isStreaming",
+              "value": false
+            },
+            {
+              "operator": "gte",
+              "field": "totalPoints",
+              "value": 50
+            },
+            {
+              "operator": "gt",
+              "field": "durationMs",
+              "value": 1000
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "The sample is decoded and its waveform is complete.",
+        "next": "play"
+      },
+      "play": {
+        "action": "ui.press",
+        "test_id": "audio-player-play",
+        "intent": "Start playback with the player's play button.",
+        "next": "wait-playing"
+      },
+      "wait-playing": {
+        "action": "audiolab.query",
+        "ref": "audio-player-state",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isPlaying",
+              "value": true
+            },
+            {
+              "operator": "gt",
+              "field": "currentTimeMs",
+              "value": 300
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Playback is running and its position advances.",
+        "next": "prove-playing"
+      },
+      "prove-playing": {
+        "action": "assert_output",
+        "source": "wait-playing",
+        "assert": {
+          "path": "$.currentTimeMs",
+          "operator": "gt",
+          "value": 300
+        },
+        "proves": [
+          "playback"
+        ],
+        "intent": "The playback position advanced past 300 ms.",
+        "next": "shot-playing"
+      },
+      "shot-playing": {
+        "action": "ui.screenshot",
+        "path": "screenshots/playground-playing.png",
+        "covers": [
+          "playback"
+        ],
+        "label": "Audio player while playing",
+        "intent": "Show the player during playback.",
+        "next": "pause"
+      },
+      "pause": {
+        "action": "ui.press",
+        "test_id": "audio-player-pause",
+        "intent": "Pause playback with the player's pause button.",
+        "next": "wait-paused"
+      },
+      "wait-paused": {
+        "action": "audiolab.query",
+        "ref": "audio-player-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isPlaying",
+          "value": false
+        },
+        "poll": true,
+        "timeout_ms": 5000,
+        "intent": "Playback stops on pause.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Return to the starting route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoring it.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "The starting route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    },
+    "teardown": "restore"
+  }
+}

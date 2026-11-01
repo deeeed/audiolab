@@ -61,7 +61,7 @@ const generatedPathBlocks = [
     path.join(projectRoot, 'ios', 'build-raw-main'),
 ].map((blockedPath) => new RegExp(`^${escape(blockedPath)}\\/.*$`))
 
-const blacklistRE = exclusionList([
+const blockList = exclusionList([
     ...duplicatePackageBlocks,
     ...generatedPathBlocks,
 ])
@@ -132,7 +132,7 @@ config.resolver.nodeModulesPaths = [
 config.resolver = {
     ...config.resolver,
     extraNodeModules,
-    blacklistRE,
+    blockList,
     sourceExts: [...config.resolver.sourceExts, 'cjs', 'mjs'],
     assetExts: [
         ...config.resolver.assetExts,
@@ -156,9 +156,10 @@ config.resolver = {
         // Shim Node.js built-in modules that Storybook's CJS bundles try to require.
         // Metro resolves dynamic import() targets statically, so even though Storybook
         // is only loaded when EXPO_PUBLIC_STORYBOOK=true, Metro still resolves the full
-        // dependency tree including these Node builtins.
+        // dependency tree including these Node builtins. `buffer` resolves to the
+        // installed polyfill instead: whisper.rn decodes base64 audio through it.
         const nodeBuiltins = ['tty', 'os', 'fs', 'path', 'util', 'stream', 'events',
-            'buffer', 'crypto', 'http', 'https', 'net', 'child_process', 'module',
+            'crypto', 'http', 'https', 'net', 'child_process', 'module',
             'assert', 'url', 'querystring', 'string_decoder', 'zlib', 'vm',
             'perf_hooks', 'worker_threads', 'inspector']
         if (nodeBuiltins.includes(moduleName)) {

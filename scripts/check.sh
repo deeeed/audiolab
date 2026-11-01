@@ -24,7 +24,7 @@ run_check() {
 cd "$ROOT" || exit 1
 
 run_check "recipe protocol" node scripts/agentic/recipe/validate-all.mjs
-run_check "recipe adapters" node --test scripts/agentic/recipe/*.test.mjs scripts/agentic/cdp-bridge.origin.test.mjs
+run_check "recipe adapters" node --test scripts/agentic/recipe/*.test.mjs scripts/agentic/cdp-bridge.origin.test.mjs scripts/agentic/cdp-bridge.device.test.mjs
 run_check "farm CI parity" node --test farmslot/projects/audiolab-farm/scripts/ci-local.test.mjs
 run_check "runtime dependencies" yarn check:deps
 run_check "TypeScript" yarn workspace @siteed/audio-studio typecheck

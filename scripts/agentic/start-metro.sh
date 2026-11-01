@@ -20,7 +20,7 @@ TIMEOUT=60
 mkdir -p .agent
 # Expo's structured event log is runtime output, beside the Metro log.
 export LOG_EVENTS="$APP_ROOT/.agent/expo-events.log"
-EXPO_NODE_OPTIONS="${NODE_OPTIONS:-} --require \"$MONOREPO_ROOT/scripts/agentic/lib/expo-events.cjs\""
+EXPO_NODE_OPTIONS="${NODE_OPTIONS:-}"
 
 DEV_HOST="$(resolve_agentic_dev_host_or_localhost)"
 

@@ -66,6 +66,8 @@ dist/src/index.d.ts
 dist/src/index.d.ts.map
 dist/src/types/waveform.d.ts
 dist/src/types/waveform.d.ts.map
+dist/src/utils/buildPath.d.ts
+dist/src/utils/buildPath.d.ts.map
 dist/src/utils/decimateDataPoints.d.ts
 dist/src/utils/decimateDataPoints.d.ts.map
 package.json

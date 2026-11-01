@@ -51,7 +51,8 @@ export default function TabLayout() {
           name="features"
           options={{
             title: 'Features',
-            tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color} />,
+            // RN 0.88's ColorValue also admits null and numbers, which the icon color prop omits.
+            tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color as string} />,
           }}
           listeners={{
             tabPress: (e) => {
@@ -73,7 +74,7 @@ export default function TabLayout() {
           name="about"
           options={{
             title: 'About',
-            tabBarIcon: ({ color }) => <Ionicons name="information-circle" size={28} color={color} />,
+            tabBarIcon: ({ color }) => <Ionicons name="information-circle" size={28} color={color as string} />,
           }}
         />
         </Tabs>

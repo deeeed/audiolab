@@ -10,8 +10,13 @@ export default function RootLayout() {
                     name="index"
                     options={{
                         title: 'Home',
+                        // RN 0.88's ColorValue also admits null and numbers, which the icon color prop omits.
                         tabBarIcon: ({ color }) => (
-                            <FontAwesome size={28} name="home" color={color} />
+                            <FontAwesome
+                                size={28}
+                                name="home"
+                                color={color as string}
+                            />
                         ),
                     }}
                 />
