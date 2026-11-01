@@ -77,6 +77,15 @@
     }
   },
   "submit": {
+    "play-production": {
+      "ios": {
+        "ascAppId": "6760437954"
+      },
+      "android": {
+        "track": "production",
+        "releaseStatus": "completed"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6760437954"

@@ -7,7 +7,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const appDirectory = path.join(__dirname, '../apps/playground');
+const appDirectory = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.join(__dirname, '../apps/playground');
 
 // Get the package version
 const packageJsonPath = path.join(appDirectory, 'package.json');
@@ -143,4 +145,4 @@ function updateRuntimeVersionAndChangelog() {
     console.error(error.message);
     process.exit(1);
   }
-} 
+}
