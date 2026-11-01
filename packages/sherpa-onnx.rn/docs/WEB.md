@@ -44,7 +44,7 @@ public/wasm/
 public/wasm/
   vad/silero_vad.onnx
   asr/encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt
-  tts/model.onnx, tokens.txt, espeak-ng-data/, espeak-ng-data.zip
+  tts/model.onnx, tokens.txt, lexicon-en-us.txt
   kws/encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt, keywords.txt
   ...
 ```
@@ -242,14 +242,16 @@ The `files` map is `{ targetName: sourcePathInArchive }`.
 }
 ```
 
-**Archive with espeak-ng data** (TTS models using espeak):
+**TTS archive plus lexicon** (sherpa-onnx v2.0 removed espeak-ng, so English VITS voices need upstream's lexicon):
 ```json
 {
   "tts": {
     "url": "https://github.com/.../vits-model.tar.bz2",
     "extractDir": "public/wasm/tts",
     "files": { "model.onnx": "model-dir/model.onnx", "tokens.txt": "model-dir/tokens.txt" },
-    "espeakNgData": "model-dir/espeak-ng-data"
+    "extraDownloads": [
+      { "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/lexicon-en-us.txt", "renameAs": "lexicon-en-us.txt" }
+    ]
   }
 }
 ```

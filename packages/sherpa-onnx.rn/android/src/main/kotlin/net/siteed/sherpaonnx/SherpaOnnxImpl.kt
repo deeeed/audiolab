@@ -13,7 +13,7 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.turbomodule.core.CallInvokerHolderImpl
 import java.io.File
 
-import com.k2fsa.sherpa.onnx.OnlineStream
+import com.k2fsa.sherpa.onnx.VersionInfo
 
 // Import the handlers
 import net.siteed.sherpaonnx.handlers.ASRHandler
@@ -318,9 +318,9 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     fun testOnnxIntegration(promise: Promise) {
         try {
-            // Test JNI communication by creating a simple stream
-            val stream = OnlineStream()
-            stream.release()
+            // Test JNI communication with a real native call. An empty OnlineStream()
+            // no longer works as a probe: since v2.0.1 it requires a native pointer.
+            check(VersionInfo.version.isNotEmpty()) { "Native version string is empty" }
 
             val response = Arguments.createMap().apply {
                 putString("status", "C library integration successful")
@@ -328,7 +328,8 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
             }
 
             promise.resolve(response)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Throwable: a missing JNI symbol or library throws an Error, not an Exception.
             val response = Arguments.createMap().apply {
                 putString("status", "C library integration failed: ${e.message}")
                 putBoolean("success", false)

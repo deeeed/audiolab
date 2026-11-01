@@ -126,7 +126,8 @@ class VadHandler(private val reactContext: ReactApplicationContext) {
                 while (!vad!!.empty()) {
                     val segment = vad!!.front()
                     val segmentMap = Arguments.createMap()
-                    segmentMap.putInt("start", segment.start)
+                    // 64-bit sample index since sherpa-onnx v2.0; a JS number holds it exactly.
+                    segmentMap.putDouble("start", segment.start.toDouble())
                     segmentMap.putInt("duration", segment.samples.size)
                     segmentMap.putDouble("startTime", segment.start.toDouble() / this.sampleRate)
                     segmentMap.putDouble("endTime", (segment.start + segment.samples.size).toDouble() / this.sampleRate)

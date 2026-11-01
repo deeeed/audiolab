@@ -46,6 +46,17 @@ export interface ModelMetadata {
   dependencies?: DependencyMetadata[];
 }
 
+// sherpa-onnx v2.0 removed espeak-ng: English VITS/Piper, Kokoro and Matcha
+// voices phonemize through this upstream lexicon instead of espeak-ng-data.
+const LEXICON_EN_US: DependencyMetadata = {
+  id: 'lexicon-en-us',
+  name: 'English (US) Lexicon',
+  type: 'lexicon',
+  url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/lexicon-en-us.txt',
+  size: 6.3 * 1024 * 1024,
+  description: 'Word-to-phoneme lexicon (required for English TTS since sherpa-onnx v2.0)',
+};
+
 export const AVAILABLE_MODELS: ModelMetadata[] = [
   // ASR Models
   {
@@ -207,6 +218,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-en_US-ljspeech-low.tar.bz2',
     version: 'low',
     language: 'en',
+    dependencies: [LEXICON_EN_US],
     webPreloaded: true,
   },
 
@@ -220,6 +232,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-ljspeech-medium.tar.bz2',
     version: 'medium',
     language: 'en',
+    dependencies: [LEXICON_EN_US],
   },
 
   {
@@ -232,6 +245,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2',
     version: 'medium',
     language: 'en',
+    dependencies: [LEXICON_EN_US],
     recommended: true,
   },
 
@@ -245,6 +259,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2',
     version: '0.19',
     language: 'en',
+    dependencies: [LEXICON_EN_US],
   },
 
   {
@@ -272,6 +287,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
     recommended: true,
     dependencies: [
+      LEXICON_EN_US,
       {
         id: 'vocos-vocoder',
         name: 'Vocos Vocoder (22kHz)',

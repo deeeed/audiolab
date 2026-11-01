@@ -90,6 +90,7 @@ packages/moonshine.rn/third_party/moonshine
 packages/moonshine.rn/third_party/moonshine-js
 packages/moonshine.rn/prebuilt/ios/current/
 packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar
+packages/moonshine.rn/prebuilt/ios/Moonshine.xcframework.zip
 packages/moonshine.rn/lib/
 packages/moonshine.rn/*.tgz
 
