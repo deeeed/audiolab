@@ -139,7 +139,8 @@ import CSherpaOnnx
             // --- Construct FINAL Absolute Paths (using the potentially updated assetBasePath) ---
             let modelAbsPath = "\(assetBasePath)/\(modelFileName)" // Join base path and relative model file path
             let tokensAbsPath = "\(assetBasePath)/\(tokensFile)"     // Join base path and relative tokens file path
-            let lexiconAbsPath = lexiconFile != nil ? "\(assetBasePath)/\(lexiconFile!)" : ""
+            // Kokoro takes a comma-separated lexicon list; join each entry with the base path.
+            let lexiconAbsPath = lexiconFile?.split(separator: ",").map { "\(assetBasePath)/\($0.trimmingCharacters(in: .whitespaces))" }.joined(separator: ",") ?? ""
             let voicesAbsPath = voicesFile != nil ? "\(assetBasePath)/\(voicesFile!)" : ""
             // Adjusted acousticModel/vocoder path logic for Matcha:
             // - Use modelFile for acoustic model path
@@ -182,8 +183,8 @@ import CSherpaOnnx
                 throw NSError(domain: "SherpaOnnx", code: 104, userInfo: [NSLocalizedDescriptionKey: "Tokens file ('\(tokensFile)') not found at final path: \(tokensAbsPath)"])
             }
             // Optional file checks (log warning if missing)
-            if !lexiconAbsPath.isEmpty && !FileManager.default.fileExists(atPath: lexiconAbsPath) {
-                NSLog("Warning: Optional lexicon file not found at: \(lexiconAbsPath)")
+            for lexiconPath in lexiconAbsPath.split(separator: ",").map(String.init) where !FileManager.default.fileExists(atPath: lexiconPath) {
+                NSLog("Warning: Optional lexicon file not found at: \(lexiconPath)")
             }
             if !voicesAbsPath.isEmpty && !FileManager.default.fileExists(atPath: voicesAbsPath) {
                 NSLog("Warning: Optional voices/vocoder file not found at: \(voicesAbsPath)")
@@ -324,6 +325,8 @@ import CSherpaOnnx
             let speakingRate = Float(config["speakingRate"] as? Double ?? 1.0)
             let playAudio = config["playAudio"] as? Bool ?? true
             let fileNamePrefix = config["fileNamePrefix"] as? String
+            // Pre-phonemized input (sherpa-onnx v2.0+); when present it replaces `text`.
+            let phonemeCodepoints = (config["phonemeCodepoints"] as? [[NSNumber]])?.map { $0.map { $0.int32Value } } ?? []
             
             // Apply custom parameters if provided
             if config["lengthScale"] as? NSNumber != nil { // Use _ to ignore the value
@@ -340,17 +343,23 @@ import CSherpaOnnx
                 NSLog("noiseScaleW parameter provided but cannot be applied to existing instance in iOS")
             }
             
-            if text.isEmpty {
+            if text.isEmpty && phonemeCodepoints.isEmpty {
                 throw NSError(domain: "SherpaOnnx", code: 3, userInfo: [NSLocalizedDescriptionKey: "Text cannot be empty"])
             }
             
             NSLog("Generating TTS for text: '\(text)' with speakerId: \(speakerId), speed: \(speakingRate)")
             
             // Generate speech
-            let result = SherpaOnnxOfflineTtsGenerate(tts, toCPointer(text), Int32(speakerId), speakingRate)
+            let generationConfig = SherpaOnnxGenerationConfigC(SherpaOnnxGenerationConfigSwift(
+                speed: speakingRate, sid: speakerId, phonemeCodepoints: phonemeCodepoints))
+            let result = withUnsafePointer(to: &generationConfig.cConfig) { configPtr in
+                SherpaOnnxOfflineTtsGenerateWithConfig(tts, toCPointer(text), configPtr, nil, nil)
+            }
             
             if result == nil {
-                throw NSError(domain: "SherpaOnnx", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to generate speech"])
+                // The C API returns NULL for empty audio, which is what v2.0+ produces
+                // when a VITS/Piper, Kokoro or Matcha model has no lexicon.
+                throw NSError(domain: "SherpaOnnx", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to generate speech. Since sherpa-onnx v2.0 this model may need a lexicon file or phonemeCodepoints."])
             }
             
             // Get samples from result

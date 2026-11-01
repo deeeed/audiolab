@@ -573,13 +573,13 @@ RCT_EXPORT_METHOD(initTts:(JS::NativeSherpaOnnxSpec::SpecInitTtsConfig &)config
                  reject:(RCTPromiseRejectBlock)reject)
 {
     NSString *modelDir = config.modelDir();
-    NSString *modelType = config.modelType();
+    NSString *ttsModelType = config.ttsModelType();
     NSString *modelFile = config.modelFile();
     NSString *tokensFile = config.tokensFile();
     NSString *acousticModelName = config.acousticModelName();
-    NSString *vocoder = config.vocoder();
-    NSString *voices = config.voices();
-    NSString *lexicon = config.lexicon();
+    NSString *vocoderFile = config.vocoderFile();
+    NSString *voicesFile = config.voicesFile();
+    NSString *lexiconFile = config.lexiconFile();
     NSString *dataDir = config.dataDir();
     NSString *dictDir = config.dictDir();
     NSString *ruleFsts = config.ruleFsts();
@@ -593,13 +593,13 @@ RCT_EXPORT_METHOD(initTts:(JS::NativeSherpaOnnxSpec::SpecInitTtsConfig &)config
 
     NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
     if (modelDir) [configDict setObject:modelDir forKey:@"modelDir"];
-    if (modelType) [configDict setObject:modelType forKey:@"modelType"];
+    if (ttsModelType) [configDict setObject:ttsModelType forKey:@"ttsModelType"];
     if (modelFile) [configDict setObject:modelFile forKey:@"modelFile"];
     if (tokensFile) [configDict setObject:tokensFile forKey:@"tokensFile"];
     if (acousticModelName) [configDict setObject:acousticModelName forKey:@"acousticModelName"];
-    if (vocoder) [configDict setObject:vocoder forKey:@"vocoder"];
-    if (voices) [configDict setObject:voices forKey:@"voices"];
-    if (lexicon) [configDict setObject:lexicon forKey:@"lexicon"];
+    if (vocoderFile) [configDict setObject:vocoderFile forKey:@"vocoderFile"];
+    if (voicesFile) [configDict setObject:voicesFile forKey:@"voicesFile"];
+    if (lexiconFile) [configDict setObject:lexiconFile forKey:@"lexiconFile"];
     if (dataDir) [configDict setObject:dataDir forKey:@"dataDir"];
     if (dictDir) [configDict setObject:dictDir forKey:@"dictDir"];
     if (ruleFsts) [configDict setObject:ruleFsts forKey:@"ruleFsts"];
@@ -639,6 +639,7 @@ RCT_EXPORT_METHOD(generateTts:(JS::NativeSherpaOnnxSpec::SpecGenerateTtsConfig &
     auto lengthScale = config.lengthScale();
     auto noiseScale = config.noiseScale();
     auto noiseScaleW = config.noiseScaleW();
+    auto phonemeCodepoints = config.phonemeCodepoints();
 
     NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
     if (text) [configDict setObject:text forKey:@"text"];
@@ -649,6 +650,15 @@ RCT_EXPORT_METHOD(generateTts:(JS::NativeSherpaOnnxSpec::SpecGenerateTtsConfig &
     if (lengthScale) [configDict setObject:@(*lengthScale) forKey:@"lengthScale"];
     if (noiseScale) [configDict setObject:@(*noiseScale) forKey:@"noiseScale"];
     if (noiseScaleW) [configDict setObject:@(*noiseScaleW) forKey:@"noiseScaleW"];
+    if (phonemeCodepoints) {
+        NSMutableArray *sentences = [NSMutableArray array];
+        for (const auto &sentence : *phonemeCodepoints) {
+            NSMutableArray *codepoints = [NSMutableArray array];
+            for (double codepoint : sentence) [codepoints addObject:@(codepoint)];
+            [sentences addObject:codepoints];
+        }
+        [configDict setObject:sentences forKey:@"phonemeCodepoints"];
+    }
     dispatch_async(ttsSerialQueue(), ^{
         @try {
             NSDictionary *result = [self.ttsHandler generateTts:configDict]; // Directly pass dict

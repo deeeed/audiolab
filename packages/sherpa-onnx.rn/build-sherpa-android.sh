@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # build-sherpa-android.sh
-# Build Sherpa-onnx for Android platforms from k2-fsa/sherpa-onnx v1.13.0
+# Build Sherpa-onnx for Android platforms from k2-fsa/sherpa-onnx v2.0.1
 # Run ./setup.sh first to clone the upstream repository.
+# Use NDK r28+ (ANDROID_NDK) so the libraries keep 16 KB page alignment.
 
 set -e
 
@@ -16,7 +17,16 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-SITEED_SHERPA_ONNX_ORT_VERSION="${SITEED_SHERPA_ONNX_ORT_VERSION:-1.24.3}"
+SITEED_SHERPA_ONNX_ORT_VERSION="${SITEED_SHERPA_ONNX_ORT_VERSION:-1.28.2}"
+
+# Upstream build-android-*.sh read these names since v1.13.3 (#3617).
+export SHERPA_ONNX_ONNXRUNTIME_VERSION="$SITEED_SHERPA_ONNX_ORT_VERSION"
+if [ -n "${SITEED_SHERPA_ONNX_ORT_LIB_DIR:-}" ] && [ -n "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR:-}" ]; then
+  export SHERPA_ONNXRUNTIME_LIB_DIR="$(cd "$SITEED_SHERPA_ONNX_ORT_LIB_DIR" && pwd)"
+  export SHERPA_ONNXRUNTIME_INCLUDE_DIR="$(cd "$SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR" && pwd)"
+elif [ -n "${SITEED_SHERPA_ONNX_ORT_ROOT:-}" ]; then
+  export SHERPA_ONNX_ONNXRUNTIME_ROOT="$(cd "$SITEED_SHERPA_ONNX_ORT_ROOT" && pwd)"
+fi
 
 extract_ort_symbol_version() {
   local library_path="$1"

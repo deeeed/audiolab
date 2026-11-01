@@ -38,9 +38,18 @@ object LightweightModelDownloader {
         VITS_EN_LOW(
             modelName = "vits-icefall-en-low",
             url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-en_US-ljspeech-low.tar.bz2",
-            sizeBytes = 31_722_013L, // measured via content-length
+            sizeBytes = 31_722_454L, // measured via content-length; re-uploaded upstream 2026-10-29
             sha256 = null, // Add SHA256 for integrity check
             description = "Lightweight English TTS model for testing"
+        ),
+
+        // English lexicon for VITS: sherpa-onnx v2.0 dropped espeak-ng, so text needs a lexicon
+        LEXICON_EN_US(
+            modelName = "lexicon-en-us",
+            url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/lexicon-en-us.txt",
+            sizeBytes = 6_305_773L, // measured via content-length
+            sha256 = "8b67ae549a465eee78f92ecb74644ad90c3c58ce65f19c68baf85878a10ef73a",
+            description = "English lexicon for the VITS TTS model"
         ),
         
         // VAD Model - ~0.6MB
@@ -75,7 +84,8 @@ object LightweightModelDownloader {
         }
         
         fun getModelFile(context: Context): File {
-            return File(getCacheDir(context), if (url.endsWith(".onnx")) "$modelName.onnx" else "$modelName.tar.bz2")
+            val extension = if (url.endsWith(".onnx")) "onnx" else if (url.endsWith(".txt")) "txt" else "tar.bz2"
+            return File(getCacheDir(context), "$modelName.$extension")
         }
     }
     

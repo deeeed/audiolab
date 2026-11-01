@@ -3,11 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UPSTREAM_DIR="$SCRIPT_DIR/third_party/sherpa-onnx"
+UPSTREAM_DIR="${SHERPA_UPSTREAM_DIR:-$SCRIPT_DIR/third_party/sherpa-onnx}"
 PATCHES=(
-  "patches/OrtAndroidOverrides.patch"
-  "patches/OrtIOSOverrides.patch"
-  "patches/OrtWasmOverrides.patch"
   "patches/CombinedWasmTarget.patch"
 )
 

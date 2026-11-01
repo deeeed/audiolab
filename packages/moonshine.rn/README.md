@@ -302,6 +302,11 @@ first. `npm publish` is gated by `validate:ios-release-artifact` so a missing
 asset fails fast instead of shipping a package whose first `pod install` would
 404. This publish-time check intentionally requires network access.
 
+The released xcframework exports only the Moonshine C API, so its embedded
+ONNX Runtime cannot shadow Sherpa's in the same app. Build it with
+`scripts/build-isolated-ios-xcframework.sh`; see
+[iOS ONNX Runtime coexistence](../../docs/IOS_ORT_ALIGNMENT.md).
+
 After upgrading the package, rebuild the native iOS app so the JS layer and
 native bridge stay in sync.
 
@@ -404,4 +409,6 @@ SHA-256 before npm publish.
   capture and audio routing.
 - Android apps that combine Moonshine with Sherpa or another ONNX Runtime
   provider must verify ONNX Runtime symbol compatibility; see
-  [Android ONNX Runtime coexistence](../../docs/ANDROID_ORT_ALIGNMENT.md).
+  [Android ONNX Runtime coexistence](../../docs/ANDROID_ORT_ALIGNMENT.md). On
+  iOS, `yarn ios:ort:check` verifies the same; see
+  [iOS ONNX Runtime coexistence](../../docs/IOS_ORT_ALIGNMENT.md).

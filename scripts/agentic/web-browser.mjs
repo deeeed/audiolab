@@ -571,6 +571,8 @@ async function cmdLogs() {
 }
 
 async function cmdClose() {
+  // Teardown hooks call close whether or not a browser is up; nothing to stop is success.
+  if (!fs.existsSync(CONNECTION_FILE)) return { closed: true, wasRunning: false };
   const conn = loadConnection();
   if (conn.pid) {
     try {

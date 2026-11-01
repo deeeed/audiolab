@@ -28,7 +28,7 @@ mkdir -p prebuilt
 
 # Use the official upstream k2-fsa/sherpa-onnx, pinned to a known stable release.
 
-SHERPA_VERSION="v1.13.0"
+SHERPA_VERSION="v2.0.1"
 
 # Clone sherpa-onnx repository if not already present
 if [ ! -d "third_party/sherpa-onnx" ]; then

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The podspec's slice-selection phase now runs on every build. Xcode used to skip it once `prebuilt/ios/current` existed, so an xcframework update or a simulator/device switch kept linking the previous library.
+
+## [0.4.2-beta.0] - 2026-10-31
+
+### Fixed
+
+- iOS: the xcframework's embedded ONNX Runtime 1.23 exported global `Ort*` symbols. In apps that also link Sherpa, these shadowed Sherpa's runtime, and Sherpa 2.x (ORT API 28) crashed on its first model load. `scripts/build-isolated-ios-xcframework.sh` rebuilds the 0.4.1 asset so it exports only `_moonshine_*`, and `moonshineArtifacts.ios.xcframeworkSha256` pins that asset. The installer downloads it from this release's `Moonshine.xcframework.zip`; the Android AAR is unchanged from 0.4.1.
+
 ## [0.4.1] - 2026-08-25
 
 ### Changed
@@ -109,7 +119,8 @@ Long-streaming release focused on keeping Moonshine transcription memory bounded
 - Moonshine RN package with iOS, Android, and web transcription support, source-built native tooling, offline progress events, and word timestamp parity fixes.
 - Beta release plan and external consumer validation checklist.
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.2-beta.0...HEAD
+[0.4.2-beta.0]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1...@siteed/moonshine.rn@0.4.2-beta.0
 [0.4.1]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1-beta.2...@siteed/moonshine.rn@0.4.1
 [0.4.1-beta.2]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1-beta.1...@siteed/moonshine.rn@0.4.1-beta.2
 [0.4.1-beta.1]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1-beta.0...@siteed/moonshine.rn@0.4.1-beta.1

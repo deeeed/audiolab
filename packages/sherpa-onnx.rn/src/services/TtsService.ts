@@ -200,6 +200,7 @@ export class TtsService {
         lengthScale: options.lengthScale,
         noiseScale: options.noiseScale,
         noiseScaleW: options.noiseScaleW,
+        phonemeCodepoints: options.phonemeCodepoints,
       });
 
       return result;

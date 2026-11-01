@@ -61,7 +61,7 @@ Pod::Spec.new do |s|
     fi
   CMD
 
-  s.script_phase = {
+  script_phase = {
     :name => 'Select Moonshine iOS Slice',
     :script => <<-CMD,
       # Keep this block POSIX-shell compatible. There are no pipelines below;
@@ -85,8 +85,11 @@ Pod::Spec.new do |s|
       fi
 
       mkdir -p "$CURRENT_DIR"
-      rsync -a --delete --exclude 'libmoonshine.a' "$SELECTED_SLICE/" "$CURRENT_DIR/"
-      cp "$SELECTED_SLICE/libmoonshine.a" "$CURRENT_DIR/libmoonshine_core.a"
+      rsync -a --delete --exclude 'libmoonshine.a' --exclude 'libmoonshine_core.a' "$SELECTED_SLICE/" "$CURRENT_DIR/"
+      # Copy only on change, so a no-op build does not relink the app.
+      if ! cmp -s "$SELECTED_SLICE/libmoonshine.a" "$CURRENT_DIR/libmoonshine_core.a"; then
+        cp "$SELECTED_SLICE/libmoonshine.a" "$CURRENT_DIR/libmoonshine_core.a"
+      fi
       rm -f "$CURRENT_DIR/libmoonshine.a"
     CMD
     :execution_position => :before_compile,
@@ -96,6 +99,14 @@ Pod::Spec.new do |s|
       "${PODS_TARGET_SRCROOT}/prebuilt/ios/current/Headers/module.modulemap"
     ]
   }
+  # The selected slice is not a declared input (it may not be downloaded yet), so
+  # Xcode would skip this phase once the outputs exist and keep linking a stale
+  # library after an xcframework update or a simulator/device switch. Always run it.
+  # :always_out_of_date is only available in CocoaPods 1.13.0 and later.
+  if Gem::Version.new(Pod::VERSION) >= Gem::Version.new('1.13.0')
+    script_phase[:always_out_of_date] = '1'
+  end
+  s.script_phase = script_phase
 
   s.dependency 'React-Core'
 end

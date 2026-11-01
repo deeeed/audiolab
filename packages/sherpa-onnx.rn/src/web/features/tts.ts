@@ -36,7 +36,10 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
             type: config.ttsModelType || 'vits',
             model: `${fetchBase}/model.onnx`,
             tokens: `${fetchBase}/tokens.txt`,
-            espeakDataZip: `${fetchBase}/espeak-ng-data.zip`,
+            // sherpa-onnx v2.0 removed espeak-ng; the lexicon replaces espeak-ng-data.zip.
+            lexicon: config.lexiconFile
+              ? `${fetchBase}/${config.lexiconFile}`
+              : undefined,
             modelDir,
             debug,
           })
@@ -78,6 +81,7 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
           text: config.text,
           sid: config.speakerId,
           speed: config.speakingRate,
+          phonemeCodepoints: config.phonemeCodepoints,
         });
         const samples = new Float32Array(audio.samples);
         const result: TtsGenerateResult = { success: true };
