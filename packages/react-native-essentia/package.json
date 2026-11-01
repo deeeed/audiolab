@@ -1,6 +1,6 @@
 {
   "name": "@siteed/react-native-essentia",
-  "version": "0.3.1",
+  "version": "0.3.2-beta.1",
   "description": "RN jni bindings for essentia",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
