@@ -78,10 +78,6 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease -Dorg.gradle.parallel=false",
-        "env": {
-          "ORG_GRADLE_PROJECT_reactNativeArchitectures": "armeabi-v7a,arm64-v8a"
-        },
         "cache": {
           "disabled": true
         }
