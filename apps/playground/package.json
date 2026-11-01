@@ -1,6 +1,6 @@
 {
     "name": "audio-playground",
-    "version": "2.3.2",
+    "version": "2.4.0",
     "main": "src/index",
     "scripts": {
         "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh",
@@ -79,7 +79,7 @@
         "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/",
         "prepare": "cd ../../ && husky install apps/playground/.husky",
         "benchmark:asr:direct": "node scripts/agentic/direct-asr-benchmark.mjs",
-        "update-runtime-version": "node scripts/update-runtime-version.js",
+        "update-runtime-version": "node ../../scripts/update-runtime-version.js",
         "update:patch": "yarn version --patch && yarn update-runtime-version",
         "update:minor": "yarn version --minor && yarn update-runtime-version",
         "update:major": "yarn version --major && yarn update-runtime-version",

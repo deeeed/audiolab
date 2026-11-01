@@ -7,15 +7,17 @@
 const fs = require('fs');
 const path = require('path');
 
+const appDirectory = path.join(__dirname, '../apps/playground');
+
 // Get the package version
-const packageJsonPath = path.join(__dirname, '../package.json');
+const packageJsonPath = path.join(appDirectory, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const version = packageJson.version;
 
 console.log(`\n📦 Preparing update for version ${version}\n`);
 
 // Check for unreleased changes in CHANGELOG.md
-const changelogPath = path.join(__dirname, '../CHANGELOG.md');
+const changelogPath = path.join(appDirectory, 'CHANGELOG.md');
 let hasUnreleasedChanges = false;
 
 if (fs.existsSync(changelogPath)) {
@@ -70,7 +72,7 @@ if (!hasUnreleasedChanges) {
 function updateRuntimeVersionAndChangelog() {
   try {
     // Update app.config.ts to use the package version as runtimeVersion
-    const appConfigPath = path.join(__dirname, '../app.config.ts');
+    const appConfigPath = path.join(appDirectory, 'app.config.ts');
     let appConfig = fs.readFileSync(appConfigPath, 'utf8');
 
     // Check if runtimeVersion already matches
