@@ -4,7 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-
 ## [2.4.0] - 2026-11-01
 
 ### Added
@@ -12,8 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Upgrade the playground to Expo SDK 58 and React Native 0.88.1.
-- Rebuild from library release commit `39db55df2451affb9d836a8a533baa5c814c650c` with workspace source for `@siteed/audio-studio@4.0.0-beta.0`, `@siteed/sherpa-onnx.rn@1.3.2-beta.1`, `@siteed/moonshine.rn@0.4.2-beta.0`, `@siteed/audio-ui@1.1.2-beta.1` and `@siteed/react-native-essentia@0.3.2-beta.1`.
-- Include Essentia workspace source while its npm upload remains held.
+- Rebuild with workspace source for `@siteed/audio-studio@4.0.0-beta.0`, `@siteed/sherpa-onnx.rn@1.3.2-beta.1`, `@siteed/moonshine.rn@0.4.2-beta.0`, `@siteed/audio-ui@1.1.2-beta.1` and `@siteed/react-native-essentia@0.3.2-beta.1`.
 - Upgrade the Sherpa native engine to 2.0.1.
 
 ### Fixed
@@ -404,7 +402,6 @@ All notable changes to this project will be documented in this file.
 - Basic UI for audio controls
 - Support for iOS and Android platforms
 - Web export capability
-
 
 
 
