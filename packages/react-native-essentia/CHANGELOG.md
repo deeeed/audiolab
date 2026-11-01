@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - React and React Native development dependencies now match the Expo SDK 58 workspace.
 - Includes the 0.3.2-beta.0 native bindings, installation and build updates; this beta changes development compatibility only since beta.0.
+- Includes the JavaScript API changes first shipped in 0.3.2-beta.0: `extractFeatures` validates feature parameters through the new `validateAlgorithmParams` utility and passes the cleaned feature array directly to native instead of a JSON string.
+- `extractKey` now accepts `KeyParams` and calls `executeAlgorithm`, also first shipped in 0.3.2-beta.0.
 
 ## [0.3.1] - 2025-03-22
 ### Changed
