@@ -1,6 +1,7 @@
 {
   "name": "@siteed/react-native-essentia",
   "version": "0.3.2-beta.1",
+  "private": true,
   "description": "RN jni bindings for essentia",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -49,7 +50,6 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
-    "publish-beta": "npm publish --tag beta",
     "setup": "./setup.sh",
     "build:ios": "./build-essentia-ios.sh",
     "build:ios:force": "./build-essentia-ios.sh --force",
@@ -57,8 +57,7 @@
     "build:android:force": "./build-essentia-android.sh --force",
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
-    "postinstall": "node ./install.js",
-    "publish-static": "./publish-static-libs.sh"
+    "postinstall": "node ./install.js"
   },
   "keywords": [
     "react-native",
@@ -75,10 +74,6 @@
     "url": "https://github.com/deeeed/audiolab//issues"
   },
   "homepage": "https://github.com/deeeed/audiolab/#readme",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
-  },
   "nativePackage": true,
   "codegenConfig": {
     "name": "RNEssentiaSpec",
