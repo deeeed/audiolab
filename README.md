@@ -30,7 +30,7 @@ Audio processing monorepo for React Native and Expo — recording, analysis, vis
 |---------|-------------|
 | [`@siteed/audio-studio`](packages/audio-studio/) | Core audio recording, analysis, and processing |
 | [`@siteed/audio-ui`](packages/audio-ui/) | Skia-based audio visualization components |
-| [`@siteed/react-native-essentia`](packages/react-native-essentia/) | Audio feature extraction via Essentia |
+| [`@siteed/react-native-essentia`](packages/react-native-essentia/) | Audio feature extraction via Essentia; deprecated: no longer maintained, kept for reference |
 | [`@siteed/sherpa-onnx.rn`](packages/sherpa-onnx.rn/) | On-device speech-to-text and text-to-speech |
 | [`@siteed/moonshine.rn`](packages/moonshine.rn/) | Moonshine speech transcription and intent recognition for iOS, Android, and web |
 
