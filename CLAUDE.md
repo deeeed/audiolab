@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Core Packages
 - **`@siteed/expo-audio-studio`** - Main audio processing library with dual-stream recording, device management, and format conversion
 - **`@siteed/audio-ui`** - React Native Skia-based audio visualization components (waveforms, spectrograms)
-- **`@siteed/react-native-essentia`** - Advanced audio analysis using Essentia (feature extraction, classification)
+- **`@siteed/react-native-essentia`** - Deprecated: no longer maintained, kept for reference. Do not release or publish this package.
 - **`@siteed/sherpa-onnx.rn`** - Speech-to-text and text-to-speech capabilities (development)
 
 ### Applications

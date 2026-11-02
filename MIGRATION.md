@@ -61,7 +61,7 @@ What started as a simple audio streaming library for Expo has grown into a full 
 
 - **`@siteed/audio-studio`** — full audio processing: recording, analysis, waveform, trimming, transcription
 - **`@siteed/audio-ui`** — UI components: waveform visualizer, spectrogram, audio player
-- **`@siteed/react-native-essentia`** — audio feature extraction (MFCC, mel-spectrogram, etc.)
+- **`@siteed/react-native-essentia`** — audio feature extraction (MFCC, mel-spectrogram, etc.); deprecated: no longer maintained, kept for reference
 - **`@siteed/sherpa-onnx.rn`** — on-device speech recognition & TTS via Sherpa-ONNX
 
 The name `audiolab` captures this better. The "expo" prefix is also being phased out as the packages work with bare React Native projects.
