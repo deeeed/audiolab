@@ -7,16 +7,22 @@
 const fs = require('fs');
 const path = require('path');
 
-const appDirectory = process.argv[2]
-  ? path.resolve(process.argv[2])
-  : path.join(__dirname, '../apps/playground');
+// Only an app directory under apps/ is accepted; the default is the playground.
+const appsRoot = path.join(__dirname, '../apps');
+const requestedApp = process.argv[2] ? path.basename(path.resolve(process.argv[2])) : 'playground';
+const appName = fs.readdirSync(appsRoot).find((name) => name === requestedApp);
+if (!appName) {
+  console.error('❌ The app directory must be one of the apps under apps/.');
+  process.exit(1);
+}
+const appDirectory = path.join(appsRoot, appName);
 
 // Get the package version
 const packageJsonPath = path.join(appDirectory, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const version = packageJson.version;
 
-console.log(`\n📦 Preparing update for version ${version}\n`);
+console.log('\n📦 Preparing the runtime version update\n');
 
 // Check for unreleased changes in CHANGELOG.md
 const changelogPath = path.join(appDirectory, 'CHANGELOG.md');
@@ -91,7 +97,7 @@ function updateRuntimeVersionAndChangelog() {
       );
 
       fs.writeFileSync(appConfigPath, appConfig);
-      console.log(`✅ Updated runtimeVersion to ${version} in app.config.ts`);
+      console.log('✅ Updated runtimeVersion in app.config.ts');
     }
 
     // Update CHANGELOG.md if there are unreleased changes
