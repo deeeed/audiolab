@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execute = promisify(execFile);
-const source = await fs.readFile(new URL('./preflight.sh', import.meta.url), 'utf8');
+const source = await fs.readFile(new URL('../preflight.sh', import.meta.url), 'utf8');
 const fingerprint = source.slice(source.indexOf('native_fingerprint() {'), source.indexOf('run_simctl_timeout() {'));
 const build = source.slice(source.indexOf('info "Step 3:'), source.indexOf('# ── 4. Launch'));
 const oldHash = '1'.repeat(40);
@@ -25,8 +25,13 @@ async function fixture(t, platform = 'android', mode = 'physical') {
   await fs.writeFile(path.join(root, 'node_modules/expo/index.js'), '');
   await fs.writeFile(path.join(root, 'node_modules/@expo/fingerprint/index.js'), `
 exports.createProjectHashAsync = async (root, options) => {
+  require('node:fs').appendFileSync(process.env.FINGERPRINT_EVENTS, 'fingerprint\\n');
   require('node:assert/strict').deepEqual(options, {
     platforms: [process.env.PLATFORM], preset: 'strict', concurrentIoLimit: 4, silent: true,
+    extraSources: [{ type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] }],
+    ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
+      .map(pattern => '../../packages/*/' + pattern)
+      .concat('!../../packages/*/src/**/Native*.ts'),
   });
   if (process.env.FAIL_FINGERPRINT === '1') throw new Error('fixture failure');
   return process.env.FIXTURE_HASH;
@@ -62,7 +67,7 @@ ${build}`;
   const env = { ...process.env, PATH: `${root}/bin:${process.env.PATH}`, APP_ROOT: root,
     XDG_CACHE_HOME: path.join(root, 'cache'), PLATFORM: platform, IOS_DEVICE_MODE: mode,
     APP_VARIANT: 'development', SKIP_BUILD: '0', REBUILD: '0', INSTALLED: '1',
-    FIXTURE_HASH: newHash, EVENTS: path.join(root, 'events') };
+    FIXTURE_HASH: newHash, EVENTS: path.join(root, 'events'), FINGERPRINT_EVENTS: path.join(root, 'fingerprint-events') };
   const target = platform === 'android' ? 'pixel-fixture' : mode === 'physical' ? 'phone-fixture' : 'sim-fixture';
   const stamp = path.join(env.XDG_CACHE_HOME, `audiolab-dev-client/net.siteed.fixture.development/${platform}-${target}.fingerprint`);
   return {
@@ -70,6 +75,7 @@ ${build}`;
     run: overrides => execute('bash', ['-c', script], { env: { ...env, ...overrides }, timeout: 10000 }),
     seed: async hash => { await fs.mkdir(path.dirname(stamp), { recursive: true }); await fs.writeFile(stamp, `${hash}\n`); },
     events: async () => fs.readFile(env.EVENTS, 'utf8').catch(() => ''),
+    fingerprintCalls: async () => (await fs.readFile(env.FINGERPRINT_EVENTS, 'utf8').catch(() => '')).split('\n').filter(Boolean).length,
   };
 }
 
@@ -116,8 +122,22 @@ test('REBUILD forces reinstall with a matching fingerprint and missing app alway
   const f = await fixture(t);
   await f.seed(newHash);
   await f.run({ REBUILD: '1' });
+  assert.equal(await f.fingerprintCalls(), 1);
   await f.run({ INSTALLED: '0' });
+  assert.equal(await f.fingerprintCalls(), 2);
   assert.equal(await f.events(), 'build\ninstall\nbuild\ninstall\n');
+});
+
+test('SKIP_BUILD installs a missing Android client despite fingerprint failure without stamping', async t => {
+  const f = await fixture(t);
+  const result = await f.run({ SKIP_BUILD: '1', INSTALLED: '0', FAIL_FINGERPRINT: '1' });
+  assert.match(result.stdout, /continues the build without recording a stamp/);
+  assert.equal(await f.fingerprintCalls(), 1);
+  assert.equal(await f.events(), 'build\ninstall\n');
+  await assert.rejects(fs.access(f.stamp));
+  await f.seed(oldHash);
+  await f.run({ SKIP_BUILD: '1', INSTALLED: '0', FAIL_FINGERPRINT: '1' });
+  assert.equal(await fs.readFile(f.stamp, 'utf8'), `${oldHash}\n`);
 });
 
 test('variants and devices do not share stamps', async t => {
