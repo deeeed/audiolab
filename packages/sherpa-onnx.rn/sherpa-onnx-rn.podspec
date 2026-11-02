@@ -1,4 +1,5 @@
 require "json"
+require "fileutils"
 
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
@@ -50,11 +51,27 @@ Pod::Spec.new do |s|
     "libonnxruntime.a"
   ]
 
-  # Vendored libraries pointing to the current folder (will be symlinked later)
+  # Unchanged pods can skip prepare_command. Repair every link before CocoaPods
+  # enumerates vendored_libraries, including libraries added by an upgrade.
+  current_dir = File.join(__dir__, "prebuilt/ios/current")
+  FileUtils.mkdir_p(current_dir)
+  sherpa_libraries.each do |lib|
+    source = File.join(__dir__, "prebuilt/ios/device", lib)
+    raise "Missing Sherpa ONNX iOS device library: #{source}. Run package postinstall again." unless File.file?(source)
+
+    link = File.join(current_dir, lib)
+    target = "../device/#{lib}"
+    unless File.symlink?(link) && File.readlink(link) == target
+      FileUtils.ln_sf(target, link)
+    end
+    raise "Missing Sherpa ONNX iOS current link: #{link}" unless File.symlink?(link) && File.file?(link)
+  end
+
   s.vendored_libraries = sherpa_libraries.map { |lib| "prebuilt/ios/current/#{lib}" }
 
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
-  s.libraries = "c++", "bz2"
+  # Declare flags independently of CocoaPods' install-time file discovery.
+  s.libraries = ["c++", "bz2"] + sherpa_libraries.map { |lib| lib.sub(/\Alib/, "").sub(/\.a\z/, "") }
 
   s.xcconfig = {
     "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\"",
@@ -75,7 +92,7 @@ Pod::Spec.new do |s|
     "OTHER_SWIFT_FLAGS" => "-Xcc -fmodule-map-file=$(PODS_TARGET_SRCROOT)/prebuilt/include/module.modulemap"
   }
 
-  # Set up initial symlinks to device libraries - this runs during pod installation
+  # Refresh device links when CocoaPods runs source preparation.
   s.prepare_command = <<-CMD
     set -e
     echo "Validating Sherpa ONNX iOS prebuilts"
@@ -91,40 +108,22 @@ Pod::Spec.new do |s|
     echo "Creating prebuilt/ios/current directory"
     mkdir -p prebuilt/ios/current
 
-    # Only setup the symlinks if they don't exist
-    if [ ! -f prebuilt/ios/current/libonnxruntime.a ]; then
-      echo "Setting up initial symlinks to device libraries"
-
-      if [ -d prebuilt/ios/device ]; then
-        missing_libraries=0
-        for lib in #{sherpa_libraries.join(" ")}; do
-          if [ -f "prebuilt/ios/device/$lib" ]; then
-            echo "Linking $lib from device folder"
-            ln -sf "../device/$lib" "prebuilt/ios/current/$lib"
-          else
-            echo "ERROR: Device library $lib not found at prebuilt/ios/device/$lib" >&2
-            missing_libraries=1
-          fi
-        done
-        if [ "$missing_libraries" != "0" ]; then
-          echo "ERROR: Sherpa ONNX iOS device prebuilts are incomplete." >&2
-          echo "Expected package postinstall to download: https://github.com/deeeed/audiolab/releases/download/sherpa-onnx-prebuilt-v#{package["sherpaOnnxVersion"]}/sherpa-onnx-binaries-#{package["sherpaOnnxVersion"]}.zip" >&2
-          exit 1
-        fi
-      else
-        echo "" >&2
-        echo "ERROR: iOS libraries not found!" >&2
-        echo "" >&2
-        echo "Expected package postinstall to download: https://github.com/deeeed/audiolab/releases/download/sherpa-onnx-prebuilt-v#{package["sherpaOnnxVersion"]}/sherpa-onnx-binaries-#{package["sherpaOnnxVersion"]}.zip" >&2
-        echo "" >&2
-        echo "For local development, build manually:" >&2
-        echo "  cd $(pwd)" >&2
-        echo "  ./build-sherpa-ios.sh" >&2
-        echo "" >&2
-        exit 1
+    missing_libraries=0
+    for lib in #{sherpa_libraries.join(" ")}; do
+      if [ ! -f "prebuilt/ios/device/$lib" ]; then
+        echo "ERROR: Device library $lib not found at prebuilt/ios/device/$lib" >&2
+        missing_libraries=1
+        continue
       fi
-    else
-      echo "Symlinks already exist, skipping"
+      ln -sf "../device/$lib" "prebuilt/ios/current/$lib"
+      if [ ! -L "prebuilt/ios/current/$lib" ] || [ ! -f "prebuilt/ios/current/$lib" ]; then
+        echo "ERROR: Required iOS current link missing: prebuilt/ios/current/$lib" >&2
+        missing_libraries=1
+      fi
+    done
+    if [ "$missing_libraries" != "0" ]; then
+      echo "ERROR: Sherpa ONNX iOS device prebuilts are incomplete. Run package postinstall again." >&2
+      exit 1
     fi
   CMD
 

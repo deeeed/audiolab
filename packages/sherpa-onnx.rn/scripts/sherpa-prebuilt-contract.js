@@ -55,9 +55,14 @@ function getRequiredFiles({ includeIosCurrent = false } = {}) {
 }
 
 function validatePrebuiltTree(rootDir, options = {}) {
-  const missing = getRequiredFiles(options).filter(
-    (relativePath) => !fs.existsSync(path.join(rootDir, relativePath))
-  );
+  const missing = getRequiredFiles(options).filter((relativePath) => {
+    const absolutePath = path.join(rootDir, relativePath);
+    if (!fs.existsSync(absolutePath)) return true;
+    return (
+      relativePath.startsWith('prebuilt/ios/current/') &&
+      !fs.lstatSync(absolutePath).isSymbolicLink()
+    );
+  });
 
   return {
     ok: missing.length === 0,
