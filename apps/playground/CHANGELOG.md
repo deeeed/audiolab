@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Limit Android native compilation concurrency to prevent Gradle daemon termination on EAS cloud workers.
+
 ## [2.4.0] - 2026-11-01
 
 ### Added

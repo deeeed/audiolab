@@ -12,6 +12,34 @@ const path = require('node:path')
 module.exports = function withCustomGradleConfig(config) {
     // First, handle the build.gradle modifications with existing code
     config = withProjectBuildGradle(config, (config) => {
+        // Gradle's worker limit does not limit Ninja's compiler processes.
+        // CMake job pools also remain effective when EAS sets GRADLE_OPTS.
+        if (!config.modResults.contents.includes('-DCMAKE_JOB_POOLS=native_compile=1')) {
+            const nativeCompileConfig = `
+subprojects {
+    ["com.android.library", "com.android.application"].each { androidPlugin ->
+        plugins.withId(androidPlugin) {
+            androidComponents.finalizeDsl { androidDsl ->
+                androidDsl.defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                    "-DCMAKE_JOB_POOLS=native_compile=1",
+                    "-DCMAKE_JOB_POOL_COMPILE=native_compile"
+                ])
+            }
+        }
+    }
+}
+`;
+            // React Native's root plugin evaluates :app while it is applied.
+            const rootPlugin = /^apply plugin:/m;
+            if (!rootPlugin.test(config.modResults.contents)) {
+                throw new Error('Cannot register native compiler pool before root plugins');
+            }
+            config.modResults.contents = config.modResults.contents.replace(
+                rootPlugin,
+                `${nativeCompileConfig}\napply plugin:`
+            );
+        }
+
         if (config.modResults.contents.includes('jvmTarget')) {
             return config // If it's already configured, skip
         }
@@ -128,6 +156,10 @@ ${newConfigurations}
         // Set the JVM arguments with increased memory settings
         setProperty('org.gradle.jvmargs', '-Xmx8g -XX:MaxMetaspaceSize=4096m -XX:+HeapDumpOnOutOfMemoryError');
         setProperty('org.gradle.parallel', 'true');
+        // EAS overrides parallel/jvmargs, but does not set a worker limit.
+        setProperty('org.gradle.workers.max', '1');
+        // Avoid retaining a separate Kotlin compiler heap during native builds.
+        setProperty('kotlin.compiler.execution.strategy', 'in-process');
         setProperty('org.gradle.daemon', 'true');
         setProperty('org.gradle.configureondemand', 'true');
         setProperty('org.gradle.caching', 'true');
