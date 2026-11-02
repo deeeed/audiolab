@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.2-beta.1] - 2026-11-01
+## [1.1.2] - 2026-11-02
+
+Validated through playground 2.4.0 on Android Pixel 6a and iOS simulator, and shipped to Play production.
+
+### Added
+
+- Includes the `AudioVisualizer` seek gesture updates first shipped in 1.1.2-beta.0: `onSeekPreview` reports preview time during drag and inertia, while `onSeekEnd` reports the committed seek time.
 
 ### Changed
 
@@ -15,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Use Skia PathBuilder for waveform and visualizer paths with current Skia releases.
+- Use Skia PathBuilder for visualizer dotted lines and DecibelGauge arcs and ticks with current Skia releases.
 - Match React Native icon color types in the player widgets.
 
 ## [1.1.1] - 2026-05-18
