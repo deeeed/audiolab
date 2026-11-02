@@ -9,8 +9,8 @@ const path = require('path');
 
 // Only an app directory under apps/ is accepted; the default is the playground.
 const appsRoot = path.join(__dirname, '../apps');
-const requestedApp = process.argv[2] ? path.basename(path.resolve(process.argv[2])) : 'playground';
-const appName = fs.readdirSync(appsRoot).find((name) => name === requestedApp);
+const requestedAppPath = process.argv[2] ? path.resolve(process.argv[2]) : path.join(appsRoot, 'playground');
+const appName = fs.readdirSync(appsRoot).find((name) => path.join(appsRoot, name) === requestedAppPath);
 if (!appName) {
   console.error('❌ The app directory must be one of the apps under apps/.');
   process.exit(1);
@@ -21,6 +21,10 @@ const appDirectory = path.join(appsRoot, appName);
 const packageJsonPath = path.join(appDirectory, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const version = packageJson.version;
+if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
+  console.error('❌ The package version must be a valid semver version.');
+  process.exit(1);
+}
 
 console.log('\n📦 Preparing the runtime version update\n');
 
@@ -141,6 +145,7 @@ function updateRuntimeVersionAndChangelog() {
       console.log(`✅ Updated CHANGELOG.md with version ${version}`);
     }
 
+    console.log('Runtime version: %s', version);
     console.log('\n🚀 Version update complete! Next steps:');
     console.log('1. Review the changes in app.config.ts and CHANGELOG.md');
     console.log('2. Run OTA update command: yarn ota-update:production');
