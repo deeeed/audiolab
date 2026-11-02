@@ -7,16 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
 ## [1.2.0] - 2026-11-02
 
-### Added
-- Include sherpa-onnx 2.0.1 support, including Cohere and Qwen3 ASR backends.
-
 ### Changed
+- English TTS voices now download the `lexicon-en-us` dependency after upstream removed espeak-ng.
 - Upgrade to Expo SDK 58 and React Native 0.88.1.
 - Build from library release commit `39db55df2451affb9d836a8a533baa5c814c650c` with workspace sources `@siteed/audio-studio@4.0.0-beta.0` and `@siteed/sherpa-onnx.rn@1.3.2-beta.1`.
-- Workspace inventory also includes `@siteed/moonshine.rn@0.4.2-beta.0`, `@siteed/audio-ui@1.1.2-beta.1`, and `@siteed/react-native-essentia@0.3.2-beta.1` source. Sherpa Voice does not depend on or import these three packages; Moonshine ASR models run through sherpa-onnx instead.
+- Workspace inventory also includes `@siteed/moonshine.rn@0.4.2-beta.0`, `@siteed/audio-ui@1.1.2-beta.1`, and `@siteed/react-native-essentia@0.3.2-beta.1` source. Sherpa Voice does not depend on or import these three packages.
 - Add a Play production submission profile for use after release approval.
 
 ### Fixed
