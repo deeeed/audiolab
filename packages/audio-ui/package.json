@@ -1,6 +1,6 @@
 {
   "name": "@siteed/audio-ui",
-  "version": "1.1.2-beta.1",
+  "version": "1.1.2",
   "description": "UI experiments for @siteed/audio-studio",
   "license": "MIT",
   "main": "dist/index.cjs.js",
