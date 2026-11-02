@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2-beta.2] - 2026-11-02
+
+### Fixed
+
+- Fix missing iOS `utf8proc` link flags in reused checkouts. Pod installation refreshes every required `prebuilt/ios/current` link, rejects missing libraries, and declares link flags independently of existing files. Fixes deeeed/audiolab#513.
+
 ## [1.3.2-beta.1] - 2026-11-01
 
 ### Changed

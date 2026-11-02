@@ -193,7 +193,8 @@ install_modules_dependencies(s)
 s.vendored_libraries = sherpa_libraries.map { |lib| "prebuilt/ios/current/#{lib}" }
 
 s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
-s.libraries = "c++", "bz2"
+# Emit every link flag even before CocoaPods discovers the vendored files.
+s.libraries = ["c++", "bz2"] + sherpa_libraries.map { |lib| lib.sub(/\Alib/, "").sub(/\.a\z/, "") }
 ```
 
 ## Performance Characteristics
