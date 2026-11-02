@@ -73,6 +73,23 @@ load_env_defaults ".env.${APP_VARIANT_EFFECTIVE}"
 load_env_defaults ".env.${APP_VARIANT_EFFECTIVE}.local"
 IOS_DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM:-${APPLE_TEAM_ID:-}}"
 
+native_fingerprint() {
+  APP_VARIANT="$APP_VARIANT_EFFECTIVE" node - "$APP_ROOT" "$PLATFORM" <<'FINGERPRINT'
+// Hash workspace native sources too, even when their package version is unchanged.
+Promise.resolve().then(() => {
+  const [appRoot, platform] = process.argv.slice(2);
+  const expo = require.resolve('expo', { paths: [appRoot] });
+  const { createProjectHashAsync } = require(require.resolve('@expo/fingerprint', { paths: [expo] }));
+  return createProjectHashAsync(appRoot, { platforms: [platform], preset: 'strict', concurrentIoLimit: 4, silent: true });
+})
+  .then(hash => {
+    if (!/^[a-f0-9]{40}$/.test(hash)) throw new Error('Invalid native fingerprint');
+    process.stdout.write(hash);
+  })
+  .catch(() => { console.error('[preflight] FAIL Could not compute native fingerprint'); process.exitCode = 1; });
+FINGERPRINT
+}
+
 run_simctl_timeout() {
   python3 - "$@" <<'PY'
 import subprocess
@@ -347,6 +364,37 @@ elif [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   fi
 fi
 
+# Stamps survive checkout resets and belong to one variant, platform and device.
+if [ "$PLATFORM" = android ]; then
+  FINGERPRINT_BUNDLE="$BUNDLE_ID_ANDROID"
+  FINGERPRINT_DEVICE="$SERIAL"
+else
+  FINGERPRINT_BUNDLE="$BUNDLE_ID_IOS"
+  if [ "${IOS_DEVICE_MODE:-simulator}" = physical ]; then
+    FINGERPRINT_DEVICE="$IOS_DEVICE_UDID"
+  else
+    FINGERPRINT_DEVICE="$SIM_UUID"
+  fi
+fi
+FINGERPRINT_STAMP="${XDG_CACHE_HOME:-${HOME}/.cache}/audiolab-dev-client/${FINGERPRINT_BUNDLE}/${PLATFORM}-${FINGERPRINT_DEVICE}.fingerprint"
+if ! CURRENT_NATIVE_FINGERPRINT=$(native_fingerprint); then
+  if [ "${SKIP_BUILD:-0}" != 1 ]; then exit 1; fi
+  info "WARNING: Could not check dev client native fingerprint; keeping SKIP_BUILD=1 behavior"
+elif [ "$APP_INSTALLED" = true ]; then
+  INSTALLED_NATIVE_FINGERPRINT=$(cat "$FINGERPRINT_STAMP" 2>/dev/null || true)
+  if [[ ! "$INSTALLED_NATIVE_FINGERPRINT" =~ ^[a-f0-9]{40}$ ]]; then INSTALLED_NATIVE_FINGERPRINT=missing; fi
+  if [ "$INSTALLED_NATIVE_FINGERPRINT" != "$CURRENT_NATIVE_FINGERPRINT" ]; then
+    if [ "${SKIP_BUILD:-0}" = 1 ]; then
+      info "WARNING: dev client native fingerprint changed (${INSTALLED_NATIVE_FINGERPRINT} → ${CURRENT_NATIVE_FINGERPRINT}); SKIP_BUILD=1 keeps the installed client"
+    else
+      info "dev client native fingerprint changed (${INSTALLED_NATIVE_FINGERPRINT} → ${CURRENT_NATIVE_FINGERPRINT})"
+      APP_INSTALLED=false
+    fi
+  else
+    pass "Dev client native fingerprint unchanged (${CURRENT_NATIVE_FINGERPRINT})"
+  fi
+fi
+
 # REBUILD=1 forces reinstall even if app is already installed
 if [ "${REBUILD:-0}" = "1" ]; then APP_INSTALLED=false; fi
 
@@ -363,8 +411,11 @@ if [ "$APP_INSTALLED" = false ]; then
     launch_stage native-deps 300
   fi
 
+  if [ "$PLATFORM" = ios ]; then resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"; fi
+  # Capture the inputs after dependency hooks/prebuild, before native compilation.
+  CURRENT_NATIVE_FINGERPRINT=$(native_fingerprint)
+
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; then
-    resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"
     info "Building iOS app for physical device ${IOS_DEVICE_UDID} using ${IOS_SCHEME_NAME}..."
     BUILD_LOG=".agent/ios-device-build-$(date -u +%Y%m%dT%H%M%SZ).log"
     mkdir -p .agent
@@ -385,7 +436,6 @@ if [ "$APP_INSTALLED" = false ]; then
     xcrun devicectl device install app --device "${IOS_DEVICE_UDID}" "$APP_PATH"
     pass "iOS app built and installed on physical device"
   elif [ "$PLATFORM" = "ios" ]; then
-    resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"
     info "Building iOS app for simulator ${SIM} (${SIM_UUID}) using ${IOS_SCHEME_NAME}..."
     BUILD_LOG=".agent/ios-simulator-build-$(date -u +%Y%m%dT%H%M%SZ).log"
     mkdir -p .agent
@@ -415,6 +465,10 @@ if [ "$APP_INSTALLED" = false ]; then
     adb -s "${SERIAL}" install -r "$APK_PATH"
     pass "Android app built and installed on ${SERIAL}"
   fi
+  mkdir -p "$(dirname "$FINGERPRINT_STAMP")"
+  printf '%s\n' "$CURRENT_NATIVE_FINGERPRINT" > "${FINGERPRINT_STAMP}.$$"
+  mv "${FINGERPRINT_STAMP}.$$" "$FINGERPRINT_STAMP"
+  pass "Recorded dev client native fingerprint (${CURRENT_NATIVE_FINGERPRINT})"
 fi
 
 # ── 4. Launch via Expo dev client deep link ────────────────────
