@@ -85,7 +85,7 @@ Promise.resolve().then(() => {
     extraSources: [{ type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] }],
     ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
       .map(pattern => `../../packages/*/${pattern}`)
-      .concat('!../../packages/*/src/**/Native*.ts'),
+      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*'),
   });
 })
   .then(hash => {

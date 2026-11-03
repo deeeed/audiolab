@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createRequire } from 'node:module';
 
 const execute = promisify(execFile);
 const source = await fs.readFile(new URL('../preflight.sh', import.meta.url), 'utf8');
@@ -31,7 +32,7 @@ exports.createProjectHashAsync = async (root, options) => {
     extraSources: [{ type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] }],
     ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
       .map(pattern => '../../packages/*/' + pattern)
-      .concat('!../../packages/*/src/**/Native*.ts'),
+      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*'),
   });
   if (process.env.FAIL_FINGERPRINT === '1') throw new Error('fixture failure');
   return process.env.FIXTURE_HASH;
@@ -149,4 +150,49 @@ test('variants and devices do not share stamps', async t => {
   assert.match((await f.run({ FIXTURE_DEVICE: 'second-pixel' })).stdout, /fingerprint changed \(missing →/);
   assert.equal(await f.events(), 'build\ninstall\nbuild\ninstall\n');
   assert.equal(await fs.readFile(f.stamp, 'utf8'), `${newHash}\n`);
+});
+
+test('Moonshine device/simulator slice swaps preserve both platform fingerprints while native edits invalidate them', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-fingerprint-probe-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const appRoot = path.join(root, 'apps/playground');
+  const moonshine = path.join(root, 'packages/moonshine.rn');
+  for (const folder of ['node_modules/expo', 'node_modules/@expo/fingerprint']) {
+    await fs.mkdir(path.join(appRoot, folder), { recursive: true });
+  }
+  await fs.mkdir(path.join(moonshine, 'prebuilt/ios/current'), { recursive: true });
+  await fs.mkdir(path.join(moonshine, 'prebuilt/ios/Moonshine.xcframework/ios-arm64'), { recursive: true });
+  await fs.mkdir(path.join(root, 'packages/audio-studio/cpp'), { recursive: true });
+  await fs.writeFile(path.join(appRoot, 'package.json'), JSON.stringify({ name: 'fingerprint-probe', version: '1.0.0' }));
+  await fs.writeFile(path.join(appRoot, 'app.json'), JSON.stringify({ expo: { name: 'Probe', slug: 'probe' } }));
+  await fs.writeFile(path.join(appRoot, 'node_modules/expo/index.js'), '');
+  const require = createRequire(new URL('../../../apps/playground/package.json', import.meta.url));
+  const expo = require.resolve('expo');
+  const realFingerprint = require.resolve('@expo/fingerprint', { paths: [expo] });
+  // Supply the workspace package root as autolinking would, while retaining the preflight options.
+  await fs.writeFile(path.join(appRoot, 'node_modules/@expo/fingerprint/index.js'), `
+exports.createProjectHashAsync = (root, options) => require(${JSON.stringify(realFingerprint)}).createProjectHashAsync(root, {
+  ...options,
+  extraSources: [...options.extraSources, { type: 'dir', filePath: '../../packages/moonshine.rn', reasons: ['fixtureNativeModule'] }],
+}).catch(error => { console.error(error); throw error; });
+`);
+  const slice = path.join(moonshine, 'prebuilt/ios/current/libmoonshine_core.a');
+  const native = path.join(moonshine, 'prebuilt/ios/Moonshine.xcframework/ios-arm64/libmoonshine.a');
+  await fs.writeFile(native, 'native library\n');
+  await fs.writeFile(slice, 'device slice\n');
+  const hash = async platform => (await execute('bash', ['-c', `${fingerprint}\nnative_fingerprint`], {
+    env: { ...process.env, APP_ROOT: appRoot, APP_VARIANT_EFFECTIVE: 'development', PLATFORM: platform },
+    cwd: appRoot,
+    timeout: 30000,
+  })).stdout;
+  const baseline = {};
+  for (const platform of ['android', 'ios']) baseline[platform] = await hash(platform);
+  await fs.writeFile(slice, 'simulator slice\n');
+  for (const platform of ['android', 'ios']) {
+    assert.equal(await hash(platform), baseline[platform], `${platform}: generated slice changed fingerprint`);
+  }
+  await fs.writeFile(native, 'changed native library\n');
+  for (const platform of ['android', 'ios']) {
+    assert.notEqual(await hash(platform), baseline[platform], `${platform}: native change was ignored`);
+  }
 });
