@@ -36,7 +36,8 @@ exports.createProjectHashAsync = async (root, options) => {
     ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
       .map(pattern => '../../packages/*/' + pattern)
       .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*',
-        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar'),
+        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar',
+        '../../packages/audio-studio/plugin/src/**/*.test.ts'),
   });
   if (process.env.FAIL_FINGERPRINT === '1') throw new Error('fixture failure');
   return process.env.FIXTURE_HASH;
@@ -194,6 +195,11 @@ exports.createProjectHashAsync = (root, options) => require(${JSON.stringify(rea
   const packageJson = { name: '@siteed/moonshine.rn', version: '1.0.0',
     moonshineArtifacts: { android: { isolatedAarSha256: '1'.repeat(64) } } };
   const plugin = path.join(root, 'packages/audio-studio/plugin/src/index.ts');
+  const pluginTests = ['index.test.ts', 'nested/index.test.ts'].map(file => path.join(path.dirname(plugin), file));
+  for (const file of pluginTests) {
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, '// plugin test\n');
+  }
   await fs.writeFile(manifest, JSON.stringify(packageJson));
   await fs.writeFile(plugin, '// native config plugin\n');
   await fs.writeFile(native, 'native library\n');
@@ -205,6 +211,10 @@ exports.createProjectHashAsync = (root, options) => require(${JSON.stringify(rea
   })).stdout;
   const baseline = {};
   for (const platform of ['android', 'ios']) baseline[platform] = await hash(platform);
+  for (const file of pluginTests) await fs.writeFile(file, '// changed plugin test\n');
+  for (const platform of ['android', 'ios']) {
+    assert.equal(await hash(platform), baseline[platform], `${platform}: config plugin test changed fingerprint`);
+  }
   await fs.writeFile(slice, 'simulator slice\n');
   for (const platform of ['android', 'ios']) {
     assert.equal(await hash(platform), baseline[platform], `${platform}: generated slice changed fingerprint`);

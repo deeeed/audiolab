@@ -89,7 +89,8 @@ Promise.resolve().then(() => {
     ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
       .map(pattern => `../../packages/*/${pattern}`)
       .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*',
-        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar'),
+        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar',
+        '../../packages/audio-studio/plugin/src/**/*.test.ts'),
   });
 })
   .then(hash => {
