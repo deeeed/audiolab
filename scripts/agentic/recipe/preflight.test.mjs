@@ -29,10 +29,14 @@ exports.createProjectHashAsync = async (root, options) => {
   require('node:fs').appendFileSync(process.env.FINGERPRINT_EVENTS, 'fingerprint\\n');
   require('node:assert/strict').deepEqual(options, {
     platforms: [process.env.PLATFORM], preset: 'strict', concurrentIoLimit: 4, silent: true,
-    extraSources: [{ type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] }],
+    extraSources: [
+      { type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] },
+      { type: 'dir', filePath: '../../packages/audio-studio/plugin/src', reasons: ['audioStudioConfigPlugin'] },
+    ],
     ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
       .map(pattern => '../../packages/*/' + pattern)
-      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*'),
+      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*',
+        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar'),
   });
   if (process.env.FAIL_FINGERPRINT === '1') throw new Error('fixture failure');
   return process.env.FIXTURE_HASH;
@@ -113,9 +117,14 @@ test('failed build or install retains the previous fingerprint', async t => {
 
 test('fingerprint failure fails safely, while SKIP_BUILD keeps its installed-client behavior', async t => {
   const f = await fixture(t);
-  await assert.rejects(f.run({ FAIL_FINGERPRINT: '1' }));
+  await assert.rejects(f.run({ FAIL_FINGERPRINT: '1' }), error => {
+    assert.match(error.stderr, /Could not compute native fingerprint: fixture failure/);
+    return true;
+  });
   assert.equal(await f.events(), '');
-  assert.match((await f.run({ FAIL_FINGERPRINT: '1', SKIP_BUILD: '1' })).stdout, /WARNING: Could not check/);
+  const skipped = await f.run({ FAIL_FINGERPRINT: '1', SKIP_BUILD: '1' });
+  assert.match(skipped.stdout, /WARNING: Could not check/);
+  assert.match(skipped.stderr, /Could not compute native fingerprint: fixture failure/);
   assert.equal(await f.events(), '');
 });
 
@@ -152,7 +161,7 @@ test('variants and devices do not share stamps', async t => {
   assert.equal(await fs.readFile(f.stamp, 'utf8'), `${newHash}\n`);
 });
 
-test('Moonshine device/simulator slice swaps preserve both platform fingerprints while native edits invalidate them', async t => {
+test('generated Moonshine artifacts preserve both platform fingerprints while native inputs invalidate them', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-fingerprint-probe-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const appRoot = path.join(root, 'apps/playground');
@@ -162,7 +171,9 @@ test('Moonshine device/simulator slice swaps preserve both platform fingerprints
   }
   await fs.mkdir(path.join(moonshine, 'prebuilt/ios/current'), { recursive: true });
   await fs.mkdir(path.join(moonshine, 'prebuilt/ios/Moonshine.xcframework/ios-arm64'), { recursive: true });
+  await fs.mkdir(path.join(moonshine, 'prebuilt/android'), { recursive: true });
   await fs.mkdir(path.join(root, 'packages/audio-studio/cpp'), { recursive: true });
+  await fs.mkdir(path.join(root, 'packages/audio-studio/plugin/src'), { recursive: true });
   await fs.writeFile(path.join(appRoot, 'package.json'), JSON.stringify({ name: 'fingerprint-probe', version: '1.0.0' }));
   await fs.writeFile(path.join(appRoot, 'app.json'), JSON.stringify({ expo: { name: 'Probe', slug: 'probe' } }));
   await fs.writeFile(path.join(appRoot, 'node_modules/expo/index.js'), '');
@@ -178,6 +189,13 @@ exports.createProjectHashAsync = (root, options) => require(${JSON.stringify(rea
 `);
   const slice = path.join(moonshine, 'prebuilt/ios/current/libmoonshine_core.a');
   const native = path.join(moonshine, 'prebuilt/ios/Moonshine.xcframework/ios-arm64/libmoonshine.a');
+  const aar = path.join(moonshine, 'prebuilt/android/moonshine-voice-isolated.aar');
+  const manifest = path.join(moonshine, 'package.json');
+  const packageJson = { name: '@siteed/moonshine.rn', version: '1.0.0',
+    moonshineArtifacts: { android: { isolatedAarSha256: '1'.repeat(64) } } };
+  const plugin = path.join(root, 'packages/audio-studio/plugin/src/index.ts');
+  await fs.writeFile(manifest, JSON.stringify(packageJson));
+  await fs.writeFile(plugin, '// native config plugin\n');
   await fs.writeFile(native, 'native library\n');
   await fs.writeFile(slice, 'device slice\n');
   const hash = async platform => (await execute('bash', ['-c', `${fingerprint}\nnative_fingerprint`], {
@@ -191,8 +209,28 @@ exports.createProjectHashAsync = (root, options) => require(${JSON.stringify(rea
   for (const platform of ['android', 'ios']) {
     assert.equal(await hash(platform), baseline[platform], `${platform}: generated slice changed fingerprint`);
   }
+  await fs.writeFile(aar, 'generated isolated AAR\n');
+  for (const platform of ['android', 'ios']) {
+    assert.equal(await hash(platform), baseline[platform], `${platform}: generated AAR changed fingerprint`);
+  }
+  await fs.unlink(aar);
+  for (const platform of ['android', 'ios']) {
+    assert.equal(await hash(platform), baseline[platform], `${platform}: removed AAR changed fingerprint`);
+  }
+  packageJson.moonshineArtifacts.android.isolatedAarSha256 = '2'.repeat(64);
+  await fs.writeFile(manifest, JSON.stringify(packageJson));
+  for (const platform of ['android', 'ios']) {
+    assert.notEqual(await hash(platform), baseline[platform], `${platform}: AAR checksum change was ignored`);
+  }
+  packageJson.moonshineArtifacts.android.isolatedAarSha256 = '1'.repeat(64);
+  await fs.writeFile(manifest, JSON.stringify(packageJson));
   await fs.writeFile(native, 'changed native library\n');
   for (const platform of ['android', 'ios']) {
     assert.notEqual(await hash(platform), baseline[platform], `${platform}: native change was ignored`);
+  }
+  await fs.writeFile(native, 'native library\n');
+  await fs.writeFile(plugin, '// changed native config plugin\n');
+  for (const platform of ['android', 'ios']) {
+    assert.notEqual(await hash(platform), baseline[platform], `${platform}: config plugin source change was ignored`);
   }
 });

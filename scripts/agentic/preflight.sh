@@ -75,24 +75,28 @@ IOS_DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM:-${APPLE_TEAM_ID:-}}"
 
 native_fingerprint() {
   APP_VARIANT="$APP_VARIANT_EFFECTIVE" node - "$APP_ROOT" "$PLATFORM" <<'FINGERPRINT'
-// Include shared audio-studio C++ and native codegen specs; exclude other workspace JS and documentation.
+// Include shared audio-studio C++, config plugin sources and native codegen specs; exclude other workspace JS and documentation.
 Promise.resolve().then(() => {
   const [appRoot, platform] = process.argv.slice(2);
   const expo = require.resolve('expo', { paths: [appRoot] });
   const { createProjectHashAsync } = require(require.resolve('@expo/fingerprint', { paths: [expo] }));
   return createProjectHashAsync(appRoot, {
     platforms: [platform], preset: 'strict', concurrentIoLimit: 4, silent: true,
-    extraSources: [{ type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] }],
+    extraSources: [
+      { type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] },
+      { type: 'dir', filePath: '../../packages/audio-studio/plugin/src', reasons: ['audioStudioConfigPlugin'] },
+    ],
     ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
       .map(pattern => `../../packages/*/${pattern}`)
-      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*'),
+      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*',
+        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar'),
   });
 })
   .then(hash => {
     if (!/^[a-f0-9]{40}$/.test(hash)) throw new Error('Invalid native fingerprint');
     process.stdout.write(hash);
   })
-  .catch(() => { console.error('[preflight] FAIL Could not compute native fingerprint'); process.exitCode = 1; });
+  .catch(error => { console.error('[preflight] FAIL Could not compute native fingerprint:', error.message); process.exitCode = 1; });
 FINGERPRINT
 }
 
