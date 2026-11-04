@@ -41,8 +41,8 @@ try {
       run(['workspace', manifest.name, 'test', '--findRelatedTests', ...workspaceSource.map((file) => path.resolve(file)), '--runInBand', '--coverage=false', '--passWithNoTests']);
     }
   }
-  // Keep the primary CI TypeScript check on clean, docs-only or app-only branches.
-  if (!typed) run(['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false']);
+  // App source consumes the primary library; docs-only branches need no compiler.
+  if (!typed && files.some((file) => file.startsWith('apps/playground/') && isSource(file))) run(['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false']);
   const pluginFiles = files.filter((file) => file.startsWith('packages/audio-studio/plugin/'));
   if (pluginFiles.length) {
     run(['exec', 'tsc', '--noEmit', '--incremental', 'false', '-p', 'packages/audio-studio/plugin/tsconfig.json']);

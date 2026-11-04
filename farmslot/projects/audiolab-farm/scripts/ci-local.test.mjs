@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -47,7 +47,7 @@ process.exit(args.includes('test')&&process.env.AUDIO_CI_TEST_UNIT_FAIL?7:0);
     delete env.NODE_TEST_CONTEXT;
     return spawnSync(process.execPath, [path.join(scriptDir, 'ci-local.mjs')], { cwd: repo, env, encoding: 'utf8' });
   };
-  const calls = () => readFileSync(log, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  const calls = () => existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map((line) => JSON.parse(line)) : [];
   return { root, repo, bin, log, run, calls };
 }
 
@@ -135,7 +135,8 @@ test('each PR-producing catalog entry uses the shared step and the portable prep
   assert.equal(Object.hasOwn(config.vars, 'mark_cmd'), false, 'Use the connected-node SDK mark helper default.');
   for (const flow of ['dev', 'fix-bug', 'pr-complete', 'update-branch']) {
     const text = readFileSync(path.join(project, 'checklists', flow, 'default.md'), 'utf8');
-    assert.equal((text.match(/\{\{CI_PARITY_STEP\}\}/g) || []).length, 1, flow);
+    assert.equal((text.match(/\[DETERMINISTIC: ci\.local_check\]/g) || []).length, 1, flow);
+    assert.doesNotMatch(text, /CI_PARITY_STEP/);
   }
 });
 
@@ -158,7 +159,7 @@ test('the prepared CI shell uses configured farm and Node paths with spaces', t 
   delete env.FARMSLOT_ROOT;
   const result = spawnSync('/bin/bash', [wrapper], { cwd: repo, env, encoding: 'utf8', timeout: 3000 });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(calls(), [['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false']]);
+  assert.deepEqual(calls(), []);
   for (const configured of [undefined, '']) {
     const missing = { ...env };
     if (configured === undefined) delete missing.AUDIOLAB_FARM_ROOT;
@@ -167,5 +168,5 @@ test('the prepared CI shell uses configured farm and Node paths with spaces', t 
     assert.notEqual(refused.status, 0);
     assert.match(refused.stderr, /Set AUDIOLAB_FARM_ROOT in pool.env to the Audiolab pack installation root/);
   }
-  assert.equal(calls().length, 1, 'Missing root configuration ran a CI command.');
+  assert.equal(calls().length, 0, 'Missing root configuration ran a CI command.');
 });
