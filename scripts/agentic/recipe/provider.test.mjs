@@ -220,7 +220,7 @@ test('web recording selects the shared CDP recorder and binds its assigned endpo
 test('native recording uses the shared recorder bound to the assigned target', async t => {
   const saved = process.env.ADB_SERIAL;
   t.after(() => { if (saved === undefined) delete process.env.ADB_SERIAL;else process.env.ADB_SERIAL = saved; });
-  for (const [serial, expected] of [['assigned-physical-device', 'android-recording'], ['emulator-5554', 'adb-screenrecord']]) {
+  for (const [serial, expected] of [['assigned-physical-device', 'adb-screenrecord'], ['emulator-5554', 'adb-screenrecord']]) {
     process.env.ADB_SERIAL = serial;
     const recording = createProvider(context('playground', 'android')).runtime.recording;
     assert.equal(typeof recording.videoRecorder, 'function');

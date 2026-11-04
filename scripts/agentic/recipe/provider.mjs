@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ADAPTER_SDK_VERSION } from '@farmslot/adapter-sdk';
-import { createAndroidMirrorVideoRecorder, createCdpVideoRecorder } from '@farmslot/recipe-runner';
+import { createCdpVideoRecorder } from '@farmslot/recipe-runner';
 import { createAndroidVideoRecorder, createIosSimulatorVideoRecorder } from '@farmslot/adapter-rn';
 import { contextPorts } from '@farmslot/recipe-cli/harness';
 import { recordingTarget } from './recording-target.mjs';
@@ -168,10 +168,7 @@ export function createProvider(context) {
       recording: { target: () => recordingTarget({ platform, serial, simulator, device: explicitDevice, iosDevice, cdp, metro }),
         videoRecorder: async () => {
           if (platform === 'web') return createCdpVideoRecorder({ cdpPort: cdp, urlIncludes: `:${metro}` });
-          if (platform === 'android') {
-            const fallback = createAndroidVideoRecorder(serial);
-            return serial.startsWith('emulator-') ? fallback : createAndroidMirrorVideoRecorder({ serial, fallback });
-          }
+          if (platform === 'android') return createAndroidVideoRecorder(serial);
           if (!iosDevice && !explicitDevice?.startsWith('device:'))
             return createIosSimulatorVideoRecorder(simulator || explicitDevice);
         },
