@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Android recording notifications no longer render as a blank row when `showWaveformInNotification` is off, the default. The custom `RemoteViews` layout sets no text colour and centres its rows in a height the collapsed template clips on Android 12+, so the title, text and duration were drawn but not visible. Without the waveform the notification now uses the standard template, which carries the same title, text and duration; with the waveform the custom layout is unchanged.
+
 ## [4.0.0-beta.0] - 2026-08-24
 
 ### Fixed
