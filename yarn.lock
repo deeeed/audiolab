@@ -5136,6 +5136,35 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@farmslot/adapter-rn@npm:0.29.2":
+  version: 0.29.2
+  resolution: "@farmslot/adapter-rn@npm:0.29.2"
+  dependencies:
+    "@farmslot/agent-runtime": "npm:0.39.8"
+    "@farmslot/protocol": "npm:0.74.0"
+    "@farmslot/recipe-runner": "npm:0.46.2"
+    pngjs: "npm:^7.0.0"
+    ws: "npm:^8.18.0"
+  peerDependencies:
+    agent-device: ">=0.19.3"
+    react: ">=19"
+    react-native: ">=0.79"
+    react-native-safe-area-context: ">=5"
+  peerDependenciesMeta:
+    agent-device:
+      optional: true
+    react:
+      optional: true
+    react-native:
+      optional: true
+    react-native-safe-area-context:
+      optional: true
+  bin:
+    farmslot-adapter-rn: ./bin/farmslot-adapter-rn.mjs
+  checksum: 10/7cd64667d767185cfae24148da4de5174720b65de9fa9a020617df2d97c9cbabd2ae4a56678ce95edead2511c299c6c4f988e9900003c0c27b7486f55fbb0b03
+  languageName: node
+  linkType: hard
+
 "@farmslot/adapter-sdk@npm:0.25.2":
   version: 0.25.2
   resolution: "@farmslot/adapter-sdk@npm:0.25.2"
@@ -8749,6 +8778,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@siteed/audiolab-agentic@workspace:scripts/agentic"
   dependencies:
+    "@farmslot/adapter-rn": "npm:0.29.2"
     "@farmslot/adapter-sdk": "npm:0.25.2"
     "@farmslot/recipe-cli": "npm:0.32.1"
     "@farmslot/recipe-runner": "npm:0.46.2"
