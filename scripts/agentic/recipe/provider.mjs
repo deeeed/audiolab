@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ADAPTER_SDK_VERSION } from '@farmslot/adapter-sdk';
-import { createCdpVideoRecorder } from '@farmslot/recipe-runner';
+import { createAndroidMirrorVideoRecorder, createCdpVideoRecorder } from '@farmslot/recipe-runner';
+import { createAndroidVideoRecorder, createIosSimulatorVideoRecorder } from '@farmslot/adapter-rn';
 import { contextPorts } from '@farmslot/recipe-cli/harness';
 import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
@@ -165,7 +166,15 @@ export function createProvider(context) {
         })),
       },
       recording: { target: () => recordingTarget({ platform, serial, simulator, device: explicitDevice, iosDevice, cdp, metro }),
-        ...(platform === 'web' ? { videoRecorder: async () => createCdpVideoRecorder({ cdpPort: cdp, urlIncludes: `:${metro}` }) } : {}),
+        videoRecorder: async () => {
+          if (platform === 'web') return createCdpVideoRecorder({ cdpPort: cdp, urlIncludes: `:${metro}` });
+          if (platform === 'android') {
+            const fallback = createAndroidVideoRecorder(serial);
+            return serial.startsWith('emulator-') ? fallback : createAndroidMirrorVideoRecorder({ serial, fallback });
+          }
+          if (!iosDevice && !explicitDevice?.startsWith('device:'))
+            return createIosSimulatorVideoRecorder(simulator || explicitDevice);
+        },
       },
     },
     cancel() { if (launchedMetro) stopMetro(appRoot, metro); },
