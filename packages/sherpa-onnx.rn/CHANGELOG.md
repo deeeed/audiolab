@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-02
+
+### Migration
+
+This major release uses vendored sherpa-onnx v2.0.1 and ONNX Runtime 1.28.2 on iOS, Android, and web.
+
+- TTS no longer includes espeak-ng or piper-phonemize, and `dataDir` is ignored. VITS/Piper, Kokoro, and Matcha models need `lexiconFile` or `phonemeCodepoints`.
+- iOS apps that also link `@siteed/moonshine.rn` need its isolated xcframework, available in moonshine.rn 0.4.2-beta.0 or later.
+
+### Changed
+
+- Update Expo SDK 58 development compatibility.
+- **Breaking:** vendored sherpa-onnx goes from v1.13.0 to v2.0.1, with ONNX Runtime 1.28.2 on iOS, Android, and web. Prebuilt binaries come from the `sherpa-onnx-prebuilt-v2.0.1` release asset; the iOS archives drop `libespeak-ng.a`, `libpiper_phonemize.a`, and `libucd.a` and add `libutf8proc.a`.
+- **Breaking (TTS):** upstream removed espeak-ng and piper-phonemize. `dataDir` is ignored. VITS/Piper, Kokoro, and Matcha models need `lexiconFile` (for English, upstream `tts-models/lexicon-en-us.txt`) or `phonemeCodepoints`; without either, generation returns no audio and now fails with an error that says so. Words missing from the lexicon are skipped. Non-English Piper voices need external phonemization passed as `phonemeCodepoints`.
+- The ONNX Runtime override patches and the wasm `std::filesystem` shim are gone: upstream v2.0.1 covers both. The wasm build uses emsdk 4.0.23.
+- iOS apps that also link `@siteed/moonshine.rn` need its isolated xcframework, first in moonshine.rn 0.4.2-beta.0. The 0.4.1 asset exports ONNX Runtime 1.23 symbols that shadow this package's 1.28.2, and every model load crashes. Run `yarn ios:ort:check`.
+
+### Added
+
+- `phonemeCodepoints` on `generateTts` and `TtsOptions` (iOS, Android, web), one array of Unicode code points per sentence.
+- Kokoro accepts a comma-separated `lexiconFile` list on iOS and Android, and Android now passes the Kokoro lexicon to native code.
+
+### Fixed
+
+- Fix missing iOS `utf8proc` link flags in reused checkouts. Pod installation refreshes every required `prebuilt/ios/current` link, rejects missing libraries, and declares link flags independently of existing files. Fixes deeeed/audiolab#513.
+- iOS `initTts` dropped `ttsModelType`, `lexiconFile`, `voicesFile`, and `vocoderFile` because the TurboModule spec declared different key names. Kokoro and Matcha models initialized as VITS, and no lexicon reached native code.
+- Web TTS now allocates and zeroes the Supertonic block of the model config the C API reads; it previously read past the end of the allocation.
+- Web wasm glue matches the v2.0.1 C structs: 64-bit VAD segment start, offline CTC FST decoder config, pyannote `window_shift_ratio`, fast-clustering `compute_confidence`, diarization segment `confidence`, and the denoiser DPDFNet/VoxLock fields.
+- Web VAD init threw `TypeError: Cannot read properties of undefined (reading 'fill')`: the glue zeroed its config through `Module.HEAP8`, which the wasm runtime does not export. It now uses `HEAPU8`. Published 1.3.1 had the same failure.
+- Remove the obsolete Android ONNX Runtime `pickFirst` rule. Moonshine now isolates its runtime under a private SONAME, so selecting an arbitrary shared library is unnecessary and unsafe.
+- Android TTS no longer aborts the process on `initTts`. The bundled Kotlin `OfflineTtsModelConfig` was missing the `zipvoice` and `supertonic` sub-configs that the prebuilt JNI library reads, so every model failed with `NoSuchFieldError: no field "zipvoice"`. Affected all TTS model types, not just those two.
+- Android TTS playback no longer starts before the first generated samples are written. The `AudioTrack` is created stopped, prefilled with roughly 200 ms of PCM, then started, removing the audible jitter and underrun warnings at the start of an utterance.
+- Android `AudioTrack` instances whose `build()` succeeded but whose initialization failed are now released instead of leaked, which previously leaked once per reinitialization retry.
+- Android `stopTts` now interrupts generation in progress instead of becoming a no-op until the utterance finishes.
+- Android `WaveReader` JNI declarations now match the prebuilt library's `WaveData` return type, avoiding a latent `ClassCastException` at the bridge boundary.
+
 ## [1.3.2-beta.2] - 2026-11-02
 
 ### Fixed
@@ -206,7 +242,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.2-beta.0...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.0...HEAD
+[2.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@2.0.0
 [1.3.2-beta.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@1.3.2-beta.0
 [1.3.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.0...@siteed/sherpa-onnx.rn@1.3.1
 [1.3.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.2.0...@siteed/sherpa-onnx.rn@1.3.0

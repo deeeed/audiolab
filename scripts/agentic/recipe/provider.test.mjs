@@ -213,8 +213,30 @@ test('web recording selects the shared CDP recorder and binds its assigned endpo
     outputPath: path.join(os.tmpdir(), 'audiolab-endpoint-refusal.mp4'),
   }), /different endpoint/);
   const native = createProvider(context('playground', 'ios'));
-  assert.equal(native.runtime.recording.videoRecorder, undefined);
+  assert.equal((await native.runtime.recording.videoRecorder()).name, 'simctl');
   assert.deepEqual(await native.runtime.recording.target(), { kind: 'simulator', device: 'assigned-simulator' });
+});
+
+test('native recording uses the shared recorder bound to the assigned target', async t => {
+  const saved = process.env.ADB_SERIAL;
+  t.after(() => { if (saved === undefined) delete process.env.ADB_SERIAL;else process.env.ADB_SERIAL = saved; });
+  for (const [serial, expected] of [['assigned-physical-device', 'adb-screenrecord'], ['emulator-5554', 'adb-screenrecord']]) {
+    process.env.ADB_SERIAL = serial;
+    const recording = createProvider(context('playground', 'android')).runtime.recording;
+    assert.equal(typeof recording.videoRecorder, 'function');
+    const recorder = await recording.videoRecorder();
+    assert.equal(recorder.name, expected);
+    assert.deepEqual(await recording.target(), { kind: 'android-device', serial });
+    await assert.rejects(recorder.start({ target: { kind: 'android-device', serial: 'foreign-device' }, outputPath: '/unused.mp4' }), /does not match/);
+  }
+  const recording = createProvider(context('playground', 'ios')).runtime.recording;
+  assert.equal(typeof recording.videoRecorder, 'function');
+  assert.equal((await recording.videoRecorder()).name, 'simctl');
+  const physical = context('playground', 'ios');
+  physical.options.device = 'device:assigned-iphone';
+  const unsupported = createProvider(physical).runtime.recording;
+  assert.equal(await unsupported.videoRecorder(), undefined);
+  await assert.rejects(unsupported.target(), /Physical iOS video capture is not declared/);
 });
 
 test('built-in verification observes the bound bridge and refuses missing route readiness', async t => {
