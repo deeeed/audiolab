@@ -9062,6 +9062,7 @@ __metadata:
     "@playwright/test": "npm:^1.58.2"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/slider": "npm:5.2.1"
+    "@react-native/jest-preset": "npm:0.88.1"
     "@react-navigation/native": "npm:7.2.2"
     "@siteed/agentic-dev": "workspace:^"
     "@siteed/audio-studio": "workspace:^"

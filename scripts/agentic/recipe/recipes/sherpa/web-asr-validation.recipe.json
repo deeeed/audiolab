@@ -1,0 +1,560 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice web ASR: file and live microphone",
+  "description": "Web only. Transcribes the bundled JFK sample on the ASR screen with the web-preloaded streaming model, then switches to Live Mic and asserts the live transcript of the JFK speech fed to the microphone. Launch the browser with WEB_FAKE_AUDIO_FILE pointing at a JFK WAV. Labelled buttons are clicked through the DOM because react-native-web exposes no fiber roots to the label walker in sherpa.upgrade-audio-flows.",
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "asr_model": {
+        "type": "string",
+        "default": "streaming-zipformer-en-general"
+      }
+    }
+  },
+  "proofTargets": [
+    {
+      "id": "file-asr",
+      "claim": "The web ASR model loads and transcribes the bundled JFK sample.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "sample-info",
+      "claim": "Selecting a bundled sample on web shows its real size and duration.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "live-asr",
+      "claim": "Live Mic transcribes the speech on the microphone while recording, and stops cleanly.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "restored",
+      "claim": "The run ends on the route it started from."
+    }
+  ],
+  "workflow": {
+    "entry": "reset-stack",
+    "teardown": "restore",
+    "nodes": {
+      "reset-stack": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.canGoBack||!A.goBack){return Promise.resolve({status:'error',error:'bridge missing canGoBack/goBack'});}var n=0;return new Promise(function(resolve){function step(){if(!A.canGoBack()||n>=30){resolve({status:'reset',popped:n,atRoot:!A.canGoBack()});return;}A.goBack();n++;setTimeout(step,300);}step();});})()",
+        "async": true,
+        "timeout_ms": 20000,
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "status",
+              "value": "reset"
+            },
+            {
+              "operator": "eq",
+              "field": "atRoot",
+              "value": true
+            }
+          ]
+        },
+        "intent": "Pop earlier screens so the run starts from the root of the stack.",
+        "next": "prepare-ready"
+      },
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "poll": true,
+        "timeout_ms": 90000,
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "nav-asr"
+      },
+      "nav-asr": {
+        "action": "ui.navigate",
+        "path": "/features/asr",
+        "intent": "Open the speech recognition screen.",
+        "next": "assert-single-screen"
+      },
+      "read-asr": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "route",
+              "value": "/features/asr"
+            },
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": false
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The ASR screen is shown and not recording.",
+        "next": "choose-file-mode"
+      },
+      "assert-single-screen": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({pickers: typeof document==='undefined'?-1:document.querySelectorAll('[data-testid=model-picker-list]').length})",
+        "assert": {
+          "operator": "eq",
+          "field": "pickers",
+          "value": 1
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Exactly one ASR screen is mounted.",
+        "next": "read-asr"
+      },
+      "choose-file-mode": {
+        "action": "audiolab.choose",
+        "intent": "Switch to file mode when the screen opened in live mode.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.mode",
+            "value": "live"
+          }
+        ],
+        "cases": {
+          "case-0": "press-file-mode"
+        },
+        "default": "select-model"
+      },
+      "press-file-mode": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"File\";});if(!els.length)return {status:'not-found',label:\"File\"};els[els.length-1].click();return {status:'clicked',label:\"File\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Switch the screen to file mode.",
+        "next": "select-model"
+      },
+      "select-model": {
+        "action": "ui.press",
+        "test_id": "model-option-{{params.asr_model}}",
+        "intent": "Pick the web streaming English model.",
+        "next": "read-init"
+      },
+      "read-init": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "mode",
+          "value": "file"
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "File mode is active with the model selected.",
+        "next": "choose-init"
+      },
+      "choose-init": {
+        "action": "audiolab.choose",
+        "intent": "Initialize the model unless it is already loaded.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.initialized",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "choose-file-after-init"
+        },
+        "default": "press-init"
+      },
+      "press-init": {
+        "action": "ui.press",
+        "test_id": "btn-init-asr",
+        "intent": "Initialize the selected model.",
+        "next": "wait-initialized"
+      },
+      "wait-initialized": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "initialized",
+          "value": true
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 300000,
+        "intent": "The model is loaded in the browser.",
+        "next": "choose-file-after-init"
+      },
+      "choose-file-after-init": {
+        "action": "audiolab.choose",
+        "intent": "Return to file mode if the screen restored live mode while loading.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.mode",
+            "value": "live"
+          }
+        ],
+        "cases": {
+          "case-0": "press-file-after-init"
+        },
+        "default": "wait-audio-option"
+      },
+      "press-file-after-init": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"File\";});if(!els.length)return {status:'not-found',label:\"File\"};els[els.length-1].click();return {status:'clicked',label:\"File\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Switch back to file mode.",
+        "next": "wait-audio-option"
+      },
+      "wait-audio-option": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('audio-option-1')})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The bundled samples are listed.",
+        "next": "select-audio"
+      },
+      "select-audio": {
+        "action": "ui.press",
+        "test_id": "audio-option-1",
+        "intent": "Pick the bundled JFK speech sample.",
+        "next": "wait-sample-info"
+      },
+      "wait-sample-info": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {hasSize:false,hasDuration:false};var t=document.body.innerText||'';var size=(t.match(/Size: ([^\\n]+)/)||[])[1]||null;var dur=(t.match(/Duration: ([^\\n]+)/)||[])[1]||null;return {sizeText:size,durationText:dur,hasSize:!!size&&size.trim()!=='0 Bytes',hasDuration:!!dur&&dur.trim()!=='0:00'};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "hasSize",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "hasDuration",
+              "value": true
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The sample card shows the real file size and duration.",
+        "next": "prove-sample-info"
+      },
+      "prove-sample-info": {
+        "action": "assert_output",
+        "source": "wait-sample-info",
+        "assert": {
+          "path": "$.hasSize",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "sample-info"
+        ],
+        "intent": "The web sample card reports a non-zero size.",
+        "next": "press-recognize"
+      },
+      "press-recognize": {
+        "action": "ui.press",
+        "test_id": "btn-recognize",
+        "intent": "Recognize the selected sample.",
+        "next": "wait-transcript"
+      },
+      "wait-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.recognitionResult].filter(Boolean).join(' ');return {mode:s.mode,initialized:!!s.initialized,isRecording:!!s.isRecording,error:s.error||null,text:t,hasJfkWords:/country/i.test(t)&&/americans/i.test(t)};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "hasJfkWords",
+          "value": true
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 120000,
+        "intent": "The displayed transcript holds the JFK sentence.",
+        "next": "prove-transcript"
+      },
+      "prove-transcript": {
+        "action": "assert_output",
+        "source": "wait-transcript",
+        "assert": {
+          "path": "$.hasJfkWords",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "file-asr"
+        ],
+        "intent": "The file transcript contains \"americans\" and \"country\".",
+        "next": "reveal-transcript"
+      },
+      "reveal-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var e=typeof document!=='undefined'&&document.querySelector('[data-testid=text-recognition-result]');if(!e)return {visible:false};e.scrollIntoView({block:'center'});return {visible:true};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Scroll the transcript into view.",
+        "next": "shot-transcript"
+      },
+      "shot-transcript": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-web-asr-file.png",
+        "covers": [
+          "file-asr"
+        ],
+        "label": "JFK sample transcript",
+        "intent": "Show the file transcript on screen.",
+        "next": "press-live-mode"
+      },
+      "press-live-mode": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"Live Mic\";});if(!els.length)return {status:'not-found',label:\"Live Mic\"};els[els.length-1].click();return {status:'clicked',label:\"Live Mic\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Switch the screen to live microphone mode.",
+        "next": "read-live"
+      },
+      "read-live": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "mode",
+          "value": "live"
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Live mode is active.",
+        "next": "choose-live-init"
+      },
+      "choose-live-init": {
+        "action": "audiolab.choose",
+        "intent": "Initialize again if switching modes released the model.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.initialized",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "press-start-listening"
+        },
+        "default": "press-init-live"
+      },
+      "press-init-live": {
+        "action": "ui.press",
+        "test_id": "btn-init-asr",
+        "intent": "Initialize the model for live mode.",
+        "next": "wait-live-initialized"
+      },
+      "wait-live-initialized": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "initialized",
+          "value": true
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 300000,
+        "intent": "The model is loaded for live mode.",
+        "next": "press-start-listening"
+      },
+      "press-start-listening": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"Start Listening\";});if(!els.length)return {status:'not-found',label:\"Start Listening\"};els[els.length-1].click();return {status:'clicked',label:\"Start Listening\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Start listening on the microphone.",
+        "next": "wait-live-transcript"
+      },
+      "wait-live-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.committedText,s.interimText].filter(Boolean).join(' ');return {mode:s.mode,initialized:!!s.initialized,isRecording:!!s.isRecording,error:s.error||null,text:t,hasJfkWords:/country/i.test(t)&&/americans/i.test(t)};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "hasJfkWords",
+              "value": true
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 90000,
+        "intent": "The live transcript shows the JFK speech heard on the microphone.",
+        "next": "prove-live"
+      },
+      "prove-live": {
+        "action": "assert_output",
+        "source": "wait-live-transcript",
+        "assert": {
+          "path": "$.hasJfkWords",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "live-asr"
+        ],
+        "intent": "Live transcription produced \"americans\" and \"country\" while recording.",
+        "next": "shot-live"
+      },
+      "shot-live": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-web-asr-live.png",
+        "covers": [
+          "live-asr"
+        ],
+        "label": "Live Mic transcript",
+        "intent": "Show the live transcript while listening.",
+        "next": "press-stop-listening"
+      },
+      "press-stop-listening": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"Stop Listening\";});if(!els.length)return {status:'not-found',label:\"Stop Listening\"};els[els.length-1].click();return {status:'clicked',label:\"Stop Listening\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Stop listening.",
+        "next": "wait-stopped"
+      },
+      "wait-stopped": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": false
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The microphone session stops.",
+        "next": "prove-stopped"
+      },
+      "prove-stopped": {
+        "action": "assert_output",
+        "source": "wait-stopped",
+        "assert": {
+          "path": "$.isRecording",
+          "operator": "eq",
+          "value": false
+        },
+        "proves": [
+          "live-asr"
+        ],
+        "intent": "Recording is off after stopping.",
+        "next": "press-release"
+      },
+      "press-release": {
+        "action": "ui.press",
+        "test_id": "btn-release-asr",
+        "intent": "Release the speech model.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Return to the starting route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoring it.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "The starting route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

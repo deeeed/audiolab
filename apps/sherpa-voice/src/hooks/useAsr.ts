@@ -5,7 +5,7 @@ import {
     type AudioDataEvent,
 } from '@siteed/audio-studio'
 import { baseLogger } from '../config'
-import { resolveModelDir } from '../utils/fileUtils'
+import { getFileSize, resolveModelDir } from '../utils/fileUtils'
 import { SAMPLE_AUDIO_FILES } from '../utils/asrSamples'
 export { SAMPLE_AUDIO_FILES } from '../utils/asrSamples'
 
@@ -14,7 +14,6 @@ import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUti
 import { getWebAsrBackend } from '../config/webFeatures'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
-import * as FileSystem from 'expo-file-system/legacy'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAsrModels, useAsrModelWithConfig } from './useModelWithConfig'
@@ -239,7 +238,7 @@ export function useAsr() {
         setSelectedAudio(audioItem)
         setAudioMetadata({ isLoading: true })
         try {
-            const info = await FileSystem.getInfoAsync(audioItem.localUri)
+            const size = await getFileSize(audioItem.localUri)
             let duration = 0
             try {
                 const tempPlayer = createAudioPlayer({
@@ -250,7 +249,7 @@ export function useAsr() {
                 tempPlayer.remove()
             } catch (_) {}
             setAudioMetadata({
-                size: info.exists ? info.size : 0,
+                size,
                 duration,
                 isLoading: false,
             })

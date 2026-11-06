@@ -5,7 +5,7 @@
     "scripts": {
         "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh",
         "postinstall": "patch-package",
-        "build:deps": "cd ../../packages/audio-studio && yarn build && yarn build:plugin && cd ../playgroundapi && yarn build && cd ../react-native-essentia && yarn prepare",
+        "build:deps": "cd ../../packages/audio-studio && yarn build && yarn build:plugin && cd ../playgroundapi && yarn build && cd ../react-native-essentia && yarn prepare && cd ../sherpa-onnx.rn && yarn prepare && cd ../moonshine.rn && yarn prepare",
         "start": "NODE_ENV=development APP_VARIANT=development bash scripts/agentic/start-metro.sh && node scripts/agentic/start-interactive.mjs",
         "stop": "bash scripts/agentic/stop-metro.sh",
         "android": "APP_VARIANT=development PLATFORM=android HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
