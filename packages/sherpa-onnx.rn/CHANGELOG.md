@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Web `initTts` fails with `Failed to load TTS model files: <url>` when `model.onnx`, `tokens.txt` or a configured `lexiconFile` cannot be fetched, and frees the files that did load. Before, a missing lexicon aborted engine creation with `RuntimeError: memory access out of bounds`, and a missing model or tokens file gave `Missing required files for VITS model configuration` without naming it.
+- Web `initTts` rejects non-VITS models with `Web TTS supports VITS models only, not <type>`. The WASM glue builds no engine config for matcha or kokoro, so those crashed during engine creation.
+- The web loader no longer logs `Module loading timeout reached` 30 s after the modules loaded. It now clears its backup timer once loading settles, and a load that really times out warns once instead of twice.
+
 ## [2.0.0] - 2026-11-02
 
 ### Migration

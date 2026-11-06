@@ -213,22 +213,25 @@
     // Browser environment: load scripts
     if (typeof window !== 'undefined') {
       // Set up a backup timeout to ensure callback is called even if loading fails
+      let timeoutId;
       const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           console.warn("Module loading timeout reached - some modules may not have loaded correctly");
           resolve();
         }, 30000); // 30 second timeout
       });
-      
+
       // Load modules with timeout protection
       Promise.race([loadModulesSequentially(), timeoutPromise])
         .catch(error => {
           console.error("Module loading failed:", error);
-          
+
           if (global.onSherpaOnnxReady) {
             global.onSherpaOnnxReady(false);
           }
-        });
+        })
+        // Loading finished first: drop the backup timer so it cannot warn later.
+        .finally(() => clearTimeout(timeoutId));
     }
   };
   

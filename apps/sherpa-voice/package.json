@@ -144,6 +144,7 @@
         "@babel/plugin-proposal-decorators": "^7.25.9",
         "@config-plugins/detox": "^9.0.0",
         "@playwright/test": "^1.58.2",
+        "@react-native/jest-preset": "0.88.1",
         "@types/jest": "30.0.0",
         "@types/react": "~19.3.0",
         "@types/react-test-renderer": "^19",
