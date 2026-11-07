@@ -17,33 +17,68 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
 
     async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
       try {
+        const type = config.ttsModelType || 'vits';
+        // The WASM glue builds an engine config for VITS only; its matcha and
+        // kokoro branches are empty, so createOfflineTts would crash on them.
+        if (type !== 'vits') {
+          throw new Error(`Web TTS supports VITS models only, not ${type}`);
+        }
+
         await loadCombinedWasm();
 
         const debug = config.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
         console.log(
-          `[TTS] Loading ${config.ttsModelType || 'vits'} model (threads=${numThreads}, debug=${debug})...`
+          `[TTS] Loading ${type} model (threads=${numThreads}, debug=${debug})...`
         );
         // Web-only: config.modelDir is set to '/wasm/tts' by ModelManagement
         // (createWebTtsModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native TTS uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/tts';
         const fetchBase = config.modelBaseUrl || modelDir;
+        const model = `${fetchBase}/model.onnx`;
+        const tokens = `${fetchBase}/tokens.txt`;
+        // sherpa-onnx v2.0 removed espeak-ng; the lexicon replaces espeak-ng-data.zip.
+        const lexicon = config.lexiconFile
+          ? `${fetchBase}/${config.lexiconFile}`
+          : undefined;
 
-        const loadedModel = await withDownloadProgress(config.onProgress, () =>
-          window.SherpaOnnx.TTS.loadModel({
-            type: config.ttsModelType || 'vits',
-            model: `${fetchBase}/model.onnx`,
-            tokens: `${fetchBase}/tokens.txt`,
-            // sherpa-onnx v2.0 removed espeak-ng; the lexicon replaces espeak-ng-data.zip.
-            lexicon: config.lexiconFile
-              ? `${fetchBase}/${config.lexiconFile}`
-              : undefined,
-            modelDir,
-            debug,
-          })
-        );
+        let loadedModel;
+        try {
+          loadedModel = await withDownloadProgress(config.onProgress, () =>
+            window.SherpaOnnx.TTS.loadModel({
+              type,
+              model,
+              tokens,
+              lexicon,
+              modelDir,
+              debug,
+            })
+          );
+        } catch (error) {
+          // The loader rejects with a generic message when no file loaded.
+          const requested = [model, tokens, lexicon].filter(Boolean);
+          throw new Error(
+            `Failed to load TTS model files: ${requested.join(', ')} (${(error as Error).message})`
+          );
+        }
+
+        // The WASM loader drops files it fails to fetch and still reports
+        // success. Creating the engine without them aborts inside WASM with
+        // "memory access out of bounds", so name the missing files instead.
+        const missing = [
+          !loadedModel.files.model && model,
+          !loadedModel.files.tokens && tokens,
+          lexicon && !loadedModel.files.lexicon && lexicon,
+        ].filter(Boolean);
+        if (missing.length > 0) {
+          // removePath only rmdirs, so the directory must be empty first.
+          const fs = window.SherpaOnnx.FileSystem;
+          Object.values(loadedModel.files).forEach((path) => fs.removePath(path));
+          fs.removePath(loadedModel.modelDir);
+          throw new Error(`Failed to load TTS model files: ${missing.join(', ')}`);
+        }
 
         this.tts = window.SherpaOnnx.TTS.createOfflineTts(loadedModel, {
           numThreads,

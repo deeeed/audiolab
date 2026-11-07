@@ -1,0 +1,372 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground Moonshine web live transcription",
+  "description": "Opens the dev-only Moonshine live screen, loads the small-only Moonshine model, starts a live session and asserts the live transcript contains words from known speech on the microphone. On web, launch the browser with WEB_FAKE_AUDIO_FILE pointing at a JFK WAV so the microphone carries that speech. Sherpa speaker turns are native-only and not asserted.",
+  "proofTargets": [
+    {
+      "id": "model-load",
+      "claim": "The Moonshine model loads on the target platform.",
+      "proofMode": "state"
+    },
+    {
+      "id": "live-transcription",
+      "claim": "A live microphone session produces a transcript of the speech it hears, then stops with a kept recording.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "restored",
+      "claim": "The run ends on the route it started from."
+    }
+  ],
+  "workflow": {
+    "entry": "prepare-ready",
+    "nodes": {
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "screen-ready"
+      },
+      "screen-ready": {
+        "action": "call",
+        "ref": "playground.flows.moonshine-live-screen-ready",
+        "intent": "Open the Moonshine live screen with its prepare and start controls visible.",
+        "next": "read-start"
+      },
+      "read-start": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "platformAvailable",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": false
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Moonshine reports it is available on this platform and nothing is recording.",
+        "next": "choose-clear"
+      },
+      "choose-clear": {
+        "action": "audiolab.choose",
+        "intent": "Clear a transcript left by an earlier session.",
+        "rules": [
+          {
+            "operator": "not_null",
+            "field": "last.finalTranscript"
+          },
+          {
+            "operator": "gt",
+            "field": "last.liveCommittedLineCount",
+            "value": 0
+          }
+        ],
+        "cases": {
+          "case-0": "press-clear",
+          "case-1": "press-clear"
+        },
+        "default": "press-prepare"
+      },
+      "press-clear": {
+        "action": "ui.press",
+        "test_id": "moonshine-live-clear",
+        "intent": "Clear the earlier transcript.",
+        "next": "press-prepare"
+      },
+      "press-prepare": {
+        "action": "ui.press",
+        "test_id": "moonshine-live-prepare-models",
+        "intent": "Load the Moonshine model for a new session.",
+        "next": "wait-model-ready"
+      },
+      "wait-model-ready": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "liveModelDownloaded",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "isPreparingModels",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "isBusy",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "statusMessage",
+              "value": "Moonshine small is ready."
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 2000,
+        "timeout_ms": 600000,
+        "intent": "The Moonshine model is loaded and ready.",
+        "next": "prove-model"
+      },
+      "prove-model": {
+        "action": "assert_output",
+        "source": "wait-model-ready",
+        "assert": {
+          "path": "$.statusMessage",
+          "operator": "eq",
+          "value": "Moonshine small is ready."
+        },
+        "proves": [
+          "model-load"
+        ],
+        "intent": "The Moonshine model loaded in the browser.",
+        "next": "press-start"
+      },
+      "press-start": {
+        "action": "ui.press",
+        "test_id": "moonshine-live-start",
+        "intent": "Start recording with live transcription.",
+        "next": "wait-recording"
+      },
+      "wait-recording": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": true
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 120000,
+        "intent": "The live session is recording from the microphone.",
+        "next": "wait-live-transcript"
+      },
+      "wait-live-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.liveCommittedText,s.liveInterimText,s.finalTranscript].filter(Boolean).join(' ');return {isRecording:!!s.isRecording,error:s.error||null,liveCommittedLineCount:s.liveCommittedLineCount||0,liveInterimLineCount:s.liveInterimLineCount||0,text:t,hasJfkWord:/\\bfellow\\b/i.test(t)&&/\\bamerica(ns?)?\\b/i.test(t),finalTranscript:s.finalTranscript||null,recordingDurationMs:s.recordingDurationMs||0};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "hasJfkWord",
+              "value": true
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 180000,
+        "intent": "The live transcript shows words from the JFK speech fed to the microphone.",
+        "next": "prove-live-transcript"
+      },
+      "prove-live-transcript": {
+        "action": "assert_output",
+        "source": "wait-live-transcript",
+        "assert": {
+          "path": "$.hasJfkWord",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "live-transcription"
+        ],
+        "intent": "Live transcription produced JFK speech words while recording.",
+        "next": "reveal-live-transcript"
+      },
+      "reveal-live-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var e=[].slice.call(document.querySelectorAll('div,span')).find(function(d){return d.childElementCount===0&&(d.textContent||'').trim()===\"Live Transcript\"&&d.offsetParent!==null;});if(!e)return {visible:false};e.scrollIntoView({block:'start'});return {visible:true};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Scroll the live transcript into view.",
+        "next": "shot-live"
+      },
+      "shot-live": {
+        "action": "ui.screenshot",
+        "path": "screenshots/moonshine-web-live.png",
+        "covers": [
+          "live-transcription"
+        ],
+        "label": "Moonshine live transcript while recording",
+        "intent": "Show the live transcript section during recording.",
+        "next": "press-stop"
+      },
+      "press-stop": {
+        "action": "ui.press",
+        "test_id": "moonshine-live-stop",
+        "intent": "Stop the live session.",
+        "next": "wait-stopped"
+      },
+      "wait-stopped": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.liveCommittedText,s.liveInterimText,s.finalTranscript].filter(Boolean).join(' ');var f=s.finalTranscript||'';return {isRecording:!!s.isRecording,isStopping:!!s.isStopping,isBusy:!!s.isBusy,error:s.error||null,statusMessage:s.statusMessage||null,liveCommittedLineCount:s.liveCommittedLineCount||0,liveInterimLineCount:s.liveInterimLineCount||0,text:t,hasJfkWord:/\\bfellow\\b/i.test(t)&&/\\bamerica(ns?)?\\b/i.test(t),finalTranscript:s.finalTranscript||null,finalHasJfkWord:/\\bfellow\\b/i.test(f)&&/\\bamerica(ns?)?\\b/i.test(f),recordingDurationMs:s.recordingDurationMs||0};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "isStopping",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "isBusy",
+              "value": false
+            },
+            {
+              "operator": "gt",
+              "field": "recordingDurationMs",
+              "value": 0
+            },
+            {
+              "operator": "not_null",
+              "field": "finalTranscript"
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 120000,
+        "intent": "The session finishes stopping, keeps its recording and sets a final transcript.",
+        "next": "prove-stopped"
+      },
+      "prove-stopped": {
+        "action": "assert_output",
+        "source": "wait-stopped",
+        "assert": {
+          "path": "$.recordingDurationMs",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "live-transcription"
+        ],
+        "intent": "The stopped session kept a recording with a duration.",
+        "next": "prove-final-transcript"
+      },
+      "prove-final-transcript": {
+        "action": "assert_output",
+        "source": "wait-stopped",
+        "assert": {
+          "path": "$.finalHasJfkWord",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "live-transcription"
+        ],
+        "intent": "The final transcript kept the JFK speech words.",
+        "next": "reveal-final-transcript"
+      },
+      "reveal-final-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var e=[].slice.call(document.querySelectorAll('div,span')).find(function(d){return d.childElementCount===0&&(d.textContent||'').trim()===\"Final Transcript\"&&d.offsetParent!==null;});if(!e)return {visible:false};e.scrollIntoView({block:'center'});return {visible:true};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Scroll the final transcript into view.",
+        "next": "shot-stopped"
+      },
+      "shot-stopped": {
+        "action": "ui.screenshot",
+        "path": "screenshots/moonshine-web-stopped.png",
+        "covers": [
+          "live-transcription"
+        ],
+        "label": "Moonshine live screen after stop",
+        "intent": "Show the final transcript after the session stopped.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Return to the starting route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoring it.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "The starting route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    },
+    "teardown": "restore"
+  }
+}

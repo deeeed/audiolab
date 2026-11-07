@@ -78,6 +78,8 @@ if (Platform.OS === 'web') {
 
 Self-hosting (optional): copy files from `node_modules/@siteed/sherpa-onnx.rn/wasm/` and call `configureSherpaOnnx({ wasmBasePath: '/your/wasm/path/' })`.
 
+Web TTS supports VITS models only; matcha and kokoro need iOS or Android. It fetches `model.onnx`, `tokens.txt` and `lexiconFile` from `modelBaseUrl`, so host the lexicon (for English, upstream `tts-models/lexicon-en-us.txt`) next to the voice files. The browser fetch needs the same origin or CORS headers; GitHub release download URLs send none. If a file is missing, `initTts` fails with `Failed to load TTS model files: <url>`.
+
 See **[Getting Started: Web](docs/GETTING_STARTED_WEB.md)** for the full guide including `onProgress`, loading indicators, and model configuration.
 
 ## Usage

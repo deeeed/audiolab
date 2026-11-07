@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Web: the ASR, speaker ID and audio tagging sample cards show the file size and duration instead of `0 Bytes` and `0:00`. `getInfoAsync` has no web implementation, so web now fetches the file to measure it.
+
 ## [1.2.0] - 2026-11-02
 
 ### Changed

@@ -1,0 +1,767 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground audio-studio web validation",
+  "description": "Records from the Record tab buttons with a pause/resume cycle (duration must hold while paused and grow after resume), stops and opens the saved take, plays and pauses it (the browser media clock must advance), then runs the waveform preview, PCM decode, mel spectrogram, audio features and trim probes on the bundled JFK sample. Written for web; the UI steps also apply to native.",
+  "proofTargets": [
+    {
+      "id": "record",
+      "claim": "A recording started and stopped from the Record tab buttons captures audio and opens the saved take.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "pause-resume",
+      "claim": "Pause holds the recorded duration and resume makes it grow again.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "playback",
+      "claim": "The saved take plays in the browser from its Play button and pauses from Pause.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "extraction",
+      "claim": "Preview, PCM decode, mel spectrogram, features and trim return real results for the bundled sample.",
+      "proofMode": "state"
+    },
+    {
+      "id": "restored",
+      "claim": "The run ends on the route it started from."
+    }
+  ],
+  "workflow": {
+    "entry": "prepare-ready",
+    "nodes": {
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "nav-record"
+      },
+      "nav-record": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/record",
+        "intent": "Open the Record tab.",
+        "next": "wait-record-screen"
+      },
+      "wait-record-screen": {
+        "action": "audiolab.query",
+        "ref": "playground.record_screen_visible",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The Record tab is rendered.",
+        "next": "read-record-page"
+      },
+      "read-record-page": {
+        "action": "audiolab.query",
+        "ref": "record-page-state",
+        "assert": {
+          "operator": "eq",
+          "field": "route",
+          "value": "/record"
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Read whether an earlier take is still shown.",
+        "next": "choose-reset"
+      },
+      "choose-reset": {
+        "action": "audiolab.choose",
+        "intent": "Clear an earlier take so the start button is shown.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.hasRecordingResult",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "press-record-again"
+        },
+        "default": "assert-idle"
+      },
+      "press-record-again": {
+        "action": "ui.press",
+        "test_id": "record-again-button",
+        "intent": "Dismiss the earlier take.",
+        "next": "assert-idle"
+      },
+      "assert-idle": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "isPaused",
+              "value": false
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "The recorder starts idle and unpaused.",
+        "next": "wait-start-button"
+      },
+      "wait-start-button": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('start-recording-button')})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The start button is visible.",
+        "next": "press-start"
+      },
+      "press-start": {
+        "action": "ui.press",
+        "test_id": "start-recording-button",
+        "intent": "Start recording from the Record tab.",
+        "next": "wait-recording"
+      },
+      "wait-recording": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "The recorder reports it is recording.",
+        "next": "record-window"
+      },
+      "record-window": {
+        "action": "wait",
+        "duration_ms": 2500,
+        "intent": "Record for two and a half seconds.",
+        "next": "assert-recording"
+      },
+      "assert-recording": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": true
+            },
+            {
+              "operator": "gte",
+              "field": "durationMs",
+              "value": 1500
+            },
+            {
+              "operator": "gt",
+              "field": "size",
+              "value": 0
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Duration and captured bytes grow while recording.",
+        "next": "prove-recording"
+      },
+      "prove-recording": {
+        "action": "assert_output",
+        "source": "assert-recording",
+        "assert": {
+          "path": "$.size",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The recorder captured bytes before the pause.",
+        "next": "press-pause"
+      },
+      "press-pause": {
+        "action": "ui.press",
+        "test_id": "pause-recording-button",
+        "intent": "Pause recording with the Record tab pause button.",
+        "next": "readPaused"
+      },
+      "readPaused": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isPaused",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "The recorder reports it is paused.",
+        "next": "pause-window"
+      },
+      "pause-window": {
+        "action": "wait",
+        "duration_ms": 2000,
+        "intent": "Stay paused for two seconds.",
+        "next": "assert-paused-holds"
+      },
+      "assert-paused-holds": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__.getState();return {isRecording:s.isRecording,isPaused:s.isPaused,durationMs:s.durationMs,deltaMs:s.durationMs-Number('{{outputs.readPaused.durationMs}}')};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isPaused",
+              "value": true
+            },
+            {
+              "operator": "lte",
+              "field": "deltaMs",
+              "value": 300
+            }
+          ]
+        },
+        "intent": "The recorded duration does not advance while paused.",
+        "next": "prove-paused"
+      },
+      "prove-paused": {
+        "action": "assert_output",
+        "source": "assert-paused-holds",
+        "assert": {
+          "path": "$.deltaMs",
+          "operator": "lte",
+          "value": 300
+        },
+        "proves": [
+          "pause-resume"
+        ],
+        "intent": "Duration held still for two seconds of pause.",
+        "next": "shot-paused"
+      },
+      "shot-paused": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-paused.png",
+        "covers": [
+          "pause-resume"
+        ],
+        "label": "Record tab while paused",
+        "intent": "Show the paused recording view with the resume button.",
+        "next": "press-resume"
+      },
+      "press-resume": {
+        "action": "ui.press",
+        "test_id": "resume-recording-button",
+        "intent": "Resume recording with the Record tab resume button.",
+        "next": "wait-resumed"
+      },
+      "wait-resumed": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "isPaused",
+              "value": false
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "The recorder reports it is recording again.",
+        "next": "resume-window"
+      },
+      "resume-window": {
+        "action": "wait",
+        "duration_ms": 2000,
+        "intent": "Record two more seconds after resuming.",
+        "next": "assert-resumed-progress"
+      },
+      "assert-resumed-progress": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__.getState();return {isRecording:s.isRecording,isPaused:s.isPaused,durationMs:s.durationMs,deltaMs:s.durationMs-Number('{{outputs.readPaused.durationMs}}')};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isPaused",
+              "value": false
+            },
+            {
+              "operator": "gte",
+              "field": "deltaMs",
+              "value": 1000
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "The recorded duration advances again after resume.",
+        "next": "prove-resumed"
+      },
+      "prove-resumed": {
+        "action": "assert_output",
+        "source": "assert-resumed-progress",
+        "assert": {
+          "path": "$.deltaMs",
+          "operator": "gte",
+          "value": 1000
+        },
+        "proves": [
+          "pause-resume"
+        ],
+        "intent": "Duration grew by at least a second after resume.",
+        "next": "shot-recording"
+      },
+      "shot-recording": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-recording.png",
+        "covers": [
+          "pause-resume"
+        ],
+        "label": "Record tab after resume",
+        "intent": "Show the active recording view after resume.",
+        "next": "press-stop"
+      },
+      "press-stop": {
+        "action": "ui.press",
+        "test_id": "stop-recording-button",
+        "intent": "Stop recording from the Record tab.",
+        "next": "wait-stopped"
+      },
+      "wait-stopped": {
+        "action": "audiolab.query",
+        "ref": "recording-state",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": false
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "The recorder reports it stopped.",
+        "next": "wait-saved"
+      },
+      "wait-saved": {
+        "action": "audiolab.query",
+        "ref": "route",
+        "assert": {
+          "operator": "contains",
+          "field": "segments",
+          "value": "(recordings)"
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "Stopping saves the take and opens its page.",
+        "next": "prove-saved"
+      },
+      "prove-saved": {
+        "action": "assert_output",
+        "source": "wait-saved",
+        "assert": {
+          "path": "$.segments",
+          "operator": "contains",
+          "value": "(recordings)"
+        },
+        "proves": [
+          "record"
+        ],
+        "intent": "The app opened the saved take page.",
+        "next": "shot-saved"
+      },
+      "shot-saved": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-saved.png",
+        "covers": [
+          "record"
+        ],
+        "label": "Saved take page",
+        "intent": "Show the saved take with its waveform.",
+        "next": "arm-playback"
+      },
+      "arm-playback": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof HTMLMediaElement==='undefined')return {armed:false};var p=HTMLMediaElement.prototype;if(!p.__agenticPlayWrapped){var o=p.play;p.play=function(){globalThis.__agenticMedia=this;return o.apply(this,arguments);};p.__agenticPlayWrapped=true;}globalThis.__agenticMedia=null;return {armed:true};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "armed",
+          "value": true
+        },
+        "intent": "Watch which media element starts playing.",
+        "next": "press-play"
+      },
+      "press-play": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button')).filter(function(e){return (e.textContent||'').replace(/[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]/g,'').trim()==='Play'&&e.offsetParent!==null;});if(!els.length)return {status:'missing',label:'Play'};els[0].click();return {status:'clicked',label:'Play'};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Press Play on the saved take.",
+        "next": "wait-playing"
+      },
+      "wait-playing": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var m=globalThis.__agenticMedia;if(!m)return {found:false,playing:false};return {found:true,playing:!m.paused&&m.currentTime>0.5,paused:m.paused,currentTime:m.currentTime,duration:m.duration,srcScheme:String(m.src).split(':')[0]};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "playing",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The browser media clock advances past half a second.",
+        "next": "prove-playing"
+      },
+      "prove-playing": {
+        "action": "assert_output",
+        "source": "wait-playing",
+        "assert": {
+          "path": "$.currentTime",
+          "operator": "gt",
+          "value": 0.5
+        },
+        "proves": [
+          "playback"
+        ],
+        "intent": "The saved take is playing in the browser.",
+        "next": "shot-playing"
+      },
+      "shot-playing": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-playing.png",
+        "covers": [
+          "playback"
+        ],
+        "label": "Saved take playing",
+        "intent": "Show the take with the Pause button while it plays.",
+        "next": "press-pause-playback"
+      },
+      "press-pause-playback": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button')).filter(function(e){return (e.textContent||'').replace(/[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]/g,'').trim()==='Pause'&&e.offsetParent!==null;});if(!els.length)return {status:'missing',label:'Pause'};els[0].click();return {status:'clicked',label:'Pause'};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 5000,
+        "intent": "Pause playback.",
+        "next": "wait-playback-paused"
+      },
+      "wait-playback-paused": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){var m=globalThis.__agenticMedia;if(!m)return {found:false,playing:false};return {found:true,playing:!m.paused&&m.currentTime>0.5,paused:m.paused,currentTime:m.currentTime,duration:m.duration,srcScheme:String(m.src).split(':')[0]};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "paused",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 5000,
+        "intent": "The media element reports paused.",
+        "next": "reveal-waveform"
+      },
+      "reveal-waveform": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var b=[].slice.call(document.querySelectorAll('[role=button],button')).find(function(e){return (e.textContent||'').trim()==='Waveform'&&e.offsetParent!==null;});if(!b)return {visible:false};b.scrollIntoView({block:'start'});var s=[].slice.call(document.querySelectorAll('div,span')).map(function(d){return (d.textContent||'').trim();}).filter(function(t){return /^[\\d,]+ audio samples$/.test(t);})[0]||'';var c=[].slice.call(document.querySelectorAll('canvas')).filter(function(x){return x.offsetParent!==null;});return {visible:true,samples:Number(s.split(' ')[0].replace(/,/g,''))||0,canvases:c.length,melCanvas:c.some(function(x){return x.clientHeight===200;})};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "visible",
+              "value": true
+            },
+            {
+              "operator": "gt",
+              "field": "samples",
+              "value": 0
+            },
+            {
+              "operator": "gt",
+              "field": "canvases",
+              "value": 0
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "Scroll to the waveform the take's analysis drew.",
+        "next": "prove-waveform"
+      },
+      "prove-waveform": {
+        "action": "assert_output",
+        "source": "reveal-waveform",
+        "assert": {
+          "path": "$.samples",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The saved take shows a waveform built from its decoded samples.",
+        "next": "shot-waveform"
+      },
+      "shot-waveform": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-waveform.png",
+        "covers": [
+          "extraction"
+        ],
+        "label": "Saved take waveform",
+        "intent": "Show the extracted waveform of the recorded take.",
+        "next": "press-mel-tab"
+      },
+      "press-mel-tab": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button')).filter(function(e){return (e.textContent||'').replace(/[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]/g,'').trim()===\"Mel Spectrogram\"&&e.offsetParent!==null&&e.getAttribute('aria-disabled')!=='true';});if(!els.length)return {status:'missing',label:\"Mel Spectrogram\"};els[0].click();return {status:'clicked',label:\"Mel Spectrogram\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "Switch to the mel spectrogram, enabled once mel data is extracted.",
+        "next": "wait-mel-view"
+      },
+      "wait-mel-view": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var b=[].slice.call(document.querySelectorAll('[role=button],button')).find(function(e){return (e.textContent||'').trim()==='Waveform'&&e.offsetParent!==null;});if(!b)return {visible:false};b.scrollIntoView({block:'start'});var s=[].slice.call(document.querySelectorAll('div,span')).map(function(d){return (d.textContent||'').trim();}).filter(function(t){return /^[\\d,]+ audio samples$/.test(t);})[0]||'';var c=[].slice.call(document.querySelectorAll('canvas')).filter(function(x){return x.offsetParent!==null;});return {visible:true,samples:Number(s.split(' ')[0].replace(/,/g,''))||0,canvases:c.length,melCanvas:c.some(function(x){return x.clientHeight===200;})};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "melCanvas",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The mel spectrogram canvas is drawn.",
+        "next": "prove-mel-view"
+      },
+      "prove-mel-view": {
+        "action": "assert_output",
+        "source": "wait-mel-view",
+        "assert": {
+          "path": "$.melCanvas",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The saved take shows its extracted mel spectrogram.",
+        "next": "shot-mel"
+      },
+      "shot-mel": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-mel.png",
+        "covers": [
+          "extraction"
+        ],
+        "label": "Saved take mel spectrogram",
+        "intent": "Show the extracted mel spectrogram of the recorded take.",
+        "next": "preview"
+      },
+      "preview": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testExtractPreview||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testExtractPreview'});}A.testExtractPreview();return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='extractPreview'&&r.status!=='pending'){resolve(r);return;}if(++i>=240){resolve({status:'timeout',last:r});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true,
+        "timeout_ms": 130000,
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "intent": "Extract a 50-point waveform preview from the bundled JFK sample.",
+        "next": "prove-preview"
+      },
+      "prove-preview": {
+        "action": "assert_output",
+        "source": "preview",
+        "assert": {
+          "path": "$.result.dataPointCount",
+          "operator": "eq",
+          "value": 50
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The preview returned the 50 requested waveform points.",
+        "next": "audio-data"
+      },
+      "audio-data": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testExtractAudioData||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testExtractAudioData'});}A.testExtractAudioData();return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='extractAudioData'&&r.status!=='pending'){resolve(r);return;}if(++i>=240){resolve({status:'timeout',last:r});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true,
+        "timeout_ms": 130000,
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "intent": "Decode the first five seconds of the sample to PCM.",
+        "next": "prove-audio-data"
+      },
+      "prove-audio-data": {
+        "action": "assert_output",
+        "source": "audio-data",
+        "assert": {
+          "path": "$.result.samples",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "Decoded PCM holds samples.",
+        "next": "mel"
+      },
+      "mel": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testExtractMelSpectrogram||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testExtractMelSpectrogram'});}A.testExtractMelSpectrogram();return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='extractMelSpectrogram'&&r.status!=='pending'){resolve(r);return;}if(++i>=240){resolve({status:'timeout',last:r});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true,
+        "timeout_ms": 130000,
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "intent": "Compute a mel spectrogram of the sample.",
+        "next": "prove-mel"
+      },
+      "prove-mel": {
+        "action": "assert_output",
+        "source": "mel",
+        "assert": {
+          "path": "$.result.timeSteps",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The mel spectrogram has time steps.",
+        "next": "features"
+      },
+      "features": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testAudioFeatures||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testAudioFeatures'});}A.testAudioFeatures();return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='audioFeatures'&&r.status!=='pending'){resolve(r);return;}if(++i>=240){resolve({status:'timeout',last:r});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true,
+        "timeout_ms": 130000,
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "intent": "Extract audio features from the sample.",
+        "next": "prove-features"
+      },
+      "prove-features": {
+        "action": "assert_output",
+        "source": "features",
+        "assert": {
+          "path": "$.result.dataPointCount",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "Feature extraction returned data points.",
+        "next": "trim"
+      },
+      "trim": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testTrimAudio||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testTrimAudio'});}A.testTrimAudio();return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='trimAudio'&&r.status!=='pending'){resolve(r);return;}if(++i>=240){resolve({status:'timeout',last:r});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true,
+        "timeout_ms": 130000,
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "intent": "Trim the sample to its first five seconds and to two kept ranges.",
+        "next": "prove-trim"
+      },
+      "prove-trim": {
+        "action": "assert_output",
+        "source": "trim",
+        "assert": {
+          "path": "$.result.single.durationMs",
+          "operator": "gte",
+          "value": 4500
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The trimmed file lasts about five seconds.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Return to the starting route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoring it.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "The starting route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    },
+    "teardown": "restore"
+  }
+}

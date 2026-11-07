@@ -117,7 +117,11 @@ test('native preflight retains an explicitly selected simulator UUID', async t =
   assert.equal(stdout.trim(), `simulator-boot\n120\ndevice=${udid}`);
 });
 
-test('the declared factory resolves through the public shared host and default engine', async () => {
+test('the declared factory resolves through the public shared host and default engine', async t => {
+  // A slot's RECIPE_LIBRARY_PATH adds an untrusted library, which blocks the trusted plan.
+  const libraryPath = process.env.RECIPE_LIBRARY_PATH;
+  delete process.env.RECIPE_LIBRARY_PATH;
+  t.after(() => { if (libraryPath !== undefined) process.env.RECIPE_LIBRARY_PATH = libraryPath; });
   await withProjectRecipeHost({ tokens: ['--project', 'audiolab-farm', '--target', repoRoot, '--app', 'apps/playground', '--adapter', 'web', '--watcher-port', '19746', '--cdp-port', '19767'],
     projectsDir: path.join(repoRoot, 'farmslot/projects'), command: 'run', options: { plan: true, watcherPort: '19746', cdpPort: '19767' } }, async host => {
     assert.equal(host.context.project.provider.module, path.join(repoRoot, 'scripts/agentic/recipe/provider.mjs'));

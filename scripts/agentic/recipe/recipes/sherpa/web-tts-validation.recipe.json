@@ -1,0 +1,233 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice web TTS: initialize and generate",
+  "description": "Web only. Initializes the web-preloaded vits-icefall-en-low voice on the TTS screen, generates speech from the default text and asserts generateSpeech reports success. Needs tts/lexicon-en-us.txt hosted next to the voice files; until then initialization fails with \"Failed to load TTS model files: <lexicon url>\".",
+  "proofTargets": [
+    {
+      "id": "tts",
+      "claim": "The web TTS voice initializes and generates speech.",
+      "proofMode": "mixed"
+    },
+    {
+      "id": "restored",
+      "claim": "The run ends on the route it started from."
+    }
+  ],
+  "workflow": {
+    "entry": "prepare-ready",
+    "teardown": "restore",
+    "nodes": {
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "poll": true,
+        "timeout_ms": 90000,
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "reset-stack"
+      },
+      "reset-stack": {
+        "action": "audiolab.query",
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.canGoBack||!A.goBack){return Promise.resolve({status:'error',error:'bridge missing canGoBack/goBack'});}var n=0;return new Promise(function(resolve){function step(){if(!A.canGoBack()||n>=30){resolve({status:'reset',popped:n,atRoot:!A.canGoBack()});return;}A.goBack();n++;setTimeout(step,300);}step();});})()",
+        "async": true,
+        "timeout_ms": 20000,
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "status",
+              "value": "reset"
+            },
+            {
+              "operator": "eq",
+              "field": "atRoot",
+              "value": true
+            }
+          ]
+        },
+        "intent": "Pop earlier screens so the run starts from the root of the stack.",
+        "next": "nav-tts"
+      },
+      "nav-tts": {
+        "action": "ui.navigate",
+        "path": "/features/tts",
+        "intent": "Open the text-to-speech screen.",
+        "next": "read-tts"
+      },
+      "read-tts": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "selectedModelId",
+          "value": "vits-icefall-en-low"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The TTS screen shows the web voice.",
+        "next": "choose-init"
+      },
+      "choose-init": {
+        "action": "audiolab.choose",
+        "intent": "Initialize the voice unless it is already loaded.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.ttsInitialized",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "press-generate"
+        },
+        "default": "press-init"
+      },
+      "press-init": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"Initialize TTS\";});if(!els.length)return {status:'not-found',label:\"Initialize TTS\"};els[els.length-1].click();return {status:'clicked',label:\"Initialize TTS\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Initialize text-to-speech.",
+        "next": "wait-initialized"
+      },
+      "wait-initialized": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "operator": "eq",
+          "field": "ttsInitialized",
+          "value": true
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "errorMessage"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 300000,
+        "intent": "The voice is loaded in the browser.",
+        "next": "shot-initialized"
+      },
+      "shot-initialized": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-web-tts-initialized.png",
+        "covers": [
+          "tts"
+        ],
+        "label": "TTS initialized",
+        "intent": "Show the initialized voice.",
+        "next": "press-generate"
+      },
+      "press-generate": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button,[tabindex]')).filter(function(e){return e.offsetParent!==null&&(e.textContent||'').trim()===\"Generate Speech\";});if(!els.length)return {status:'not-found',label:\"Generate Speech\"};els[els.length-1].click();return {status:'clicked',label:\"Generate Speech\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "Generate speech from the default text.",
+        "next": "wait-generated"
+      },
+      "wait-generated": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "assert": {
+          "all": [
+            {
+              "operator": "matches",
+              "field": "statusMessage",
+              "value": "^Speech (played|generated) successfully!$"
+            },
+            {
+              "operator": "eq",
+              "field": "isLoading",
+              "value": false
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "errorMessage"
+        },
+        "poll": true,
+        "poll_ms": 1000,
+        "timeout_ms": 120000,
+        "intent": "generateSpeech returned success and playback finished.",
+        "next": "prove-generated"
+      },
+      "prove-generated": {
+        "action": "assert_output",
+        "source": "wait-generated",
+        "assert": {
+          "path": "$.statusMessage",
+          "operator": "matches",
+          "value": "^Speech (played|generated) successfully!$"
+        },
+        "proves": [
+          "tts"
+        ],
+        "intent": "generateSpeech returned success and the app reported it.",
+        "next": "shot-generated"
+      },
+      "shot-generated": {
+        "action": "ui.screenshot",
+        "path": "screenshots/sherpa-web-tts-generated.png",
+        "covers": [
+          "tts"
+        ],
+        "label": "Generated speech",
+        "intent": "Show the generated speech result.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Return to the starting route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoring it.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "The starting route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}
