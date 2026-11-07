@@ -12,13 +12,27 @@ jest.mock('../web/audioUtils', () => ({
 
 const BASE = 'https://models.example/tts';
 
-function installSherpa(files: Record<string, string>) {
+// MEMFS stand-in with the real removePath semantics: files are unlinked, and
+// a directory is only rmdir'd, which fails while it still has entries.
+function memfs(files: Record<string, string>) {
+  const entries = new Set(['/m', ...Object.values(files)]);
+  const removePath = jest.fn((path: string) => {
+    if ([...entries].some((entry) => entry.startsWith(`${path}/`))) return false;
+    entries.delete(path);
+    return true;
+  });
+  return { entries, removePath };
+}
+
+function installSherpa(files: Record<string, string>, loadError?: Error) {
   const engine = { sampleRate: 22050, numSpeakers: 1 };
   const TTS = {
-    loadModel: jest.fn().mockResolvedValue({ modelDir: '/m', type: 'vits', files }),
+    loadModel: loadError
+      ? jest.fn().mockRejectedValue(loadError)
+      : jest.fn().mockResolvedValue({ modelDir: '/m', type: 'vits', files }),
     createOfflineTts: jest.fn().mockReturnValue(engine),
   };
-  const FileSystem = { removePath: jest.fn().mockReturnValue(true) };
+  const FileSystem = memfs(files);
   (globalThis as unknown as { window: Record<string, unknown> }).window.SherpaOnnx = { TTS, FileSystem };
   return { TTS, FileSystem };
 }
@@ -48,17 +62,34 @@ describe('web initTts', () => {
       `Failed to load TTS model files: ${BASE}/lexicon-en-us.txt`
     );
     expect(TTS.createOfflineTts).not.toHaveBeenCalled();
-    expect(FileSystem.removePath).toHaveBeenCalledWith('/m');
+    // The downloaded model and tokens are gone, then their directory.
+    expect([...FileSystem.entries]).toEqual([]);
   });
 
-  it('names every file that did not load', async () => {
-    const { TTS } = installSherpa({});
+  it('names every file that did not load when only some loaded', async () => {
+    const { TTS, FileSystem } = installSherpa({ tokens: '/m/tokens.txt' });
 
-    const result = await new Tts().initTts(config());
+    const result = await new Tts().initTts(config({ lexiconFile: 'lexicon-en-us.txt' }));
 
     expect(result).toMatchObject({
       success: false,
-      error: `Failed to load TTS model files: ${BASE}/model.onnx, ${BASE}/tokens.txt`,
+      error: `Failed to load TTS model files: ${BASE}/model.onnx, ${BASE}/lexicon-en-us.txt`,
+    });
+    expect(TTS.createOfflineTts).not.toHaveBeenCalled();
+    expect([...FileSystem.entries]).toEqual([]);
+  });
+
+  it('names the requested URLs when no file loaded', async () => {
+    // TTS.loadModel rejects with this generic message when every fetch fails.
+    const { TTS } = installSherpa({}, new Error('Failed to load TTS model files'));
+
+    const result = await new Tts().initTts(config({ lexiconFile: 'lexicon-en-us.txt' }));
+
+    expect(result).toMatchObject({
+      success: false,
+      error:
+        `Failed to load TTS model files: ${BASE}/model.onnx, ${BASE}/tokens.txt, ` +
+        `${BASE}/lexicon-en-us.txt (Failed to load TTS model files)`,
     });
     expect(TTS.createOfflineTts).not.toHaveBeenCalled();
   });
