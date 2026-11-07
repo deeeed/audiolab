@@ -173,7 +173,7 @@
       },
       "wait-live-transcript": {
         "action": "audiolab.query",
-        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.liveCommittedText,s.liveInterimText,s.finalTranscript].filter(Boolean).join(' ');return {isRecording:!!s.isRecording,error:s.error||null,liveCommittedLineCount:s.liveCommittedLineCount||0,liveInterimLineCount:s.liveInterimLineCount||0,text:t,hasJfkWord:/\\bfellow\\b/i.test(t)&&/\\bamericans?\\b/i.test(t),finalTranscript:s.finalTranscript||null,recordingDurationMs:s.recordingDurationMs||0};})())",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.liveCommittedText,s.liveInterimText,s.finalTranscript].filter(Boolean).join(' ');return {isRecording:!!s.isRecording,error:s.error||null,liveCommittedLineCount:s.liveCommittedLineCount||0,liveInterimLineCount:s.liveInterimLineCount||0,text:t,hasJfkWord:/\\bfellow\\b/i.test(t)&&/\\bamerica(ns?)?\\b/i.test(t),finalTranscript:s.finalTranscript||null,recordingDurationMs:s.recordingDurationMs||0};})())",
         "assert": {
           "all": [
             {
@@ -210,6 +210,19 @@
           "live-transcription"
         ],
         "intent": "Live transcription produced JFK speech words while recording.",
+        "next": "reveal-live-transcript"
+      },
+      "reveal-live-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var e=[].slice.call(document.querySelectorAll('div,span')).find(function(d){return d.childElementCount===0&&(d.textContent||'').trim()===\"Live Transcript\"&&d.offsetParent!==null;});if(!e)return {visible:false};e.scrollIntoView({block:'start'});return {visible:true};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Scroll the live transcript into view.",
         "next": "shot-live"
       },
       "shot-live": {
@@ -219,7 +232,7 @@
           "live-transcription"
         ],
         "label": "Moonshine live transcript while recording",
-        "intent": "Show the live transcript during recording.",
+        "intent": "Show the live transcript section during recording.",
         "next": "press-stop"
       },
       "press-stop": {
@@ -230,7 +243,7 @@
       },
       "wait-stopped": {
         "action": "audiolab.query",
-        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.liveCommittedText,s.liveInterimText,s.finalTranscript].filter(Boolean).join(' ');return {isRecording:!!s.isRecording,error:s.error||null,liveCommittedLineCount:s.liveCommittedLineCount||0,liveInterimLineCount:s.liveInterimLineCount||0,text:t,hasJfkWord:/\\bfellow\\b/i.test(t)&&/\\bamericans?\\b/i.test(t),finalTranscript:s.finalTranscript||null,recordingDurationMs:s.recordingDurationMs||0};})())",
+        "expression": "JSON.stringify((function(){var s=globalThis.__AGENTIC__?.getPageState?.()||{};var t=[s.liveCommittedText,s.liveInterimText,s.finalTranscript].filter(Boolean).join(' ');var f=s.finalTranscript||'';return {isRecording:!!s.isRecording,isStopping:!!s.isStopping,isBusy:!!s.isBusy,error:s.error||null,statusMessage:s.statusMessage||null,liveCommittedLineCount:s.liveCommittedLineCount||0,liveInterimLineCount:s.liveInterimLineCount||0,text:t,hasJfkWord:/\\bfellow\\b/i.test(t)&&/\\bamerica(ns?)?\\b/i.test(t),finalTranscript:s.finalTranscript||null,finalHasJfkWord:/\\bfellow\\b/i.test(f)&&/\\bamerica(ns?)?\\b/i.test(f),recordingDurationMs:s.recordingDurationMs||0};})())",
         "assert": {
           "all": [
             {
@@ -239,9 +252,23 @@
               "value": false
             },
             {
+              "operator": "eq",
+              "field": "isStopping",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "isBusy",
+              "value": false
+            },
+            {
               "operator": "gt",
               "field": "recordingDurationMs",
               "value": 0
+            },
+            {
+              "operator": "not_null",
+              "field": "finalTranscript"
             }
           ]
         },
@@ -252,7 +279,7 @@
         "poll": true,
         "poll_ms": 1000,
         "timeout_ms": 120000,
-        "intent": "The session stops and keeps its recording.",
+        "intent": "The session finishes stopping, keeps its recording and sets a final transcript.",
         "next": "prove-stopped"
       },
       "prove-stopped": {
@@ -267,6 +294,33 @@
           "live-transcription"
         ],
         "intent": "The stopped session kept a recording with a duration.",
+        "next": "prove-final-transcript"
+      },
+      "prove-final-transcript": {
+        "action": "assert_output",
+        "source": "wait-stopped",
+        "assert": {
+          "path": "$.finalHasJfkWord",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "live-transcription"
+        ],
+        "intent": "The final transcript kept the JFK speech words.",
+        "next": "reveal-final-transcript"
+      },
+      "reveal-final-transcript": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var e=[].slice.call(document.querySelectorAll('div,span')).find(function(d){return d.childElementCount===0&&(d.textContent||'').trim()===\"Final Transcript\"&&d.offsetParent!==null;});if(!e)return {visible:false};e.scrollIntoView({block:'center'});return {visible:true};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 10000,
+        "intent": "Scroll the final transcript into view.",
         "next": "shot-stopped"
       },
       "shot-stopped": {
@@ -276,7 +330,7 @@
           "live-transcription"
         ],
         "label": "Moonshine live screen after stop",
-        "intent": "Show the transcript after the session stopped.",
+        "intent": "Show the final transcript after the session stopped.",
         "next": "done"
       },
       "done": {

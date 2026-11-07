@@ -201,7 +201,8 @@
     isDirectory: function(path) {
       try {
         const stat = global.Module.FS.stat(path);
-        return stat.isDir;
+        // Emscripten stat results carry a mode, not an isDir flag.
+        return global.Module.FS.isDir(stat.mode);
       } catch (e) {
         return false;
       }

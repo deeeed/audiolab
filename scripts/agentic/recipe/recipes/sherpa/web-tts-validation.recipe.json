@@ -14,9 +14,26 @@
     }
   ],
   "workflow": {
-    "entry": "reset-stack",
+    "entry": "prepare-ready",
     "teardown": "restore",
     "nodes": {
+      "prepare-ready": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "poll": true,
+        "timeout_ms": 90000,
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "status"
+      },
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "reset-stack"
+      },
       "reset-stack": {
         "action": "audiolab.query",
         "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.canGoBack||!A.goBack){return Promise.resolve({status:'error',error:'bridge missing canGoBack/goBack'});}var n=0;return new Promise(function(resolve){function step(){if(!A.canGoBack()||n>=30){resolve({status:'reset',popped:n,atRoot:!A.canGoBack()});return;}A.goBack();n++;setTimeout(step,300);}step();});})()",
@@ -37,23 +54,6 @@
           ]
         },
         "intent": "Pop earlier screens so the run starts from the root of the stack.",
-        "next": "prepare-ready"
-      },
-      "prepare-ready": {
-        "action": "audiolab.query",
-        "ref": "sherpa.agentic_ready",
-        "assert": {
-          "operator": "not_null",
-          "field": "pathname"
-        },
-        "poll": true,
-        "timeout_ms": 90000,
-        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
-        "next": "status"
-      },
-      "status": {
-        "action": "app.status",
-        "intent": "Read the starting route so teardown can restore it.",
         "next": "nav-tts"
       },
       "nav-tts": {

@@ -490,6 +490,107 @@
         "poll": true,
         "timeout_ms": 5000,
         "intent": "The media element reports paused.",
+        "next": "reveal-waveform"
+      },
+      "reveal-waveform": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var b=[].slice.call(document.querySelectorAll('[role=button],button')).find(function(e){return (e.textContent||'').trim()==='Waveform'&&e.offsetParent!==null;});if(!b)return {visible:false};b.scrollIntoView({block:'start'});var s=[].slice.call(document.querySelectorAll('div,span')).map(function(d){return (d.textContent||'').trim();}).filter(function(t){return /^[\\d,]+ audio samples$/.test(t);})[0]||'';var c=[].slice.call(document.querySelectorAll('canvas')).filter(function(x){return x.offsetParent!==null;});return {visible:true,samples:Number(s.split(' ')[0].replace(/,/g,''))||0,canvases:c.length,melCanvas:c.some(function(x){return x.clientHeight===200;})};})())",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "visible",
+              "value": true
+            },
+            {
+              "operator": "gt",
+              "field": "samples",
+              "value": 0
+            },
+            {
+              "operator": "gt",
+              "field": "canvases",
+              "value": 0
+            }
+          ]
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "Scroll to the waveform the take's analysis drew.",
+        "next": "prove-waveform"
+      },
+      "prove-waveform": {
+        "action": "assert_output",
+        "source": "reveal-waveform",
+        "assert": {
+          "path": "$.samples",
+          "operator": "gt",
+          "value": 0
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The saved take shows a waveform built from its decoded samples.",
+        "next": "shot-waveform"
+      },
+      "shot-waveform": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-waveform.png",
+        "covers": [
+          "extraction"
+        ],
+        "label": "Saved take waveform",
+        "intent": "Show the extracted waveform of the recorded take.",
+        "next": "press-mel-tab"
+      },
+      "press-mel-tab": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button')).filter(function(e){return (e.textContent||'').replace(/[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]/g,'').trim()===\"Mel Spectrogram\"&&e.offsetParent!==null&&e.getAttribute('aria-disabled')!=='true';});if(!els.length)return {status:'missing',label:\"Mel Spectrogram\"};els[0].click();return {status:'clicked',label:\"Mel Spectrogram\"};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "clicked"
+        },
+        "poll": true,
+        "timeout_ms": 30000,
+        "intent": "Switch to the mel spectrogram, enabled once mel data is extracted.",
+        "next": "wait-mel-view"
+      },
+      "wait-mel-view": {
+        "action": "audiolab.query",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {visible:false};var b=[].slice.call(document.querySelectorAll('[role=button],button')).find(function(e){return (e.textContent||'').trim()==='Waveform'&&e.offsetParent!==null;});if(!b)return {visible:false};b.scrollIntoView({block:'start'});var s=[].slice.call(document.querySelectorAll('div,span')).map(function(d){return (d.textContent||'').trim();}).filter(function(t){return /^[\\d,]+ audio samples$/.test(t);})[0]||'';var c=[].slice.call(document.querySelectorAll('canvas')).filter(function(x){return x.offsetParent!==null;});return {visible:true,samples:Number(s.split(' ')[0].replace(/,/g,''))||0,canvases:c.length,melCanvas:c.some(function(x){return x.clientHeight===200;})};})())",
+        "assert": {
+          "operator": "eq",
+          "field": "melCanvas",
+          "value": true
+        },
+        "poll": true,
+        "timeout_ms": 15000,
+        "intent": "The mel spectrogram canvas is drawn.",
+        "next": "prove-mel-view"
+      },
+      "prove-mel-view": {
+        "action": "assert_output",
+        "source": "wait-mel-view",
+        "assert": {
+          "path": "$.melCanvas",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "extraction"
+        ],
+        "intent": "The saved take shows its extracted mel spectrogram.",
+        "next": "shot-mel"
+      },
+      "shot-mel": {
+        "action": "ui.screenshot",
+        "path": "screenshots/audio-studio-web-mel.png",
+        "covers": [
+          "extraction"
+        ],
+        "label": "Saved take mel spectrogram",
+        "intent": "Show the extracted mel spectrogram of the recorded take.",
         "next": "preview"
       },
       "preview": {

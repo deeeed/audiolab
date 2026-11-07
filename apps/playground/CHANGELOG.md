@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `yarn build:deps` now also builds `@siteed/sherpa-onnx.rn` and `@siteed/moonshine.rn`. Yarn 4 skips workspace `prepare` scripts, so the playground bundled stale `lib/` output for both, and web runs missed source fixes.
+
 ## [2.4.0] - 2026-11-01
 
 ### Added

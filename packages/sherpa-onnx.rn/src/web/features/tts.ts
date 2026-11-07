@@ -44,16 +44,25 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
           ? `${fetchBase}/${config.lexiconFile}`
           : undefined;
 
-        const loadedModel = await withDownloadProgress(config.onProgress, () =>
-          window.SherpaOnnx.TTS.loadModel({
-            type,
-            model,
-            tokens,
-            lexicon,
-            modelDir,
-            debug,
-          })
-        );
+        let loadedModel;
+        try {
+          loadedModel = await withDownloadProgress(config.onProgress, () =>
+            window.SherpaOnnx.TTS.loadModel({
+              type,
+              model,
+              tokens,
+              lexicon,
+              modelDir,
+              debug,
+            })
+          );
+        } catch (error) {
+          // The loader rejects with a generic message when no file loaded.
+          const requested = [model, tokens, lexicon].filter(Boolean);
+          throw new Error(
+            `Failed to load TTS model files: ${requested.join(', ')} (${(error as Error).message})`
+          );
+        }
 
         // The WASM loader drops files it fails to fetch and still reports
         // success. Creating the engine without them aborts inside WASM with
@@ -64,7 +73,10 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
           lexicon && !loadedModel.files.lexicon && lexicon,
         ].filter(Boolean);
         if (missing.length > 0) {
-          window.SherpaOnnx.FileSystem.removePath(loadedModel.modelDir);
+          // removePath only rmdirs, so the directory must be empty first.
+          const fs = window.SherpaOnnx.FileSystem;
+          Object.values(loadedModel.files).forEach((path) => fs.removePath(path));
+          fs.removePath(loadedModel.modelDir);
           throw new Error(`Failed to load TTS model files: ${missing.join(', ')}`);
         }
 

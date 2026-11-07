@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Web `initTts` fails with `Failed to load TTS model files: <url>` when `model.onnx`, `tokens.txt` or a configured `lexiconFile` cannot be fetched, and frees the files that did load. Before, a missing lexicon aborted engine creation with `RuntimeError: memory access out of bounds`, and a missing model or tokens file gave `Missing required files for VITS model configuration` without naming it.
+- Web `initTts` fails with `Failed to load TTS model files: <url>` when `model.onnx`, `tokens.txt` or a configured `lexiconFile` cannot be fetched, including when none of them loads, and removes the files that did load along with their directory. Before, a missing lexicon aborted engine creation with `RuntimeError: memory access out of bounds`, a missing model or tokens file gave `Missing required files for VITS model configuration` without naming it, and a total download failure gave a bare `Failed to load TTS model files`.
 - Web `initTts` rejects non-VITS models with `Web TTS supports VITS models only, not <type>`. The WASM glue builds no engine config for matcha or kokoro, so those crashed during engine creation.
+- Web `FileSystem.removePath` removes directories. `isDirectory` read an `isDir` flag that Emscripten `stat` results do not have, so every directory was treated as a file and could not be removed.
 - The web loader no longer logs `Module loading timeout reached` 30 s after the modules loaded. It now clears its backup timer once loading settles, and a load that really times out warns once instead of twice.
 
 ## [2.0.0] - 2026-11-02
