@@ -32,7 +32,6 @@
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
         "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && rm -f dist/wasm/asr/encoder.onnx dist/wasm/language-id/tiny-decoder.onnx && yarn gh-pages -t -d dist --dest sherpa-voice --repo https://github.com/deeeed/audiolab.git",
         "test": "jest --watchAll",
-        "test:unit": "jest --config jest.unit.config.js",
         "detox:build:ios": "detox build -c ios.sim.release",
         "detox:build:ios:debug": "detox build -c ios.sim.debug",
         "detox:build:android": "detox build -c android.att.release",
