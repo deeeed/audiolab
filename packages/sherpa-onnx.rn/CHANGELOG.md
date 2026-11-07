@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-07
+
+### Migration
+
+- iOS apps that also link `@siteed/moonshine.rn` must use `@siteed/moonshine.rn >= 0.4.2`. Its isolated xcframework keeps Moonshine's ONNX Runtime symbols private so Sherpa can use ONNX Runtime 1.28.2. Moonshine 0.4.1 exports conflicting `Ort*` symbols and crashes Sherpa on model load. In an Audiolab checkout, run `yarn ios:ort:check` to check the native artifacts before building the app.
+
+### Changed
+
+- Document the stable Moonshine version required for iOS coexistence. The vendored sherpa-onnx version remains 2.0.1 with ONNX Runtime 1.28.2; this patch adds no Sherpa runtime changes.
+
 ## [2.0.0] - 2026-11-02
 
 ### Migration
@@ -242,7 +252,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.0...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.1...HEAD
+[2.0.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.0...@siteed/sherpa-onnx.rn@2.0.1
 [2.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@2.0.0
 [1.3.2-beta.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@1.3.2-beta.0
 [1.3.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.0...@siteed/sherpa-onnx.rn@1.3.1

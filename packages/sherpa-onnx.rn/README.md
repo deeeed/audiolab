@@ -267,6 +267,12 @@ yarn install
 
 ### Using Sherpa with Moonshine or another ONNX Runtime package
 
+If your iOS app links both `@siteed/sherpa-onnx.rn` and
+`@siteed/moonshine.rn`, use `@siteed/moonshine.rn >= 0.4.2`. Its isolated
+xcframework keeps Moonshine's ONNX Runtime symbols private so Sherpa can use
+ONNX Runtime 1.28.2 without a model-load crash. In an Audiolab checkout, run
+`yarn ios:ort:check` to check the native artifacts before building the app.
+
 If your Expo Android app installs both `@siteed/sherpa-onnx.rn` and
 `@siteed/moonshine.rn`, use Moonshine's default isolated Android artifact.
 Sherpa keeps `libonnxruntime.so`, while Moonshine loads
