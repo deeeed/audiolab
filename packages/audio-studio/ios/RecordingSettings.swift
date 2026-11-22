@@ -142,6 +142,7 @@ struct OutputSettings {
         var enabled: Bool = false
         var format: String = "aac"  // "aac" or "opus" (opus falls back to aac on iOS)
         var bitrate: Int = 128000
+        var preferRawStream: Bool = false
     }
 
     var primary: PrimaryOutput = PrimaryOutput()
@@ -270,6 +271,7 @@ struct RecordingSettings {
                 let format = (compressedDict["format"] as? String)?.lowercased() ?? "aac"
                 outputSettings.compressed.format = format
                 outputSettings.compressed.bitrate = bridgedInt(compressedDict, "bitrate").flatMap { $0 > 0 ? $0 : nil } ?? 128000
+                outputSettings.compressed.preferRawStream = compressedDict["preferRawStream"] as? Bool ?? false
 
                 // Validate compression settings if enabled
                 if outputSettings.compressed.enabled {

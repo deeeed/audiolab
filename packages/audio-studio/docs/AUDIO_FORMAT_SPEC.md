@@ -187,7 +187,7 @@ export interface CompressedOutput {
 ```
 
 Platform behavior with `useContainer`:
-- **iOS**: Always `.m4a` (ignores flag - platform limitation)
+- **iOS**: `.aac` raw ADTS for AAC when `preferRawStream` is true (`AVAudioRecorder` picks the container from the extension); otherwise `.m4a`
 - **Android**: 
   - `useContainer: true` → `.m4a` (MP4 container)
   - `useContainer: false` → `.aac` (raw AAC stream)

@@ -129,6 +129,17 @@ final class BridgedNumericOptionsTests: XCTestCase {
         XCTAssertEqual(settings.output.compressed.bitrate, 96000)
     }
 
+    func testPreferRawStreamSurvivesTheBridge() {
+        // #505: the compressed file extension, and so the AAC container, follows this flag.
+        let compressed: [String: Any] = ["enabled": true, "format": "aac", "preferRawStream": true]
+        guard case .success(let raw) = RecordingSettings.fromDictionary(["output": ["compressed": compressed]]),
+              case .success(let absent) = RecordingSettings.fromDictionary(["output": ["compressed": ["enabled": true]]]) else {
+            return XCTFail("fromDictionary rejected a valid compressed payload")
+        }
+        XCTAssertTrue(raw.output.compressed.preferRawStream)
+        XCTAssertFalse(absent.output.compressed.preferRawStream, "absent flag keeps the M4A default")
+    }
+
     // MARK: - Range guards (regression from the #423 bridging fix)
 
     func testNegativeChannelsFallsBackToDefault() {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- iOS now honours `output.compressed.preferRawStream` for AAC. The compressed file is written as `.aac`, so `AVAudioRecorder` produces raw ADTS instead of an M4A container and the `onAudioStream` compression chunks can be joined into a decodable file, as in 2.10.x. Since 2.11.0 the first chunk was an `ftyp` box and the `moov` atom was only written at stop. The default (flag off) still writes `.m4a` (#505).
+
 ## [4.0.0-beta.0] - 2026-08-24
 
 ### Fixed
