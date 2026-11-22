@@ -359,11 +359,11 @@ deploy_android() {
   echo -e "2. ${GREEN}Preview${NC} (local optimized, unsigned APK)"
   echo -e "3. ${GREEN}Preview APK${NC} (local optimized APK for distribution)"
   echo -e "4. ${GREEN}Production${NC} (local optimized, signed AAB)"
-  echo -e "5. ${GREEN}Production + Submit${NC} (remote build with auto-submit to Play Store)"
+  echo -e "5. ${GREEN}Production + Submit${NC} (remote build; exceeds the EAS plan time limit, prefer 4)"
   echo -e "6. ${GREEN}Submit Local Build${NC} (submit most recent local .aab to Play Store)"
 
-  read -p "$(echo -e ${YELLOW}"Choose Android build type [5]: "${NC})" ANDROID_CHOICE
-  ANDROID_CHOICE=${ANDROID_CHOICE:-5}  # Default to production + submit
+  read -p "$(echo -e ${YELLOW}"Choose Android build type [4]: "${NC})" ANDROID_CHOICE
+  ANDROID_CHOICE=${ANDROID_CHOICE:-4}  # Default to the local production build (see PUBLISH_STORE.md)
   
   # Clear caches first
   clear_all_caches
@@ -385,7 +385,7 @@ deploy_android() {
       echo -e "${CYAN}Ensuring production workspace...${NC}"
       yarn setup:production
       echo -e "${CYAN}Building Android production version locally...${NC}"
-      yarn build:android:production --local --no-wait
+      nice -n 15 env GRADLE_OPTS="-Dorg.gradle.workers.max=4" yarn build:android:production --local --no-wait
 
       read -p "$(echo -e ${YELLOW}"Do you want to submit this build to the Play Store? (Y/n): "${NC})" SUBMIT_ANDROID
       SUBMIT_ANDROID=${SUBMIT_ANDROID:-y}  # Default to yes
@@ -402,8 +402,8 @@ deploy_android() {
       submit_local_build android
       ;;
     *)
-      echo -e "${RED}Invalid choice. Using Production + Submit.${NC}"
-      yarn build:android:production --auto-submit
+      echo -e "${RED}Invalid choice. Run the script again and pick a build type.${NC}"
+      exit 1
       ;;
   esac
   

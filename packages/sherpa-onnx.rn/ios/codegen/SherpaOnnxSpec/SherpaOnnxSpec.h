@@ -36,13 +36,13 @@ namespace JS {
   namespace NativeSherpaOnnxSpec {
     struct SpecInitTtsConfig {
       NSString *modelDir() const;
-      NSString *modelType() const;
+      NSString *ttsModelType() const;
       NSString *modelFile() const;
       NSString *tokensFile() const;
       NSString *acousticModelName() const;
-      NSString *vocoder() const;
-      NSString *voices() const;
-      NSString *lexicon() const;
+      NSString *vocoderFile() const;
+      NSString *voicesFile() const;
+      NSString *lexiconFile() const;
       NSString *dataDir() const;
       NSString *dictDir() const;
       NSString *ruleFsts() const;
@@ -75,6 +75,7 @@ namespace JS {
       std::optional<double> lengthScale() const;
       std::optional<double> noiseScale() const;
       std::optional<double> noiseScaleW() const;
+      std::optional<facebook::react::LazyVector<facebook::react::LazyVector<double>>> phonemeCodepoints() const;
 
       SpecGenerateTtsConfig(NSDictionary *const v) : _v(v) {}
     private:
@@ -537,9 +538,9 @@ inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::modelDir() const
   id const p = _v[@"modelDir"];
   return RCTBridgingToString(p);
 }
-inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::modelType() const
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::ttsModelType() const
 {
-  id const p = _v[@"modelType"];
+  id const p = _v[@"ttsModelType"];
   return RCTBridgingToOptionalString(p);
 }
 inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::modelFile() const
@@ -557,19 +558,19 @@ inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::acousticModelName(
   id const p = _v[@"acousticModelName"];
   return RCTBridgingToOptionalString(p);
 }
-inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::vocoder() const
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::vocoderFile() const
 {
-  id const p = _v[@"vocoder"];
+  id const p = _v[@"vocoderFile"];
   return RCTBridgingToOptionalString(p);
 }
-inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::voices() const
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::voicesFile() const
 {
-  id const p = _v[@"voices"];
+  id const p = _v[@"voicesFile"];
   return RCTBridgingToOptionalString(p);
 }
-inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::lexicon() const
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::lexiconFile() const
 {
-  id const p = _v[@"lexicon"];
+  id const p = _v[@"lexiconFile"];
   return RCTBridgingToOptionalString(p);
 }
 inline NSString *JS::NativeSherpaOnnxSpec::SpecInitTtsConfig::dataDir() const
@@ -661,6 +662,11 @@ inline std::optional<double> JS::NativeSherpaOnnxSpec::SpecGenerateTtsConfig::no
 {
   id const p = _v[@"noiseScaleW"];
   return RCTBridgingToOptionalDouble(p);
+}
+inline std::optional<facebook::react::LazyVector<facebook::react::LazyVector<double>>> JS::NativeSherpaOnnxSpec::SpecGenerateTtsConfig::phonemeCodepoints() const
+{
+  id const p = _v[@"phonemeCodepoints"];
+  return RCTBridgingToOptionalVec(p, ^facebook::react::LazyVector<double>(id itemValue_0) { return RCTBridgingToVec(itemValue_0, ^double(id itemValue_1) { return RCTBridgingToDouble(itemValue_1); }); });
 }
 inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelDir() const
 {

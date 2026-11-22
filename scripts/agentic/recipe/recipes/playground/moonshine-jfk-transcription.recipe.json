@@ -1,0 +1,204 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground Moonshine JFK transcription",
+  "description": "Transcribes the bundled JFK sample with Moonshine small streaming through the ASR benchmark screen and asserts the transcript text and timings.",
+  "proofTargets": [
+    {
+      "id": "start-state",
+      "claim": "The benchmark screen starts from sample mode with Moonshine small streaming, the JFK sample and no results."
+    },
+    {
+      "id": "transcript",
+      "claim": "Moonshine transcribes the JFK sample to the known sentence.",
+      "proofMode": "state"
+    },
+    {
+      "id": "timing",
+      "claim": "The run reports model init and recognition times for the before/after comparison.",
+      "proofMode": "state"
+    }
+  ],
+  "workflow": {
+    "entry": "status",
+    "nodes": {
+      "status": {
+        "action": "app.status",
+        "intent": "Read the starting route so teardown can restore it.",
+        "next": "benchmark-screen-ready"
+      },
+      "benchmark-screen-ready": {
+        "action": "call",
+        "ref": "playground.flows.asr-benchmark-screen-ready",
+        "intent": "Open the ASR benchmark screen with its model and run controls visible.",
+        "next": "select-sample-mode"
+      },
+      "select-sample-mode": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-mode-sample",
+        "intent": "Switch the benchmark to sample-file mode.",
+        "next": "select-model"
+      },
+      "select-model": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-model-moonshine-small-streaming-en",
+        "intent": "Select the Moonshine small streaming English model.",
+        "next": "select-sample"
+      },
+      "select-sample": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-sample-jfk-public-wav",
+        "intent": "Select the bundled JFK speech sample.",
+        "next": "clear-results"
+      },
+      "clear-results": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-clear-results",
+        "intent": "Clear earlier benchmark results so the next result comes from this run.",
+        "next": "read-start-state"
+      },
+      "read-start-state": {
+        "action": "audiolab.query",
+        "ref": "asr-benchmark-state",
+        "intent": "Wait for the cleared sample-mode selection to reach the page state.",
+        "assert": {
+          "all": [
+            { "field": "mode", "operator": "eq", "value": "sample" },
+            { "field": "resultsCount", "operator": "eq", "value": 0 }
+          ]
+        },
+        "poll": true,
+        "next": "assert-start-state"
+      },
+      "assert-start-state": {
+        "action": "assert_output",
+        "source": "read-start-state",
+        "assert": {
+          "all": [
+            { "path": "$.route", "operator": "eq", "value": "/asr-benchmark" },
+            { "path": "$.mode", "operator": "eq", "value": "sample" },
+            { "path": "$.selectedModelId", "operator": "eq", "value": "moonshine-small-streaming-en" },
+            { "path": "$.selectedSampleId", "operator": "eq", "value": "jfk-public-wav" },
+            { "path": "$.resultsCount", "operator": "eq", "value": 0 },
+            { "path": "$.processing", "operator": "eq", "value": false }
+          ]
+        },
+        "proves": ["start-state"],
+        "intent": "Verify the run starts with Moonshine small, the JFK sample and an empty result list.",
+        "next": "prepare-model"
+      },
+      "prepare-model": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-prepare-model",
+        "intent": "Download or locate the Moonshine small model files.",
+        "next": "wait-model-ready"
+      },
+      "wait-model-ready": {
+        "action": "audiolab.query",
+        "ref": "asr-benchmark-state",
+        "intent": "Wait until the selected Moonshine model is on disk.",
+        "assert": {
+          "all": [
+            { "field": "selectedModelDownloaded", "operator": "eq", "value": true },
+            { "field": "processing", "operator": "eq", "value": false }
+          ]
+        },
+        "fail_when": { "field": "error", "operator": "not_null" },
+        "poll": true,
+        "timeout_ms": 900000,
+        "poll_ms": 2000,
+        "next": "run-sample"
+      },
+      "run-sample": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-run-sample",
+        "intent": "Transcribe the JFK sample with Moonshine.",
+        "next": "wait-result"
+      },
+      "wait-result": {
+        "action": "audiolab.query",
+        "ref": "asr-benchmark-state",
+        "intent": "Wait for the Moonshine result to appear on screen.",
+        "assert": {
+          "all": [
+            { "field": "processing", "operator": "eq", "value": false },
+            { "field": "resultsCount", "operator": "eq", "value": 1 }
+          ]
+        },
+        "fail_when": { "field": "latestResult.error", "operator": "not_null" },
+        "poll": true,
+        "timeout_ms": 180000,
+        "poll_ms": 1000,
+        "next": "assert-transcript"
+      },
+      "assert-transcript": {
+        "action": "assert_output",
+        "source": "wait-result",
+        "assert": {
+          "all": [
+            { "path": "$.latestResult.modelId", "operator": "eq", "value": "moonshine-small-streaming-en" },
+            { "path": "$.latestResult.sampleName", "operator": "eq", "value": "JFK Speech" },
+            { "path": "$.latestResult.transcript", "operator": "matches", "value": "[Mm]y fellow Americans" },
+            { "path": "$.latestResult.transcript", "operator": "matches", "value": "[Aa]sk not\\W+[Ww]hat your country can do for you" },
+            { "path": "$.latestResult.transcript", "operator": "matches", "value": "[Aa]sk what you can do for your country" }
+          ]
+        },
+        "proves": ["transcript"],
+        "intent": "Verify the transcript holds the known JFK sentence.",
+        "next": "assert-timing"
+      },
+      "assert-timing": {
+        "action": "assert_output",
+        "source": "wait-result",
+        "assert": {
+          "all": [
+            { "path": "$.latestResult.initMs", "operator": "gte", "value": 0 },
+            { "path": "$.latestResult.recognizeMs", "operator": "gt", "value": 0 }
+          ]
+        },
+        "proves": ["timing"],
+        "intent": "Verify the result reports model init and recognition times.",
+        "next": "reveal-result"
+      },
+      "reveal-result": {
+        "action": "audiolab.query",
+        "expression": "(() => { if (typeof document !== \"undefined\") { const button = [...document.querySelectorAll(\"[data-testid=\\\"asr-benchmark-clear-results\\\"]\")].find(element => element.offsetParent !== null); for (let node = button; node; node = node.parentElement) { if (node.scrollHeight > node.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(node).overflowY)) { node.scrollTop = node.scrollHeight; return JSON.stringify({ scrolled: \"dom\" }) } } return JSON.stringify({ scrolled: null }) } let fiber = globalThis.__AGENTIC__?.findFiberByTestId?.(\"asr-benchmark-clear-results\"); while (fiber) { const node = fiber.stateNode; if (node && typeof node.scrollToEnd === \"function\") { node.scrollToEnd({ animated: false }); return JSON.stringify({ scrolled: \"native\" }) } fiber = fiber.return } return JSON.stringify({ scrolled: null }) })()",
+        "assert": { "field": "scrolled", "operator": "not_null" },
+        "intent": "Scroll the benchmark screen to the result card holding the transcript.",
+        "next": "settle-result"
+      },
+      "settle-result": {
+        "action": "wait",
+        "duration_ms": 1500,
+        "intent": "Let the result card render before capturing it.",
+        "next": "capture-result"
+      },
+      "capture-result": {
+        "action": "ui.screenshot",
+        "path": "screenshots/moonshine-jfk-transcription.png",
+        "intent": "Preserve the benchmark screen showing the Moonshine transcript.",
+        "next": "done"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "restore-results": {
+        "action": "ui.press",
+        "test_id": "asr-benchmark-clear-results",
+        "intent": "Clear the benchmark result added by this run.",
+        "next": "restore-route"
+      },
+      "restore-route": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Restore the original observed route.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    },
+    "teardown": "restore-results"
+  }
+}

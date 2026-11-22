@@ -119,7 +119,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             checkAutomatically: "ON_LOAD",
             useEmbeddedUpdate: true
         },
-        runtimeVersion: '2.3.2',
+        runtimeVersion: '2.4.0',
         owner: 'deeeed',
         plugins: [
             [
@@ -242,6 +242,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             'expo-audio',
             '@react-native-community/datetimepicker',
             'expo-sharing',
+            'expo-asset',
+            'expo-status-bar',
         ],
         extra: {
             eas: {

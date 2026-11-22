@@ -100,6 +100,10 @@ if [ "$FORCE_REBUILD" = false ] && [ -d "prebuilt/web" ] && [ "$(ls -A prebuilt/
   exit 0
 fi
 
+# The combined target comes from CombinedWasmTarget.patch. "Already applied" above only
+# means this checkout carries it; prove it also applies to a clean pinned checkout.
+./scripts/check-upstream-patches.sh
+
 # Check if Emscripten is installed
 if ! command -v emcc &> /dev/null; then
   echo -e "${RED}Error: Emscripten compiler (emcc) not found.${NC}"

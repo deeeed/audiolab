@@ -1,0 +1,184 @@
+{
+  "playground": {
+    "route": {
+      "description": "Current Expo Router route for the playground app",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)",
+      "async": false
+    },
+    "recording-state": {
+      "description": "Current recorder state mirrored into the playground agentic bridge",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getState() || null)",
+      "async": false
+    },
+    "record-page-state": {
+      "description": "Current Record tab page-specific state mirrored into the playground agentic bridge",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+      "async": false
+    },
+    "filename-input": {
+      "description": "Current value of the filename input on the record screen",
+      "expression": "JSON.stringify((function(){ var fiber = globalThis.__AGENTIC__?.findFiberByTestId?.('filename-input'); var props = fiber && fiber.memoizedProps ? fiber.memoizedProps : null; return { value: props && props.value != null ? String(props.value) : null }; })())",
+      "async": false
+    },
+    "asr-benchmark-state": {
+      "description": "Current state of the ASR benchmark page",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+      "async": false
+    },
+    "moonshine-intent-state": {
+      "description": "Current state of the Moonshine intent demo page",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+      "async": false
+    },
+    "long-audio-validation-state": {
+      "description": "Current state of the long audio validation page",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+      "async": false
+    },
+    "long-audio-validation-progress": {
+      "description": "Current long audio validation progress from the app-side bridge",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLongAudioValidationProgress?.() || null)",
+      "async": false
+    },
+    "audio-player-state": {
+      "description": "AudioPlayer screen probe state (mounted flag plus ExtractionState fields).",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+      "async": false
+    },
+    "audio-player-load-sample": {
+      "description": "Trigger the AudioPlayer screen to load the JFK sample and run extractPreview.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.loadSample() || null)",
+      "async": false
+    },
+    "audio-player-load-bogus": {
+      "description": "Load a bogus URI to exercise the AudioExtractionError mapping.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.loadFromUri('file:///does-not-exist.txt') || null)",
+      "async": false
+    },
+    "audio-player-play": {
+      "description": "Start playback in the AudioPlayer demo.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.play() || null)",
+      "async": false
+    },
+    "audio-player-pause": {
+      "description": "Pause playback in the AudioPlayer demo.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.pause() || null)",
+      "async": false
+    },
+    "audio-player-seek-half": {
+      "description": "Seek to the mid-point of the loaded clip in the AudioPlayer demo.",
+      "expression": "(function(){ var s = globalThis.__AGENTIC__ && globalThis.__AGENTIC__.audioPlayer ? globalThis.__AGENTIC__.audioPlayer.getState() : null; if (!s || !s.durationMs) return JSON.stringify({ ok: false, reason: 'no-duration' }); return JSON.stringify(globalThis.__AGENTIC__.audioPlayer.seekTo(s.durationMs / 2)); })()",
+      "async": false
+    },
+    "audio-player-set-threshold-high": {
+      "description": "Raise silence threshold to 0.5 \u2014 should drive most segments silent.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.setThreshold(0.5) || null)",
+      "async": false
+    },
+    "audio-player-set-threshold-low": {
+      "description": "Lower silence threshold to 0.005 \u2014 should drive most segments non-silent.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.setThreshold(0.005) || null)",
+      "async": false
+    },
+    "audio-player-toggle-silence-off": {
+      "description": "Hide the silence ribbon track.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.setShowSilenceTrack(false) || null)",
+      "async": false
+    },
+    "audio-player-toggle-silence-on": {
+      "description": "Show the silence ribbon track.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.setShowSilenceTrack(true) || null)",
+      "async": false
+    },
+    "moonshine-live-state": {
+      "description": "Current state of the Moonshine + Sherpa live demo page",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+      "async": false
+    },
+    "playground.agentic_ready": {
+      "description": "The playground app is running with the agentic bridge installed.",
+      "async": false,
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)",
+      "assert": {
+        "operator": "not_null",
+        "field": "pathname"
+      },
+      "hint": "Start the playground app in dev mode and confirm the bridge is loaded.",
+      "fixtures": {
+        "pass": "{\"pathname\":\"/record\",\"segments\":[\"(tabs)\",\"record\"]}",
+        "fail": "null"
+      }
+    },
+    "playground.record_screen_visible": {
+      "description": "The record screen wrapper is mounted and discoverable by testID.",
+      "async": false,
+      "expression": "JSON.stringify({ visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"record-screen-wrapper\") })",
+      "assert": {
+        "operator": "eq",
+        "field": "visible",
+        "value": true
+      },
+      "hint": "Navigate to the record tab before running record-screen flows.",
+      "fixtures": {
+        "pass": "{\"visible\":true}",
+        "fail": "{\"visible\":false}"
+      }
+    },
+    "native-extract-audio-data": {
+      "description": "Start the native audio-data extraction probe.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.testExtractAudioData?.())",
+      "async": false
+    },
+    "native-trim-audio": {
+      "description": "Start the native trim probe.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.testTrimAudio?.())",
+      "async": false
+    },
+    "last-result": {
+      "description": "Read the most recent app audio or ASR probe result.",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLastResult?.() || null)",
+      "async": false
+    }
+  },
+  "sherpa-voice": {
+    "route": {
+      "description": "Current Expo Router route for sherpa-voice",
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)",
+      "async": false
+    },
+    "asr-ui": {
+      "description": "Visibility of the main ASR screen controls",
+      "expression": "JSON.stringify((function(){ return { initVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('btn-init-asr'), recognizeVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('btn-recognize') }; })())",
+      "async": false
+    },
+    "sherpa.agentic_ready": {
+      "description": "The sherpa-voice app is running with the agentic bridge installed.",
+      "async": false,
+      "expression": "JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)",
+      "assert": {
+        "operator": "not_null",
+        "field": "pathname"
+      },
+      "hint": "Start sherpa-voice in dev mode and ensure the bridge is active.",
+      "fixtures": {
+        "pass": "{\"pathname\":\"/features/asr\",\"segments\":[\"(tabs)\",\"features\",\"asr\"]}",
+        "fail": "null"
+      }
+    },
+    "sherpa.asr_screen_visible": {
+      "description": "The ASR feature screen is mounted and exposes its primary controls by testID.",
+      "async": false,
+      "expression": "JSON.stringify((function(){ return { initVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('btn-init-asr'), recognizeVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('btn-recognize') }; })())",
+      "assert": {
+        "operator": "eq",
+        "field": "initVisible",
+        "value": true
+      },
+      "hint": "Navigate to /features/asr before running ASR smoke flows.",
+      "fixtures": {
+        "pass": "{\"initVisible\":true,\"recognizeVisible\":true}",
+        "fail": "{\"initVisible\":false,\"recognizeVisible\":false}"
+      }
+    }
+  }
+}

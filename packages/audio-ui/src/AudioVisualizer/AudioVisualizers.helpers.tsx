@@ -1,5 +1,5 @@
 // playground/src/component/audio-visualizer/audio-visualiser.helpers.tsx
-import { Skia, SkPath } from '@shopify/react-native-skia'
+import { SkPath } from '@shopify/react-native-skia'
 import { DimensionValue } from 'react-native'
 import { withSpring } from 'react-native-reanimated'
 
@@ -18,6 +18,7 @@ import {
     UpdateActivePointsParams,
     UpdateActivePointsResult,
 } from './AudioVisualiser.types'
+import { buildPath } from '../utils/buildPath'
 
 export const calculateReferenceLinePosition = ({
     canvasWidth,
@@ -103,18 +104,17 @@ export const drawDottedLine = ({
     canvasWidth,
     canvasHeight,
 }: DrawDottedLineParams): SkPath => {
-    const path = Skia.Path.Make()
     const dashLength = 5 // Increased from 3 for better visibility
     const gapLength = 5
     const baseline = canvasHeight / 2
 
-    // Ensure we start from 0 and cover the entire width
-    for (let x = 0; x <= canvasWidth; x += dashLength + gapLength) {
-        path.moveTo(x, baseline)
-        path.lineTo(x + dashLength, baseline)
-    }
-
-    return path
+    return buildPath((path) => {
+        // Ensure we start from 0 and cover the entire width
+        for (let x = 0; x <= canvasWidth; x += dashLength + gapLength) {
+            path.moveTo(x, baseline)
+            path.lineTo(x + dashLength, baseline)
+        }
+    })
 }
 
 export const updateActivePoints = ({

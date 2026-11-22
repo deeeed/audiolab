@@ -12,12 +12,17 @@ data class OfflineRecognizerResult(
 
     // valid only for TDT models
     val durations: FloatArray,
+
+    // The decoded word IDs. Empty for greedy search decoding, non-empty when
+    // an HLG graph is used, i.e. when ctcFstDecoderConfig.graph is set.
+    val words: IntArray = IntArray(0),
 )
 
 data class OfflineTransducerModelConfig(
     var encoder: String = "",
     var decoder: String = "",
     var joiner: String = "",
+    var qnnConfig: QnnConfig = QnnConfig(),
 )
 
 data class OfflineParaformerModelConfig(
@@ -162,6 +167,11 @@ data class OfflineModelConfig(
     var bpeVocab: String = "",
 )
 
+data class OfflineCtcFstDecoderConfig(
+    var graph: String = "",
+    var maxActive: Int = 3000,
+)
+
 data class OfflineRecognizerConfig(
     var featConfig: FeatureConfig = FeatureConfig(),
     var modelConfig: OfflineModelConfig = OfflineModelConfig(),
@@ -174,6 +184,7 @@ data class OfflineRecognizerConfig(
     var ruleFsts: String = "",
     var ruleFars: String = "",
     var blankPenalty: Float = 0.0f,
+    var ctcFstDecoderConfig: OfflineCtcFstDecoderConfig = OfflineCtcFstDecoderConfig(),
 )
 
 class OfflineRecognizer(
@@ -187,6 +198,9 @@ class OfflineRecognizer(
             newFromAsset(assetManager, config)
         } else {
             newFromFile(config)
+        }
+        require(ptr != 0L) {
+            "Invalid OfflineRecognizerConfig: failed to create native OfflineRecognizer"
         }
     }
 
@@ -1460,6 +1474,46 @@ fun getOfflineModelConfig(type: Int): OfflineModelConfig? {
                     ),
                 ),
                 tokens = "$modelDir/tokens.txt",
+                debug = true,
+            )
+        }
+
+        9026 -> {
+            val modelDir =
+                "sherpa-onnx-qnn-reazonspeech-zipformer-transducer-ja-5s-2024-08-01-android-aarch64"
+            return OfflineModelConfig(
+                provider = "qnn",
+                transducer = OfflineTransducerModelConfig(
+                    encoder = "$modelDir/libencoder.so",
+                    decoder = "$modelDir/libdecoder.so",
+                    joiner = "$modelDir/libjoiner.so",
+                    qnnConfig = QnnConfig(
+                        backendLib = "libQnnHtp.so",
+                        systemLib = "libQnnSystem.so",
+                        contextBinary = "$modelDir/encoder.bin,$modelDir/decoder.bin,$modelDir/joiner.bin",
+                    ),
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "transducer",
+                debug = true,
+            )
+        }
+
+        9027 -> {
+            // for Xiaomi 17 Pro
+            val modelDir =
+                "sherpa-onnx-qnn-SM8850-binary-reazonspeech-zipformer-transducer-ja-5s-2024-08-01"
+            return OfflineModelConfig(
+                provider = "qnn",
+                transducer = OfflineTransducerModelConfig(
+                    qnnConfig = QnnConfig(
+                        backendLib = "libQnnHtp.so",
+                        systemLib = "libQnnSystem.so",
+                        contextBinary = "$modelDir/encoder.bin,$modelDir/decoder.bin,$modelDir/joiner.bin",
+                    ),
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "transducer",
                 debug = true,
             )
         }

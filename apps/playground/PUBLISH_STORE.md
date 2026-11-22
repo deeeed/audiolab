@@ -105,14 +105,25 @@ NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && c
 | Preview APK | Shareable APK | `yarn build:android:preview_apk` |
 | Production | Store submission | `yarn build:android:production --local` |
 
+#### Production builds run locally
+
+Build the Android production AAB locally, not on EAS cloud. The native build (Skia, Reanimated, Worklets for two ABIs) takes about 45 minutes and peaks above 14 GiB. A cloud build runs out of memory on a 16 GiB worker, or is cancelled at the EAS plan's 45-minute limit.
+
+Use a build machine with at least 32 GB of RAM and keep it from saturating the host:
+
+```bash
+yarn setup:production
+nice -n 15 env GRADLE_OPTS="-Dorg.gradle.workers.max=4" yarn build:android:production --local
+```
+
+Check the AAB before you submit it: record its SHA-256, and confirm versionName and versionCode with `bundletool dump manifest --bundle <file>.aab`.
+
 #### Submitting to Play Store
 
 ```bash
-# After local production build
-eas submit --platform android --path "$(find . -maxdepth 1 -name "*.aab" -type f -print0 | xargs -0 ls -t | head -n1)"
-
-# Build and submit automatically
-yarn build:android:production --auto-submit
+# After the local production build. `play-production` targets the production track;
+# `production` uploads an internal-track draft.
+eas submit --platform android --profile play-production --path "$(find . -maxdepth 1 -name "*.aab" -type f -print0 | xargs -0 ls -t | head -n1)"
 ```
 
 ### iOS Deployment

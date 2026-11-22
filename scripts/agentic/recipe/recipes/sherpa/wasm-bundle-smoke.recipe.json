@@ -1,0 +1,30 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice WASM bundle smoke test",
+  "description": "Verifies the v2.0.1-built combined wasm bundle loads in the browser and contains the Cohere/Qwen3 symbol references. Does not download model weights, so it runs in seconds and works on any network. Real ASR roundtrip with Cohere/Qwen3 requires the model files to be hosted at the configured WEB_FEATURES['asr'] CDN.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "wasm-smoke": {
+        "action": "call",
+        "intent": "Wasm smoke.",
+        "next": "done",
+        "ref": "sherpa.flows.wasm-bundle-smoke"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "wasm-smoke"
+      }
+    }
+  }
+}

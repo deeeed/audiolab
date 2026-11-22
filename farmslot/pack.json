@@ -1,0 +1,13 @@
+{
+  "name": "audiolab",
+  "description": "Audiolab app recipes and project support. Uses the existing audiolab-farm identity.",
+  "projects": [
+    {
+      "dir": "projects/audiolab-farm",
+      "platform": "web",
+      "slots": 1,
+      "short": "audiolab"
+    }
+  ],
+  "action_sheet": "Existing fleet: update projects/audiolab-farm only and keep the current pool slots. New hosts: run doctor, then prepare the selected Audiolab slot."
+}

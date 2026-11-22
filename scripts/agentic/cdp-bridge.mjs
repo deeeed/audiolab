@@ -50,18 +50,12 @@ import { execFileSync, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
+import { compileStage, executeStageCommand } from './lib/stage-runner.mjs';
+import { connectedIOSDevices, selectIOSDevice, physicalIOSDeviceForTarget, nativeTargetKey } from './lib/ios-devices.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const { checkAssert } = require('./lib/assert');
-const {
-  listEvalRefs,
-  listTeamNames,
-  loadPreConditionRegistry,
-  parsePreConditionSpec,
-  renderTemplate,
-  resolveEvalRef,
-} = require('./lib/catalog');
+const { resolveMetroPort } = require('./lib/runtime-config.cjs');
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -77,7 +71,6 @@ const AGENT_DIR = path.join(APP_ROOT, '.agent');
 const WEB_CONNECTION_FILE = path.join(AGENT_DIR, 'web-browser.json');
 const SCREENSHOT_DIR = path.join(AGENT_DIR, 'screenshots');
 const AGENTIC_CONF_FILE = path.join(APP_ROOT, 'scripts', 'agentic', 'agentic.conf');
-const PRE_CONDITIONS = loadPreConditionRegistry(APP_ROOT);
 
 function loadConfiguredPort() {
   if (!fs.existsSync(AGENTIC_CONF_FILE)) {
@@ -90,16 +83,9 @@ function loadConfiguredPort() {
 }
 
 function loadPort() {
-  return Number.parseInt(
-    process.env.WATCHER_PORT || String(loadConfiguredPort() || DEFAULT_PORT),
-    10
-  );
+  return resolveMetroPort(process.env, loadConfiguredPort() || DEFAULT_PORT);
 }
 
-function getDefaultTeam() {
-  const teams = listTeamNames(APP_ROOT);
-  return teams.length === 1 ? teams[0] : null;
-}
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -549,10 +535,11 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
       ? annotateIOSTarget(candidate)
       : candidate;
     const name = resolvedCandidate.deviceName || '';
-    if (seen.has(name)) continue; // already found agentic target for this device
+    const key = nativeTargetKey(resolvedCandidate);
+    if (seen.has(key)) continue;
     const hasAgentic = await probeTarget(resolvedCandidate.webSocketDebuggerUrl, WebSocketImpl);
     if (hasAgentic) {
-      seen.add(name);
+      seen.add(key);
       results.push({
         ...resolvedCandidate,
         wsUrl: resolvedCandidate.webSocketDebuggerUrl,
@@ -588,10 +575,11 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
           ? annotateIOSTarget(candidate)
           : candidate;
         const name = resolvedCandidate.deviceName || '';
-        if (seen.has(name)) continue;
+        const key = nativeTargetKey(resolvedCandidate);
+        if (seen.has(key)) continue;
         const hasAgentic = await probeTarget(resolvedCandidate.webSocketDebuggerUrl, WebSocketImpl);
         if (hasAgentic) {
-          seen.add(name);
+          seen.add(key);
           results.push({
             ...resolvedCandidate,
             wsUrl: resolvedCandidate.webSocketDebuggerUrl,
@@ -847,58 +835,6 @@ async function cdpEvalAsync(
   }
 }
 
-function normalizeRawResult(raw) {
-  if (raw == null) {
-    return 'null';
-  }
-
-  if (typeof raw === 'string') {
-    return raw;
-  }
-
-  return JSON.stringify(raw);
-}
-
-async function evalSpec(client, entry, params = {}) {
-  const expression =
-    typeof entry.expression === 'function'
-      ? entry.expression(params)
-      : renderTemplate(entry.expression, params);
-  return entry.async ? cdpEvalAsync(client, expression) : cdpEval(client, expression);
-}
-
-async function evaluatePreCondition(client, rawSpec) {
-  const parsedSpec = parsePreConditionSpec(rawSpec);
-  const name = typeof parsedSpec === 'string' ? parsedSpec : parsedSpec?.name;
-  const params =
-    typeof parsedSpec === 'string'
-      ? {}
-      : Object.fromEntries(
-          Object.entries(parsedSpec).filter(([key]) => key !== 'name')
-        );
-
-  const entry = PRE_CONDITIONS[name];
-  if (!entry) {
-    return {
-      ok: false,
-      name,
-      error: `Unknown pre-condition "${name}"`,
-    };
-  }
-
-  const raw = normalizeRawResult(await evalSpec(client, entry, params));
-  const assertSpec = renderTemplate(entry.assert, params);
-  const ok = checkAssert(raw, assertSpec);
-
-  return {
-    ok,
-    name,
-    description: entry.description || '',
-    hint: entry.hint || '',
-    raw,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Commands — adapted for Expo Router (URL-based navigation)
 // ---------------------------------------------------------------------------
@@ -923,7 +859,9 @@ const COMMANDS = {
   },
 
   async 'get-route'(client) {
-    return await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
+    const route = await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
+    if (typeof route?.pathname !== 'string') throw new Error('The app bridge has no ready route.');
+    return route;
   },
 
   async 'get-state'(client) {
@@ -944,25 +882,6 @@ const COMMANDS = {
       throw new Error('Usage: eval-async <expression>');
     }
     return await cdpEvalAsync(client, expression);
-  },
-
-  async 'eval-ref'(client, args) {
-    if (args[0] === '--list') {
-      return {
-        refs: listEvalRefs(APP_ROOT),
-      };
-    }
-
-    const ref = args[0];
-    if (!ref) {
-      throw new Error('Usage: eval-ref <team/ref> or eval-ref --list');
-    }
-
-    const resolved = resolveEvalRef(ref, {
-      appRoot: APP_ROOT,
-      defaultTeam: getDefaultTeam(),
-    });
-    return await evalSpec(client, resolved.entry);
   },
 
   async 'can-go-back'(client) {
@@ -1064,42 +983,6 @@ const COMMANDS = {
     return { ...result, deviceName };
   },
 
-  async 'check-pre-conditions'(client, args) {
-    const payload = args.join(' ');
-    if (!payload) {
-      throw new Error('Usage: check-pre-conditions <json-array>');
-    }
-
-    let specs;
-    try {
-      specs = JSON.parse(payload);
-    } catch (error) {
-      throw new Error(`Invalid pre-condition JSON: ${error.message}`);
-    }
-
-    if (!Array.isArray(specs)) {
-      throw new Error('check-pre-conditions expects a JSON array');
-    }
-
-    const failures = [];
-    const passed = [];
-
-    for (const spec of specs) {
-      const result = await evaluatePreCondition(client, spec);
-      if (result.ok) {
-        passed.push(result.name);
-      } else {
-        failures.push(result);
-      }
-    }
-
-    return {
-      ok: failures.length === 0,
-      passed,
-      failures,
-    };
-  },
-
   async reload(client, _args, { deviceName } = {}) {
     await client.send('Page.reload', {}, 5000);
     return { reloaded: true, deviceName };
@@ -1124,8 +1007,30 @@ const COMMANDS = {
 
     if (platform === 'web') {
       // Web: use CDP Page.captureScreenshot
+      // Wait for decoded assets and painted frames before capturing the web page.
+      const ready = await client.send('Runtime.evaluate', {
+        expression: `(async () => {
+          await new Promise(resolve => {
+            // Slow/broken assets and background frames must remain capturable.
+            const timer = setTimeout(resolve, 500);
+            Promise.allSettled([document.fonts.ready,
+              ...Array.from(document.images, image => image.decode())]).then(() => {
+              requestAnimationFrame(() => requestAnimationFrame(() => {
+                clearTimeout(timer);
+                resolve();
+              }));
+            });
+          });
+        })()`,
+        awaitPromise: true,
+      }, 5000);
+      if (ready.exceptionDetails) throw new Error('Web screenshot assets did not become ready');
+      const metrics = await client.send('Page.getLayoutMetrics', {}, 5000);
+      const viewport = metrics.cssVisualViewport;
       const result = await client.send('Page.captureScreenshot', {
         format: 'png',
+        captureBeyondViewport: true,
+        clip: { x: viewport.pageX, y: viewport.pageY, width: viewport.clientWidth, height: viewport.clientHeight, scale: 1 },
       }, 10000);
       if (!result.data) {
         throw new Error('Page.captureScreenshot returned no data');
@@ -1160,9 +1065,7 @@ const COMMANDS = {
           fs.rmSync(tempDir, { recursive: true, force: true });
         }
       } else {
-        // Physical iOS device — no reliable CLI screenshot tool available.
-        process.stderr.write(`[cdp-bridge] Skipping screenshot for physical iOS device "${deviceName}" (not supported)\n`);
-        return { screenshot: null, deviceName, platform, skipped: 'physical iOS device screenshots not supported' };
+        await capturePhysicalIOS(iosDevice.udid, filepath);
       }
     } else {
       throw new Error(
@@ -1212,6 +1115,11 @@ function resolveAndroidDeviceRecord(deviceName) {
   } catch {
     return null;
   }
+  return selectAndroidDevice(output, deviceName, process.env.ADB_SERIAL);
+}
+
+/** Pick the device for deviceName from `adb devices -l` output. */
+function selectAndroidDevice(output, deviceName, assigned) {
   const lines = output.split('\n').filter((l) => l.includes('device '));
   if (lines.length === 0) return null;
   if (lines.length === 1) {
@@ -1224,25 +1132,40 @@ function resolveAndroidDeviceRecord(deviceName) {
   }
   // Multiple devices — try to match by model name
   const filter = deviceName.toLowerCase();
-  for (const line of lines) {
+  const matching = lines.filter((line) => {
     const modelMatch = line.match(/model:(\S+)/);
-    if (modelMatch) {
-      const rawModel = modelMatch[1].toLowerCase();
-      const normalizedModel = rawModel.replaceAll(/_/g, ' ');
-      const firstToken = filter.split(' ')[0].toLowerCase();
-      if (
-        filter.includes(rawModel) ||
-        rawModel.includes(firstToken) ||
-        filter.includes(normalizedModel) ||
-        normalizedModel.includes(firstToken)
-      ) {
-        const serial = line.split(/\s+/)[0];
-        return {
-          serial,
-          targetType: serial.startsWith('emulator-') ? 'emulator' : 'physical',
-        };
-      }
-    }
+    if (!modelMatch) return false;
+    const rawModel = modelMatch[1].toLowerCase();
+    const normalizedModel = rawModel.replaceAll(/_/g, ' ');
+    const firstToken = filter.split(' ')[0].toLowerCase();
+    return (
+      filter.includes(rawModel) ||
+      rawModel.includes(firstToken) ||
+      filter.includes(normalizedModel) ||
+      normalizedModel.includes(firstToken)
+    );
+  });
+  if (matching.length > 0) {
+    // Prefer devices whose full model name was requested, since the first-word
+    // match also accepts siblings ("Pixel 6a" matches every Pixel). Identical
+    // emulators share a model name; the assigned ADB_SERIAL picks among the
+    // best matches but never overrides a different requested device
+    // The model must end where a word ends, so "Pixel 6" does not claim "Pixel 6a"
+    const named = (model) => {
+      const i = filter.indexOf(model);
+      return i >= 0 && /^($|[\s-])/.test(filter.slice(i + model.length));
+    };
+    const fullName = matching.filter((line) => {
+      const model = line.match(/model:(\S+)/)[1].toLowerCase();
+      return named(model) || named(model.replaceAll(/_/g, ' '));
+    });
+    const candidates = fullName.length > 0 ? fullName : matching;
+    const line = candidates.find((l) => l.split(/\s+/)[0] === assigned) ?? candidates[0];
+    const serial = line.split(/\s+/)[0];
+    return {
+      serial,
+      targetType: serial.startsWith('emulator-') ? 'emulator' : 'physical',
+    };
   }
   // No match — error loudly instead of silently using wrong device
   const available = lines
@@ -1277,28 +1200,8 @@ function getBootedIOSSimulators() {
 }
 
 function getConnectedIOSPhysicalDevices() {
-  try {
-    const output = execFileSync('/usr/bin/xcrun', ['devicectl', 'list', 'devices', '-v'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const blocks = output.split(/(?=▿ .+ - [0-9A-F]{8}-)/);
-    const devices = [];
-    for (const block of blocks) {
-      if (!block.includes('physical')) continue;
-      if (!block.includes('available') && !block.includes('paired')) continue;
-      const name =
-        block.match(/name: Optional\("([^"]+)"\)/)?.[1] ||
-        block.match(/marketingName: Optional\("([^"]+)"\)/)?.[1];
-      const udid = block.match(/udid: Optional\("([^"]+)"\)/)?.[1];
-      if (name && udid) {
-        devices.push({ name, udid });
-      }
-    }
-    return devices;
-  } catch {
-    return [];
-  }
+  try { return connectedIOSDevices(); }
+  catch { return []; }
 }
 
 function normalizeIOSDeviceFilterName(deviceName) {
@@ -1360,15 +1263,7 @@ function annotateIOSTarget(target) {
     };
   }
 
-  const logicalDeviceId = target.reactNative?.logicalDeviceId;
-  const matchingPhysicalDevice =
-    connectedPhysicalDevices.length === 1
-      ? connectedPhysicalDevices[0]
-      : connectedPhysicalDevices.find(
-          (device) =>
-            device.name.toLowerCase() === metroDeviceName.toLowerCase() ||
-            device.udid === logicalDeviceId
-        );
+  const matchingPhysicalDevice = physicalIOSDeviceForTarget(target, connectedPhysicalDevices, { udid: process.env.IOS_DEVICE_UDID, inspectorId: process.env.IOS_CDP_DEVICE_ID });
 
   if (matchingPhysicalDevice) {
     return {
@@ -1404,7 +1299,7 @@ function resolveIOSDevice(deviceName) {
     if (booted.length > 0) {
       return { type: 'simulator', udid: booted[0].udid };
     }
-    return { type: 'physical' };
+    return resolvePhysicalIOSDevice(deviceName);
   }
 
   const normalizedName = normalizeIOSDeviceFilterName(deviceName);
@@ -1427,8 +1322,19 @@ function resolveIOSDevice(deviceName) {
     );
   }
 
-  // No exact simulator match — it's a physical device
-  return { type: 'physical' };
+  return resolvePhysicalIOSDevice(deviceName);
+}
+
+async function capturePhysicalIOS(udid, filepath) {
+  const stage = compileStage('ios-screenshot', path.basename(APP_ROOT), { device: udid, filename: path.basename(filepath) });
+  const result = await executeStageCommand(stage, 35000);
+  if (result.code !== 0) throw new Error(`Physical iOS screenshot failed: ${result.stderr}`);
+}
+
+function resolvePhysicalIOSDevice(deviceName) {
+  const device = selectIOSDevice({ udid: process.env.IOS_DEVICE_UDID,
+    name: normalizeIOSDeviceFilterName(deviceName) }, getConnectedIOSPhysicalDevices());
+  return { type: 'physical', udid: device.udid };
 }
 
 function inferTargetType(platform, deviceName) {
@@ -1477,8 +1383,6 @@ Commands:
   get-state                          Get audio recorder state (isRecording, isPaused, durationMs, etc.)
   eval <expression>                  Evaluate arbitrary JS in app context
   eval-async <expression>            Evaluate a Promise-returning expression in app context
-  eval-ref <team/ref>                Evaluate a named ref from scripts/agentic/teams/*/evals*.json
-  eval-ref --list                    List named eval refs for the current app
   can-go-back                        Check if navigation can go back
   go-back                            Navigate back
   press-test-id <testId> [--value true|false]
@@ -1488,7 +1392,6 @@ Commands:
   clear-step-hud                     Clear the in-app HUD overlay
   scroll-view [--test-id <id>] [--offset <n>] [--animated|--no-animated]
                                      Scroll a ScrollView/FlatList/FlashList (default: offset=300, no-animated)
-  check-pre-conditions <json-array>  Evaluate registered pre-conditions for the current app
   reload                             Reload the JS bundle via Page.reload
   screenshot [label]                 Take a screenshot (dispatches per-platform)
   list-devices                       List all connected agentic devices
@@ -1591,9 +1494,19 @@ async function main() {
     }
   }
 
+  if (process.env.IOS_DEVICE_UDID && process.env.AUDIOLAB_RECIPE_PLATFORM === 'ios') {
+    const assigned = selectIOSDevice({ udid: process.env.IOS_DEVICE_UDID });
+    targets = targets.filter(target => target.targetType === 'physical' && target.udid === assigned.udid);
+  }
+
   if (targets.length === 0) {
     console.error('ERROR: No agentic devices found. Is the app running?');
     process.exit(1);
+  }
+
+  // Recipe execution must refuse ambiguous targets before any app mutation.
+  if (process.env.AUDIOLAB_RECIPE_PLATFORM && targets.length !== 1) {
+    throw new Error('Recipe proof requires exactly one selected device.');
   }
 
   // -- Dispatch to target(s) -----------------------------------------------
@@ -1602,6 +1515,15 @@ async function main() {
     const client = await createWSClient(target.wsUrl, timeout, WebSocketImpl);
     try {
       const platform = await cdpEval(client, 'globalThis.__AGENTIC__?.platform').catch(() => '') || '';
+      if (platform === 'ios' && process.env.IOS_DEVICE_UDID) {
+        const assigned = selectIOSDevice({ udid: process.env.IOS_DEVICE_UDID });
+        if (target.targetType !== 'physical' || target.udid !== assigned.udid) {
+          throw new Error('The native runtime is not attributable to the assigned physical iOS device.');
+        }
+      }
+      if (process.env.AUDIOLAB_RECIPE_PLATFORM && platform !== process.env.AUDIOLAB_RECIPE_PLATFORM) {
+        throw new Error(`Requested ${process.env.AUDIOLAB_RECIPE_PLATFORM} proof, but the selected runtime is ${platform || 'unknown'}.`);
+      }
       const result = await handler(client, args.slice(1), {
         deviceName: target.deviceName,
         platform,
@@ -1625,6 +1547,7 @@ export {
   getInspectorOrigin,
   setLastGoodInspectorOrigin,
   findLocalMetroHost,
+  selectAndroidDevice,
 };
 
 if (!process.env.CDP_BRIDGE_IMPORT_ONLY) {

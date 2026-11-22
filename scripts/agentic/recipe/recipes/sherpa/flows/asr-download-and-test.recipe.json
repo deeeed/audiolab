@@ -1,0 +1,77 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice ASR \u2014 download model then exercise via testASR",
+  "description": "Generic flow: takes the model id (param0), the testASR alias (param1), and optional language (param2). Triggers downloadModel via the bridge, polls until status === 'downloaded' (cap 30 min), then runs the testASR roundtrip.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "download": {
+        "action": "audiolab.query",
+        "intent": "Download.",
+        "next": "fire-asr",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.downloadModel||!A.getState){return Promise.resolve({status:'error',error:'agentic bridge missing downloadModel/getState'});}var MODEL_ID='{{params.modelId}}';function modelStatus(){var s=(A.getState().models||{}).statuses||{};return (s[MODEL_ID]||{}).status||'unknown';}if(modelStatus()==='downloaded'){return Promise.resolve({status:'success',already:true});}try{A.downloadModel(MODEL_ID);}catch(e){}return new Promise(function(resolve){var i=0;function tick(){if(modelStatus()==='downloaded'){resolve({status:'success'});return;}i++;if(i>=3600){resolve({status:'timeout',lastStatus:modelStatus()});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true
+      },
+      "fire-asr": {
+        "action": "audiolab.query",
+        "intent": "Fire asr.",
+        "next": "assert-transcript",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testASR||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testASR/getLastResult'});}A.testASR('{{params.alias}}',undefined,'{{params.language}}');return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='asrTest'&&r.status!=='pending'){resolve(r);return;}i++;if(i>=120){resolve({status:'timeout'});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true
+      },
+      "assert-transcript": {
+        "action": "audiolab.query",
+        "intent": "Assert transcript.",
+        "next": "done",
+        "assert": {
+          "operator": "length_gt",
+          "field": "result.transcript",
+          "value": 0
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__.getLastResult())"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "download"
+      }
+    }
+  },
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "modelId": {
+        "type": "string",
+        "default": "qwen3-asr-0.6B-int8-2026-03-25"
+      },
+      "alias": {
+        "type": "string",
+        "default": "qwen3"
+      },
+      "language": {
+        "type": "string",
+        "default": ""
+      }
+    }
+  }
+}

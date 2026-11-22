@@ -12,10 +12,8 @@ const IOS_LIBRARIES = [
   'libsherpa-onnx-kaldifst-core.a',
   'libsherpa-onnx-core.a',
   'libsherpa-onnx-c-api.a',
-  'libpiper_phonemize.a',
-  'libespeak-ng.a',
   'libssentencepiece_core.a',
-  'libucd.a',
+  'libutf8proc.a',
   'libonnxruntime.a',
 ];
 
@@ -57,9 +55,14 @@ function getRequiredFiles({ includeIosCurrent = false } = {}) {
 }
 
 function validatePrebuiltTree(rootDir, options = {}) {
-  const missing = getRequiredFiles(options).filter(
-    (relativePath) => !fs.existsSync(path.join(rootDir, relativePath))
-  );
+  const missing = getRequiredFiles(options).filter((relativePath) => {
+    const absolutePath = path.join(rootDir, relativePath);
+    if (!fs.existsSync(absolutePath)) return true;
+    return (
+      relativePath.startsWith('prebuilt/ios/current/') &&
+      !fs.lstatSync(absolutePath).isSymbolicLink()
+    );
+  });
 
   return {
     ok: missing.length === 0,

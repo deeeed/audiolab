@@ -7,15 +7,29 @@
 const fs = require('fs');
 const path = require('path');
 
+// Only an app directory under apps/ is accepted; the default is the playground.
+const appsRoot = path.join(__dirname, '../apps');
+const requestedAppPath = process.argv[2] ? path.resolve(process.argv[2]) : path.join(appsRoot, 'playground');
+const appName = fs.readdirSync(appsRoot).find((name) => path.join(appsRoot, name) === requestedAppPath);
+if (!appName) {
+  console.error('❌ The app directory must be one of the apps under apps/.');
+  process.exit(1);
+}
+const appDirectory = path.join(appsRoot, appName);
+
 // Get the package version
-const packageJsonPath = path.join(__dirname, '../package.json');
+const packageJsonPath = path.join(appDirectory, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const version = packageJson.version;
+if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
+  console.error('❌ The package version must be a valid semver version.');
+  process.exit(1);
+}
 
-console.log(`\n📦 Preparing update for version ${version}\n`);
+console.log('\n📦 Preparing the runtime version update\n');
 
 // Check for unreleased changes in CHANGELOG.md
-const changelogPath = path.join(__dirname, '../CHANGELOG.md');
+const changelogPath = path.join(appDirectory, 'CHANGELOG.md');
 let hasUnreleasedChanges = false;
 
 if (fs.existsSync(changelogPath)) {
@@ -70,7 +84,7 @@ if (!hasUnreleasedChanges) {
 function updateRuntimeVersionAndChangelog() {
   try {
     // Update app.config.ts to use the package version as runtimeVersion
-    const appConfigPath = path.join(__dirname, '../app.config.ts');
+    const appConfigPath = path.join(appDirectory, 'app.config.ts');
     let appConfig = fs.readFileSync(appConfigPath, 'utf8');
 
     // Check if runtimeVersion already matches
@@ -87,7 +101,7 @@ function updateRuntimeVersionAndChangelog() {
       );
 
       fs.writeFileSync(appConfigPath, appConfig);
-      console.log(`✅ Updated runtimeVersion to ${version} in app.config.ts`);
+      console.log('✅ Updated runtimeVersion in app.config.ts');
     }
 
     // Update CHANGELOG.md if there are unreleased changes
@@ -131,6 +145,7 @@ function updateRuntimeVersionAndChangelog() {
       console.log(`✅ Updated CHANGELOG.md with version ${version}`);
     }
 
+    console.log('Runtime version: %s', version);
     console.log('\n🚀 Version update complete! Next steps:');
     console.log('1. Review the changes in app.config.ts and CHANGELOG.md');
     console.log('2. Run OTA update command: yarn ota-update:production');
@@ -141,4 +156,4 @@ function updateRuntimeVersionAndChangelog() {
     console.error(error.message);
     process.exit(1);
   }
-} 
+}

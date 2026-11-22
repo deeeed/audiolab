@@ -1,0 +1,378 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Record tab Moonshine + Sherpa live validation",
+  "description": "Enables the main Record tab advanced Moonshine + Sherpa live mode, starts recording, and verifies Moonshine transcript events, Sherpa speaker-turn events, attributed transcript rendering, and clean stop state.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-record": {
+        "action": "ui.navigate",
+        "intent": "Nav record.",
+        "next": "wait-record-route",
+        "path": "/record"
+      },
+      "wait-record-route": {
+        "action": "audiolab.query",
+        "intent": "Wait record route.",
+        "next": "read-record-ui-state",
+        "ref": "route",
+        "assert": {
+          "operator": "eq",
+          "field": "pathname",
+          "value": "/record"
+        },
+        "poll": true
+      },
+      "read-record-ui-state": {
+        "action": "audiolab.query",
+        "intent": "Read record ui state.",
+        "next": "choose-enable-mode",
+        "assert": {
+          "operator": "eq",
+          "field": "route",
+          "value": "/record"
+        },
+        "ref": "record-page-state"
+      },
+      "choose-enable-mode": {
+        "action": "audiolab.choose",
+        "intent": "Skip the Moonshine + Sherpa toggle when it is already enabled; otherwise reveal advanced settings only if needed.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.enableMoonshineSherpaLive",
+            "value": true
+          },
+          {
+            "operator": "eq",
+            "field": "last.advancedMode",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "choose-result-state",
+          "case-1": "wait-moonshine-sherpa-toggle"
+        },
+        "default": "show-advanced"
+      },
+      "show-advanced": {
+        "action": "ui.press",
+        "intent": "Show advanced.",
+        "next": "wait-moonshine-sherpa-toggle",
+        "test_id": "record-show-advanced-settings",
+        "value": true
+      },
+      "wait-moonshine-sherpa-toggle": {
+        "action": "audiolab.query",
+        "intent": "Wait moonshine sherpa toggle.",
+        "next": "enable-moonshine-sherpa",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"record-enable-moonshine-sherpa-live\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "enable-moonshine-sherpa": {
+        "action": "ui.press",
+        "intent": "Enable moonshine sherpa.",
+        "next": "wait-enabled",
+        "test_id": "record-enable-moonshine-sherpa-live",
+        "value": true
+      },
+      "wait-enabled": {
+        "action": "audiolab.query",
+        "intent": "Wait enabled.",
+        "next": "choose-result-state",
+        "assert": {
+          "operator": "eq",
+          "field": "enableMoonshineSherpaLive",
+          "value": true
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "choose-result-state": {
+        "action": "audiolab.choose",
+        "intent": "Clear any previous recording result before pressing the start button.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "last.hasRecordingResult",
+            "value": true
+          }
+        ],
+        "cases": {
+          "case-0": "press-record-again"
+        },
+        "default": "press-start"
+      },
+      "press-record-again": {
+        "action": "ui.press",
+        "intent": "Clear the previous result for a new recording.",
+        "next": "post-record-again-settle",
+        "test_id": "record-again-button"
+      },
+      "post-record-again-settle": {
+        "action": "audiolab.query",
+        "intent": "Confirm the recorder is ready for a new take.",
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true,
+        "timeout_ms": 10000,
+        "assert": {
+          "field": "hasRecordingResult",
+          "operator": "eq",
+          "value": false
+        },
+        "next": "press-start"
+      },
+      "press-start": {
+        "action": "ui.press",
+        "intent": "Start recording with live transcription.",
+        "next": "wait-recording",
+        "test_id": "start-recording-button"
+      },
+      "wait-recording": {
+        "action": "audiolab.query",
+        "intent": "Wait recording.",
+        "next": "wait-output-visible",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isMoonshineSherpaRecording",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "moonshineSherpaSherpaReady",
+              "value": true
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "moonshineSherpaError"
+        },
+        "timeout_ms": 180000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "wait-output-visible": {
+        "action": "audiolab.query",
+        "intent": "Wait output visible.",
+        "next": "wait-chunk-fanout",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"record-moonshine-sherpa-live-output\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-chunk-fanout": {
+        "action": "audiolab.query",
+        "intent": "Wait chunk fanout.",
+        "next": "wait-transcript",
+        "assert": {
+          "all": [
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaMoonshineStats.chunks",
+              "value": 3
+            },
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaSherpaStats.chunks",
+              "value": 3
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "moonshineSherpaError"
+        },
+        "timeout_ms": 90000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "wait-transcript": {
+        "action": "audiolab.query",
+        "intent": "Wait transcript.",
+        "next": "wait-sherpa-event",
+        "assert": {
+          "any": [
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaLiveInterimLineCount",
+              "value": 1
+            },
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaLiveCommittedLineCount",
+              "value": 1
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "moonshineSherpaError"
+        },
+        "timeout_ms": 180000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "wait-sherpa-event": {
+        "action": "audiolab.query",
+        "intent": "Wait sherpa event.",
+        "next": "wait-controlled-speech-window",
+        "assert": {
+          "any": [
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaSpeakerEventCounts.speech_start",
+              "value": 1
+            },
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaFinalTurnCount",
+              "value": 1
+            },
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaTurnCount",
+              "value": 1
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "moonshineSherpaError"
+        },
+        "timeout_ms": 180000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "wait-controlled-speech-window": {
+        "action": "wait",
+        "intent": "Record the controlled speech sample for fifty seconds.",
+        "next": "assert-still-healthy-before-stop",
+        "duration_ms": 50000
+      },
+      "assert-still-healthy-before-stop": {
+        "action": "audiolab.query",
+        "intent": "Assert still healthy before stop.",
+        "next": "press-stop",
+        "assert": {
+          "operator": "eq",
+          "field": "moonshineSherpaError",
+          "value": null
+        },
+        "ref": "record-page-state"
+      },
+      "press-stop": {
+        "action": "ui.press",
+        "intent": "Finish the recording and preserve its result.",
+        "next": "wait-final-attributed",
+        "test_id": "stop-recording-button"
+      },
+      "wait-final-attributed": {
+        "action": "audiolab.query",
+        "intent": "Wait final attributed.",
+        "next": "wait-stopped",
+        "assert": {
+          "any": [
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaAttributedCommittedLineCount",
+              "value": 1
+            },
+            {
+              "operator": "gte",
+              "field": "moonshineSherpaAttributedInterimLineCount",
+              "value": 1
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "moonshineSherpaError"
+        },
+        "timeout_ms": 120000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "wait-stopped": {
+        "action": "audiolab.query",
+        "intent": "Wait stopped.",
+        "next": "wait-result-output-visible",
+        "assert": {
+          "operator": "eq",
+          "field": "isMoonshineSherpaRecording",
+          "value": false
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "moonshineSherpaError"
+        },
+        "timeout_ms": 60000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "wait-result-output-visible": {
+        "action": "audiolab.query",
+        "intent": "Wait result output visible.",
+        "next": "post-stop-settle",
+        "timeout_ms": 30000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"record-moonshine-sherpa-result-output\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "post-stop-settle": {
+        "action": "wait",
+        "intent": "Observe the completed recording for delayed transcription errors.",
+        "duration_ms": 3000,
+        "next": "assert-no-late-error"
+      },
+      "assert-no-late-error": {
+        "action": "audiolab.query",
+        "intent": "Assert no late error.",
+        "next": "done",
+        "assert": {
+          "operator": "eq",
+          "field": "moonshineSherpaError",
+          "value": null
+        },
+        "ref": "record-page-state"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "nav-record"
+      }
+    }
+  }
+}

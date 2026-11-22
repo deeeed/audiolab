@@ -1,0 +1,70 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground recipe smoke validation",
+  "description": "Composes the record-screen smoke flow and confirms the app remains on the record tab.",
+  "workflow": {
+    "entry": "choose-platform",
+    "nodes": {
+      "choose-platform": {
+        "action": "audiolab.choose",
+        "intent": "Choose platform.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "env.platform",
+            "value": "ios"
+          },
+          {
+            "operator": "eq",
+            "field": "env.platform",
+            "value": "android"
+          },
+          {
+            "operator": "eq",
+            "field": "env.platform",
+            "value": "web"
+          }
+        ],
+        "cases": {
+          "case-0": "record-screen-smoke-ios",
+          "case-1": "record-screen-smoke-android",
+          "case-2": "record-screen-smoke-web"
+        },
+        "default": "record-screen-smoke-web"
+      },
+      "record-screen-smoke-ios": {
+        "action": "call",
+        "intent": "Record screen smoke ios.",
+        "next": "assert-route",
+        "ref": "playground.flows.record-screen-smoke"
+      },
+      "record-screen-smoke-android": {
+        "action": "call",
+        "intent": "Record screen smoke android.",
+        "next": "assert-route",
+        "ref": "playground.flows.record-screen-smoke"
+      },
+      "record-screen-smoke-web": {
+        "action": "call",
+        "intent": "Record screen smoke web.",
+        "next": "assert-route",
+        "ref": "playground.flows.record-screen-smoke"
+      },
+      "assert-route": {
+        "action": "audiolab.query",
+        "intent": "Assert route.",
+        "next": "done",
+        "assert": {
+          "operator": "eq",
+          "field": "pathname",
+          "value": "/record"
+        },
+        "ref": "route"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

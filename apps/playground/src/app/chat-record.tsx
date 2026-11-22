@@ -7,6 +7,7 @@ import {
     View,
     useWindowDimensions,
 } from 'react-native'
+import type { ScrollViewInstance } from 'react-native'
 import { Button, SegmentedButtons, Text } from 'react-native-paper'
 
 import {
@@ -337,7 +338,7 @@ export default function ChatRecordScreen() {
             </Button>
         ) : null
 
-    const scrollViewRef = useRef<ScrollView | null>(null)
+    const scrollViewRef = useRef<ScrollViewInstance | null>(null)
     useEffect(() => {
         const t = setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true })

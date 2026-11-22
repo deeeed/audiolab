@@ -71,7 +71,7 @@ After the release PR merges:
 
 Create the `@siteed/moonshine.rn@<version>` GitHub prerelease at the merge
 commit. Upload `Moonshine-Android-isolated.aar` and
-`Moonshine.xcframework.zip`. Reuse an earlier asset only when its SHA-256
+`Moonshine.xcframework.zip` (built by `scripts/build-isolated-ios-xcframework.sh`). Reuse an earlier asset only when its SHA-256
 matches the value pinned in `package.json`; do not rebuild unchanged assets.
 
 Run the remote artifact checks. They must fail before upload and pass after:

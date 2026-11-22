@@ -1,110 +1,42 @@
-# Agentic Workflow System
+# Audiolab recipes
 
-The shared workflow runner lives in [`scripts/agentic`](./). App-specific workflow data lives with each app under:
+The shared library at `scripts/agentic/recipe` contains Recipe Protocol v1 graphs for Playground and Sherpa Voice. `@farmslot/recipe-runner` owns graph execution, validation, HUD progress and artifact packages. The project adapter uses the existing app bridge for audio, speech and UI probes.
 
-Implementation status is tracked in [`RECIPE_STATUS.md`](./RECIPE_STATUS.md).
+From the repo root:
 
-```text
-apps/<app>/scripts/agentic/teams/<team>/
-  flows/
-  recipes/
-  evals/
-  evals.json
-  pre-conditions.js
+```sh
+yarn recipe list --json
+yarn recipe describe playground.record-screen-validation --json
+yarn recipe actions transcription --json
+yarn recipe:validate
+yarn recipe run playground.smoke.navigation --platform web --device web
+yarn recipe run sherpa.asr-ui-validate-qwen3 --app sherpa-voice --platform ios --device <slot-device>
 ```
 
-## Vocabulary
+From either app, `yarn recipe` uses the same runner and selects that app. Recipe ids remain explicit. Native runs require `--platform ios|android` and an assigned device. Set `METRO_PORT` and `CDP_PORT` to the slot values. Web proof can use `CDP_URL` for an isolated browser. The runner refuses broadcast evidence.
 
-Use these terms consistently:
+`run --dry-run` validates the entire dependency graph without running actions or writing artifacts. `--param key=value` supplies typed parameters. `--matrix web,ios,android` runs each platform into a separate artifact directory. `--step <node>` enters that root node directly, skips preceding actions, stops after the selected node, and still executes teardown. `--update-baselines` explicitly updates a visual baseline. `--no-hud` is available for diagnostics; those captures are not review evidence. Matrix runs discover a separate target for each platform.
 
-- `workflow`: the canonical authoring format under `validate.workflow`
-- `recipe`: a colloquial name for a workflow file executed by `validate-recipe.sh`
-- `subflow`: a reusable workflow invoked by the `call` action
-- `node`: one executable or control unit inside `workflow.nodes`
-- `transition`: an edge selected by `next`, a `switch` case, or `default`
-- `guard`: a condition that chooses a transition, usually via `switch.cases[].when`
-- `trace`: the execution record emitted to `trace.json`
+Live runs retain `recipe.json`, `recipe-resolution.json`, `resolved-recipes/`, `summary.json`, `trace.json`, `recipe-invocation.json`, and `artifact-manifest.json`. Validate a retained package with:
 
-The important boundary is: the public model is a workflow graph; `recipe` is just a convenient operator-facing label.
-
-The shared validator and runner are repo-root scripts:
-
-- `scripts/agentic/validate-recipe.sh`
-- `scripts/agentic/validate-flow-schema.js`
-- `scripts/agentic/validate-pre-conditions.js`
-
-Each app exposes thin wrappers so Farmslot or local agents can run them from the app directory:
-
-- `bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/<team>/recipes/<recipe>.json`
-- `bash scripts/agentic/validate-flow-schema.sh`
-- `bash scripts/agentic/validate-pre-conditions.sh`
-
-During live execution, the runner publishes the active step into an in-app HUD overlay by default.
-Use `--no-hud` with `validate-recipe.sh` to disable it.
-
-Useful flags:
-
-- `--matrix ios,android,web` runs the same recipe sequentially across the selected platforms and writes a single matrix summary.
-- `--update-baselines` refreshes screenshot baseline files for `screenshot` steps that declare `baseline`.
-- `--artifacts-dir <path>` overrides the default `.agent/recipe-runs/...` artifact location.
-
-Workflow conventions:
-
-- Flows and recipes use `validate.workflow`. It is a workflow graph with `entry`, `nodes`, explicit `next` transitions, `switch` nodes, and `end` nodes.
-- Optional `setup`, `teardown`, and `pre_conditions` hooks live under `validate.workflow.setup`, `validate.workflow.teardown`, and `validate.workflow.pre_conditions`.
-- `eval_sync`, `eval_async`, and `eval_ref` steps must assert.
-- `call` is the action name for a subflow call. Use it to compose reusable workflows into larger ones.
-- `call` and `eval_ref` can omit the team prefix when the current file already lives inside `teams/<team>/...`.
-- `wait_for` can declare `fail_when` to abort early when a terminal error state appears.
-- Pre-condition entries should include `fixtures.pass` and `fixtures.fail` so they can be validated offline.
-
-Run artifacts:
-
-- Any failed live step captures a screenshot, current route, current app state, recent eval refs, and recent `.agent` logs into a per-run artifact directory.
-- Successful runs also write `summary.json`, `trace.json`, `workflow.json`, and `workflow.mmd`, and matrix runs additionally write `matrix-summary.json`.
-- `workflow.mmd` is Mermaid output so a future viewer can render the workflow graph.
-
-Screenshot assertions:
-
-- `screenshot` steps can declare `baseline`, `max_diff_pixels`, `max_diff_ratio`, and `pixel_threshold`.
-- Missing baselines fail by default. Use `--update-baselines` to create or refresh them intentionally.
-
-Example:
-
-```json
-{
-  "validate": {
-    "workflow": {
-      "entry": "choose-platform",
-      "nodes": {
-        "choose-platform": {
-          "action": "switch",
-          "cases": [
-            {
-              "label": "web",
-              "when": { "operator": "eq", "field": "env.platform", "value": "web" },
-              "next": "open-record"
-            }
-          ],
-          "default": "open-record"
-        },
-        "open-record": {
-          "action": "call",
-          "ref": "record-screen-smoke",
-          "next": "assert-route"
-        },
-        "assert-route": {
-          "action": "eval_ref",
-          "ref": "route",
-          "assert": { "operator": "eq", "field": "pathname", "value": "/record" },
-          "next": "done"
-        },
-        "done": {
-          "action": "end",
-          "status": "pass"
-        }
-      }
-    }
-  }
-}
+```sh
+farmslot recipe artifacts validate <artifact-dir> --require-runner-provenance
 ```
+
+App bridge expressions live in `recipe/queries.json`. Recipes call namespaced `audiolab.query` actions for those probes. Flow recipes live under `recipes/<domain>/flows` and use ordinary `call` nodes with explicit parameters. Readiness checks are graph nodes; cleanup uses a disjoint teardown graph.
+
+The CDP, browser, native-log, device and launch scripts remain available for authoring and diagnostics. ASR benchmarks and diarization scoring scripts remain separate tools. They are not recipe executors.
+
+The pack at `farmslot/` uses the existing `audiolab-farm` project id. Its checklists, domain notes and runtime hooks have one canonical home. See `farmslot/README.md` before installing it on a fleet.
+
+
+### Native launch readiness
+
+`launch-app` has a 600-second Farmslot action deadline. Preflight uses a 540-second overall budget, reports progress while stages run, waits for simulator boot completion, and waits up to 180 seconds for the selected development client to answer through its app bridge. Missing debug targets fail launch. Installed simulator clients are reused; `REBUILD=1` forces a native rebuild.
+
+Select physical devices with `IOS_DEVICE_UDID` or `ADB_SERIAL`. The farm forwards `ios_device_udid` from the slot's `ios-device` resource to launch and recipe hooks. Physical device capability leases retain the phone when released. Check the MetaMask Pixel slot for an active run and acquire its device reservation before using a shared Pixel. Android forwards only the selected Metro port and preserves other reverse mappings.
+
+Physical iOS capture uses the project-owned Python 3.12 tools environment and pinned pymobiledevice3 developer service. Prepare installs it for physical iOS slots. Set `ios_inspector_id` to the opaque native inspector ID verified by a fresh HUD capture on the selected UDID. Device discovery uses `devicectl` JSON, shared by preflight, recipe selection and screenshot capture.
+
+
+Launch stages are declared in `farmslot/projects/audiolab-farm/launch-stages.json`. The runner accepts only named stages and their validated parameters, then spawns the manifest executable with an argv array and `shell: false`. Stage commands and app roots cannot be supplied by a recipe or CLI argument. The current native dependency hook maps to the manifest's `native-deps` stage.

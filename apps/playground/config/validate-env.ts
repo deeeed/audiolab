@@ -6,7 +6,7 @@ export type PlaygroundEnvironment = Record<string, string | undefined> & {
 }
 
 const envSchema = Joi.object({
-    EAS_PROJECT_ID: Joi.string().required(),
+    EAS_PROJECT_ID: Joi.string().default('c1583cae-84c8-4071-b3ac-1e90a2fee815'),
     APPLE_TEAM_ID: Joi.string().optional(),
     APP_VARIANT: Joi.string()
         .valid('development', 'staging', 'production')

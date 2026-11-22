@@ -430,11 +430,8 @@ export function useMoonshineLiveSession(
     const stopSession = useCallback(
         async (options: MoonshineLiveStopOptions = {}) => {
             const stopRecorder = options.stopRecorder !== false
-            if (
-                (stopRecorder && !isRecording && !liveTranscription.isListening) ||
-                (!stopRecorder && !liveTranscription.isListening) ||
-                isStopping
-            )
+            // Async replay callers can retain a pre-start callback; ownership is current.
+            if ((!sessionOwnedRef.current && (!stopRecorder || !isRecording)) || isStopping)
                 return
 
             setError(null)

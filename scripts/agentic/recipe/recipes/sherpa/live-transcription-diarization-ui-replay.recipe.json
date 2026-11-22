@@ -1,0 +1,110 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa Voice live transcription + speaker-turn UI replay validation",
+  "description": "Android development-app UI smoke test: drives the Speaker Diarization screen to replay a device-local 16 kHz mono WAV through streaming ASR, VAD, and Speaker ID, then waits for the live result panel. Metric assertions remain in live-transcription-diarization-replay.json; this recipe proves the UI wiring and result rendering. Requires streaming-zipformer-en-20m-mobile, silero-vad-v5, speaker-id-en-voxceleb, and files/validation/perps_controller_refactor_5m_16k_mono.wav.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-diarization": {
+        "action": "ui.navigate",
+        "intent": "Nav diarization.",
+        "next": "assert-android",
+        "path": "/features/diarization"
+      },
+      "assert-android": {
+        "action": "audiolab.query",
+        "intent": "This UI smoke recipe uses an Android development-app sandbox path; fail early on other platforms.",
+        "next": "check-validation-file",
+        "assert": {
+          "operator": "eq",
+          "field": "platform",
+          "value": "android"
+        },
+        "expression": "JSON.stringify({ platform: globalThis.__AGENTIC__?.platform })"
+      },
+      "check-validation-file": {
+        "action": "audiolab.query",
+        "intent": "Fail early if the Android development-app replay WAV is missing.",
+        "next": "wait-validation-file",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pending"
+        },
+        "expression": "JSON.stringify((function(){var A=globalThis.__AGENTIC__;if(!A||!A.checkFileExists||!A.getLastResult){return {status:\"error\",error:\"agentic bridge missing checkFileExists/getLastResult\"};}return A.checkFileExists(\"file:///data/user/0/net.siteed.sherpavoice.development/files/validation/perps_controller_refactor_5m_16k_mono.wav\");})())"
+      },
+      "wait-validation-file": {
+        "action": "audiolab.query",
+        "intent": "Confirm the Android development-app replay WAV exists before using the UI input.",
+        "next": "wait-live-input",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "fail_when": {
+          "operator": "eq",
+          "field": "status",
+          "value": "error"
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLastResult?.() || {})",
+        "poll": true
+      },
+      "wait-live-input": {
+        "action": "audiolab.query",
+        "intent": "Wait live input.",
+        "next": "set-live-path",
+        "timeout_ms": 30000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-live-audio-input\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "set-live-path": {
+        "action": "ui.set_input",
+        "intent": "Choose the audio file for transcription replay.",
+        "next": "press-live-replay",
+        "test_id": "diar-live-audio-input",
+        "value": "file:///data/user/0/net.siteed.sherpavoice.development/files/validation/perps_controller_refactor_5m_16k_mono.wav"
+      },
+      "press-live-replay": {
+        "action": "ui.press",
+        "intent": "Replay the chosen audio through live transcription.",
+        "next": "wait-live-result",
+        "test_id": "diar-live-replay-btn"
+      },
+      "wait-live-result": {
+        "action": "audiolab.query",
+        "intent": "Wait live result.",
+        "next": "done",
+        "timeout_ms": 360000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-live-result\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "nav-diarization"
+      }
+    }
+  }
+}

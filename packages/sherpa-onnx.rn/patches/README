@@ -1,5 +1,5 @@
-Sherpa-ONNX Patch Inventory for v1.13.0
-========================================
+Sherpa-ONNX Patch Inventory for v2.0.1
+=======================================
 
 These patches track our modifications to upstream sherpa-onnx sources and
 wrapper files.
@@ -14,19 +14,15 @@ The shipped Android wrapper lives in:
 `android/scripts/sync-kotlin-api.sh` copies the vendored upstream files into the
 shipped Android wrapper and reapplies `KotlinApiOverrides.patch`.
 
-Pinned version: v1.13.0
+Pinned version: v2.0.1
 
 
 Files patched
 -------------
-OrtAndroidOverrides.patch
-  - patches upstream Android build scripts so they honor:
-    `SITEED_SHERPA_ONNX_ORT_VERSION`
-    `SITEED_SHERPA_ONNX_ORT_ROOT`
-    `SITEED_SHERPA_ONNX_ORT_LIB_DIR`
-    `SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR`
-  - applied automatically by `./setup.sh` and `./build-sherpa-android.sh`
-  - this keeps the ORT override reproducible from a clean upstream clone
+CombinedWasmTarget.patch
+  - adds the single-bundle `wasm/combined` target and
+    `build-wasm-simd-combined.sh`
+  - applied automatically by `./setup.sh` via `apply-upstream-patches.sh`
 
 KotlinApiOverrides.patch
   - tracked diff between the vendored upstream Kotlin API files and the shipped
@@ -60,7 +56,7 @@ When setup.sh is updated to a new upstream version:
 5. Update the version header in this README.
 
 Note:
-- `OrtAndroidOverrides.patch` is applied from inside `third_party/sherpa-onnx`
+- `CombinedWasmTarget.patch` is applied from inside `third_party/sherpa-onnx`
   via `git apply`, so its paths are relative to the upstream checkout root.
 - `KotlinApiOverrides.patch` is relative to the repo root and targets the
   shipped Android wrapper paths under `packages/sherpa-onnx.rn/android/...`.

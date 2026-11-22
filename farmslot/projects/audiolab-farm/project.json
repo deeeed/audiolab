@@ -1,0 +1,546 @@
+{
+  "$schema": "../../schemas/project.schema.json",
+  "name": "audiolab-farm",
+  "type": "monorepo",
+  "default_safety_tier": "dangerous",
+  "paths": {
+    "runtime_dir": "apps/playground/.agent",
+    "artifact_dir": ".task"
+  },
+  "apps": [
+    "apps/playground",
+    "apps/sherpa-voice",
+    "apps/minimal"
+  ],
+  "ci": {
+    "local_check": "bash apps/playground/.agent/ci-parity"
+  },
+  "fixtures": {
+    "templates": [
+      {
+        "src": "runtime/recipe-quality.md",
+        "dst": "{{runtime_dir}}/recipe-quality.md"
+      },
+      {
+        "src": "runtime/review-quality.md",
+        "dst": "{{runtime_dir}}/review-quality.md"
+      },
+      {
+        "src": "ci-parity",
+        "dst": "apps/playground/.agent/ci-parity"
+      },
+      {
+        "src": "runtime.md",
+        "dst": "apps/playground/.agent/agentic-toolkit.md"
+      },
+      {
+        "src": "domains/{{domain}}/review-patterns.md",
+        "dst": "{{runtime_dir}}/review-patterns.md",
+        "optional": true
+      }
+    ]
+  },
+  "hooks": {
+    "setup": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
+    "post_merge_install": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
+    "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
+    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
+    "dev_server_check": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
+    "recipe_action_manifest": "\"$AUDIOLAB_NODE_BIN/node\" \"{{repo}}/scripts/agentic/recipe/run.mjs\" manifest",
+    "recipe_doctor": "\"$AUDIOLAB_NODE_BIN/node\" \"{{repo}}/scripts/agentic/recipe/run.mjs\" doctor --platform {{platform}}",
+    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}} \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
+    "recycle": "if [ \"{{platform}}\" = ios ] && [ -z \"{{ios_device_udid}}\" ]; then xcrun simctl shutdown \"{{simulator}}\"; fi",
+    "prerequisites": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/prerequisites.sh\""
+  },
+  "health": {
+    "dev_server_log": ".agent/audiolab-metro.log",
+    "dev_server_name": "Metro"
+  },
+  "platforms": {
+    "ios": {
+      "device_check": "if [ -n \"{{ios_device_udid}}\" ]; then xcrun devicectl device info details --timeout 10 --device \"{{ios_device_udid}}\" >/dev/null; else xcrun simctl list devices booted | grep -q \"{{simulator}}\"; fi",
+      "recycle": null
+    },
+    "android": {
+      "device_check": "adb devices 2>/dev/null | grep -q '{{adb_serial}}'",
+      "recycle": null
+    },
+    "web": {
+      "device_check": "true"
+    }
+  },
+  "resources": {
+    "ios-sim": {
+      "type": "device",
+      "platform": "ios",
+      "label": "iOS Sim",
+      "streamable": true,
+      "controllable": true,
+      "watch": {
+        "type": "process-poll",
+        "provider": "ios-simulator-inventory",
+        "target": "{{simulator}}",
+        "cmd": "xcrun simctl list devices booted 2>/dev/null | grep -q '{{simulator}}'"
+      },
+      "hooks": {
+        "health": "xcrun simctl list devices booted 2>/dev/null | grep -q '{{simulator}}'",
+        "boot": "xcrun simctl boot '{{simulator}}'",
+        "shutdown": "xcrun simctl shutdown '{{simulator}}'"
+      }
+    },
+    "android-emu": {
+      "type": "device",
+      "platform": "android",
+      "label": "Android Emu",
+      "streamable": true,
+      "controllable": true,
+      "watch": {
+        "type": "process-poll",
+        "cmd": "adb -s {{adb_serial}} get-state 2>/dev/null | grep -q device"
+      },
+      "hooks": {
+        "health": "adb -s {{adb_serial}} get-state 2>/dev/null | grep -q device",
+        "boot": "ADB_SERIAL=\"{{adb_serial}}\"; \"$ANDROID_HOME/emulator/emulator\" -avd \"{{avd}}\" -port \"${ADB_SERIAL#emulator-}\" -no-window &",
+        "shutdown": "adb -s {{adb_serial}} emu kill"
+      }
+    },
+    "dev-server": {
+      "type": "dev-server",
+      "label": "Metro",
+      "streamable": false,
+      "controllable": true,
+      "watch": {
+        "type": "port-listen",
+        "port": "{{metro_port}}"
+      },
+      "hooks": {
+        "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" metro \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+        "health": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
+        "shutdown": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" metro-stop \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\""
+      }
+    },
+    "browser": {
+      "type": "browser",
+      "label": "Audiolab web proof",
+      "streamable": true,
+      "controllable": true,
+      "watch": {
+        "type": "pid-file",
+        "path": "{{browser_pid_file}}"
+      },
+      "hooks": {
+        "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"{{browser_pid_file}}\"",
+        "health": "curl --fail --silent http://127.0.0.1:{{cdp_port}}/json/version >/dev/null",
+        "shutdown": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser-stop \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\""
+      },
+      "actions": {
+        "ready": {
+          "label": "Check app bridge",
+          "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser-health \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"{{browser_pid_file}}\"",
+          "timeoutMs": 400000,
+          "refresh": [
+            "resources"
+          ]
+        }
+      }
+    },
+    "ios-device": {
+      "type": "device",
+      "platform": "ios",
+      "label": "Physical ios",
+      "streamable": true,
+      "controllable": false,
+      "watch": {
+        "type": "process-poll",
+        "cmd": "xcrun devicectl device info details --timeout 10 --device \"{{ios_device_udid}}\" >/dev/null"
+      },
+      "hooks": {
+        "health": "xcrun devicectl device info details --timeout 10 --device \"{{ios_device_udid}}\" >/dev/null",
+        "shutdown": "true"
+      }
+    },
+    "android-device": {
+      "type": "device",
+      "platform": "android",
+      "label": "Physical android",
+      "streamable": true,
+      "controllable": false,
+      "watch": {
+        "type": "process-poll",
+        "cmd": "adb -s \"{{adb_serial}}\" get-state | grep -q device"
+      },
+      "hooks": {
+        "health": "adb -s \"{{adb_serial}}\" get-state | grep -q device",
+        "shutdown": "true"
+      }
+    }
+  },
+  "recipe_run_supports_playback_slow": false,
+  "repo_url": "https://github.com/deeeed/audiolab.git",
+  "default_branch": "main",
+  "command_env": {
+    "set": {
+      "APP_VARIANT": "development",
+      "NODE_ENV": "development",
+      "EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE": "1",
+      "AUDIOLAB_APP": "playground",
+      "RECIPE_LIBRARY_PATH": "audiolab=scripts/agentic/recipe"
+    },
+    "domains": {
+      "playground": {
+        "set": {
+          "AUDIOLAB_APP": "playground",
+          "RECIPE_LIBRARY_PATH": "audiolab={{repo}}/scripts/agentic/recipe",
+          "METRO_PORT": "{{metro_port}}",
+          "WATCHER_PORT": "{{metro_port}}",
+          "CDP_PORT": "{{cdp_port}}"
+        }
+      },
+      "sherpa": {
+        "set": {
+          "AUDIOLAB_APP": "sherpa-voice",
+          "RECIPE_LIBRARY_PATH": "audiolab={{repo}}/scripts/agentic/recipe",
+          "METRO_PORT": "{{metro_port}}",
+          "WATCHER_PORT": "{{metro_port}}",
+          "CDP_PORT": "{{cdp_port}}"
+        }
+      }
+    }
+  },
+  "execution_templates": {
+    "sources": [
+      {
+        "id": "project:audiolab",
+        "kind": "workspace",
+        "root": {
+          "projectPath": "checklists"
+        }
+      }
+    ]
+  },
+  "vars": {
+    "recipe_quality_path": "{{runtime_dir}}/recipe-quality.md",
+    "review_quality_path": "{{runtime_dir}}/review-quality.md",
+    "browser_pid_file": ".agent/browser.pid",
+    "recipe_runner_resolve_cmd": "command -v node",
+    "ios_device_udid": "",
+    "ios_inspector_id": ""
+  },
+  "prepare": {
+    "core": {
+      "label": "Checkout and dependencies",
+      "phases": [
+        "git",
+        "fixtures",
+        "deps"
+      ]
+    }
+  },
+  "qa": {
+    "default_profile": "app-proof",
+    "profiles": [
+      {
+        "id": "app-proof",
+        "title": "Audiolab app proof",
+        "template_id": "qa/default",
+        "description": "Select and run the app recipes for the reviewed behavior."
+      }
+    ]
+  },
+  "runtime_capabilities": {
+    "providers": {
+      "metro": {
+        "label": "App Metro server",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "low",
+          "resources": [
+            {
+              "id": "dev-server",
+              "kind": "port",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "dev-server",
+            "action": "boot"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "dev-server",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "dev-server",
+            "action": "shutdown"
+          }
+        },
+        "release_effects": [
+          "dev-server stops"
+        ]
+      },
+      "web.ui": {
+        "label": "Headless web proof",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [
+          "metro"
+        ],
+        "cost": {
+          "class": "low",
+          "resources": [
+            {
+              "id": "browser",
+              "kind": "port",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "browser",
+            "action": "boot"
+          },
+          "health": {
+            "kind": "slot-action",
+            "action_id": "browser.ready"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "browser",
+            "action": "shutdown"
+          }
+        },
+        "release_effects": [
+          "browser stops"
+        ]
+      },
+      "ios.device": {
+        "label": "Assigned iOS simulator",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "medium",
+          "resources": [
+            {
+              "id": "ios-sim",
+              "kind": "device",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "ios-sim",
+            "action": "boot"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "ios-sim",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "ios-sim",
+            "action": "shutdown"
+          }
+        },
+        "release_effects": [
+          "ios-sim stops"
+        ]
+      },
+      "android.device": {
+        "label": "Assigned Android emulator",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "medium",
+          "resources": [
+            {
+              "id": "android-emu",
+              "kind": "device",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "android-emu",
+            "action": "boot"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "android-emu",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "android-emu",
+            "action": "shutdown"
+          }
+        },
+        "release_effects": [
+          "android-emu stops"
+        ]
+      },
+      "ios.physical": {
+        "label": "Assigned physical ios device",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "low",
+          "resources": [
+            {
+              "id": "ios-device",
+              "kind": "device",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "platform": {
+              "const": "ios"
+            }
+          }
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "ios-device",
+            "action": "health"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "ios-device",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "ios-device",
+            "action": "shutdown"
+          }
+        },
+        "affected_resources": [
+          {
+            "resource_id": "ios-device",
+            "ownership": "capability",
+            "release_effect": "retain"
+          }
+        ],
+        "release_effects": [
+          "Release the device reservation without stopping the phone or clearing app data."
+        ]
+      },
+      "android.physical": {
+        "label": "Assigned physical android device",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "low",
+          "resources": [
+            {
+              "id": "android-device",
+              "kind": "device",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "platform": {
+              "const": "android"
+            },
+            "adb_serial": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:][A-Za-z0-9._:-]*$"
+            }
+          }
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "android-device",
+            "action": "health"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "android-device",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "android-device",
+            "action": "shutdown"
+          }
+        },
+        "affected_resources": [
+          {
+            "resource_id": "android-device",
+            "ownership": "capability",
+            "release_effect": "retain"
+          }
+        ],
+        "release_effects": [
+          "Release the device reservation without stopping the phone or clearing app data."
+        ]
+      }
+    }
+  },
+  "slot_actions": {
+    "launch-app": {
+      "label": "Launch Audiolab app",
+      "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
+      "description": "Wait for the assigned device, Metro and native app bridge with stage progress and a bounded launch deadline.",
+      "timeoutMs": 600000
+    }
+  },
+  "node_support": {
+    "paths": [
+      "scripts",
+      "projects/audiolab-farm/project.json",
+      "projects/audiolab-farm/scripts",
+      "projects/audiolab-farm/setup",
+      "projects/audiolab-farm/launch-stages.json"
+    ]
+  },
+  "recipe": {
+    "provider": {
+      "module": "./provider.mjs",
+      "root": {
+        "projectPath": "scripts/agentic/recipe"
+      }
+    },
+    "app": "apps/playground",
+    "adapter": "web",
+    "domain": "playground",
+    "checks": [
+      {
+        "recipe": "playground.expo.config"
+      }
+    ]
+  }
+}

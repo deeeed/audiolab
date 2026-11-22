@@ -38,11 +38,13 @@
   function initSherpaOnnxOfflineSpeakerSegmentationPyannoteModelConfig(config, Module) {
     const modelLen = Module.lengthBytesUTF8(config.model || '') + 1;
     const buffer = Module._malloc(modelLen);
-    const len = 1 * 4;
+    // v2.0.0+: { const char* model; float window_shift_ratio; }
+    const len = 2 * 4;
     const ptr = Module._malloc(len);
 
     Module.stringToUTF8(config.model || '', buffer, modelLen);
     Module.setValue(ptr, buffer, 'i8*');
+    Module.setValue(ptr + 4, config.windowShiftRatio ?? 0, 'float');
 
     return { buffer: buffer, ptr: ptr, len: len };
   }
@@ -109,7 +111,8 @@
   }
 
   function initSherpaOnnxFastClusteringConfig(config, Module) {
-    const len = 2 * 4;
+    // v2.0.0+: { int32 num_clusters; float threshold; int32 compute_confidence; }
+    const len = 3 * 4;
     const ptr = Module._malloc(len);
 
     let offset = 0;
@@ -117,6 +120,9 @@
     offset += 4;
 
     Module.setValue(ptr + offset, config.threshold || 0.5, 'float');
+    offset += 4;
+
+    Module.setValue(ptr + offset, config.computeConfidence ? 1 : 0, 'i32');
     offset += 4;
 
     return { ptr: ptr, len: len };
@@ -236,7 +242,8 @@
         this.Module._SherpaOnnxOfflineSpeakerDiarizationResultSortByStartTime(r);
 
       const ans = [];
-      const sizeOfSegment = 3 * 4;
+      // v2.0.0+: { float start; float end; int32 speaker; float confidence; }
+      const sizeOfSegment = 4 * 4;
       for (let i = 0; i < numSegments; ++i) {
         const p = segments + i * sizeOfSegment;
         const start = this.Module.HEAPF32[p / 4 + 0];

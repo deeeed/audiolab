@@ -6,7 +6,6 @@
 #   app-state.sh state                    # App state
 #   app-state.sh eval "1+1"               # Arbitrary JS
 #   app-state.sh eval-async "Promise.resolve(1+1)"
-#   app-state.sh eval-ref playground/route
 #   app-state.sh can-go-back              # Can navigate back?
 #   app-state.sh go-back                  # Navigate back
 #   app-state.sh --device "Pixel 6a" state  # Target specific device
@@ -53,9 +52,6 @@ case "$COMMAND" in
   eval-async)
     "${BRIDGE_CMD[@]}" eval-async "${EXTRA_ARGS[@]}"
     ;;
-  eval-ref)
-    "${BRIDGE_CMD[@]}" eval-ref "${EXTRA_ARGS[@]}"
-    ;;
   can-go-back)
     "${BRIDGE_CMD[@]}" can-go-back
     ;;
@@ -79,7 +75,6 @@ case "$COMMAND" in
     echo "  state                          App state"
     echo "  eval <expression>              Evaluate arbitrary JS in app context"
     echo "  eval-async <expression>        Evaluate a Promise-returning expression"
-    echo "  eval-ref <team/ref>            Evaluate a named eval ref"
     echo "  can-go-back                    Check if navigation can go back"
     echo "  go-back                        Navigate back"
     echo "  press <testId>                 Press a component by testID"

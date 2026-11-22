@@ -1,0 +1,132 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa Voice diarization UI validation with bundled multi-speaker turns",
+  "description": "Downloads the English speaker embedding model if needed, opens the existing Speaker Diarization page, initializes pyannote + campplus, runs the bundled alternating JFK/English sample, and asserts native diarization returns speaker segments.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "ensure-speaker-id-model": {
+        "action": "audiolab.query",
+        "intent": "download speaker-id-en-voxceleb if not already present",
+        "next": "nav-diarization",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;var MODEL='speaker-id-en-voxceleb';if(!A||!A.downloadModel||!A.getState){return Promise.resolve({status:'error',error:'agentic bridge missing'});}function modelStatus(){var s=(A.getState().models||{}).statuses||{};return (s[MODEL]||{}).status||'unknown';}if(modelStatus()==='downloaded'){return Promise.resolve({status:'success',already:true});}try{A.downloadModel(MODEL);}catch(e){}return new Promise(function(resolve){var i=0;function tick(){var st=modelStatus();if(st==='downloaded'){resolve({status:'success',already:false});return;}if(st==='error'){resolve({status:'error',lastStatus:st});return;}i++;if(i>=900){resolve({status:'timeout',lastStatus:st});return;}setTimeout(tick,1000);}tick();});})()",
+        "async": true
+      },
+      "nav-diarization": {
+        "action": "ui.navigate",
+        "intent": "Nav diarization.",
+        "next": "wait-init",
+        "path": "/features/diarization"
+      },
+      "wait-init": {
+        "action": "audiolab.query",
+        "intent": "Wait init.",
+        "next": "press-init",
+        "timeout_ms": 30000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-init-btn\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "press-init": {
+        "action": "ui.press",
+        "intent": "Initialize the selected speech model.",
+        "next": "wait-ready",
+        "test_id": "diar-init-btn"
+      },
+      "wait-ready": {
+        "action": "audiolab.query",
+        "intent": "Wait ready.",
+        "next": "select-turns-audio",
+        "fail_when": {
+          "operator": "not_null",
+          "field": "pageState.error"
+        },
+        "timeout_ms": 120000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-release-btn\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "select-turns-audio": {
+        "action": "ui.press",
+        "intent": "Select turns audio.",
+        "next": "wait-run-button",
+        "test_id": "diar-audio-turns-jfk-en"
+      },
+      "wait-run-button": {
+        "action": "audiolab.query",
+        "intent": "Wait run button.",
+        "next": "press-run",
+        "timeout_ms": 30000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-run-btn\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "press-run": {
+        "action": "ui.press",
+        "intent": "Process the selected diarization sample.",
+        "next": "wait-result",
+        "test_id": "diar-run-btn"
+      },
+      "wait-result": {
+        "action": "audiolab.query",
+        "intent": "wait for non-empty diarization segments",
+        "next": "assert-speaker-count",
+        "assert": {
+          "operator": "gt",
+          "field": "segmentsCount",
+          "value": 0
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "timeout_ms": 180000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || {})",
+        "poll": true
+      },
+      "assert-speaker-count": {
+        "action": "audiolab.query",
+        "intent": "capture final diarization page state",
+        "next": "done",
+        "assert": {
+          "operator": "gte",
+          "field": "numSpeakers",
+          "value": 1
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || {})"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "ensure-speaker-id-model"
+      }
+    }
+  }
+}

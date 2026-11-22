@@ -170,6 +170,7 @@ export function useAsr() {
             const modelType = asrConfig.modelType || 'transducer'
             const perBackendUrl = getWebAsrBackend(modelType)?.modelBaseUrl
             const config: AsrModelConfig = {
+                ...asrConfig,
                 modelDir,
                 modelBaseUrl: perBackendUrl ?? getWebModelBaseUrl('asr'),
                 onProgress: makeWebProgressHandler(setStatusMessage),
@@ -397,6 +398,7 @@ export function useAsr() {
             !selectedModelId.startsWith('streaming-')
         ) {
             handleReleaseAsr().then(() => setSelectedModelId(null))
+                .catch((error) => setError(error instanceof Error ? error.message : String(error)))
         }
         setMode(newMode)
     }
@@ -483,14 +485,14 @@ export function useAsr() {
         if (loading) return
         if (selectedModelId !== params.model) return
         autoInitFiredRef.current = params.t
-        handleInitAsr()
+        void handleInitAsr()
     }, [params.t, params.autoInit, params.model, loading, selectedModelId])
 
     // Deep-link: auto-select audio
     useEffect(() => {
         if (params.audioId && loadedAudioFiles.length > 0) {
             const audio = loadedAudioFiles.find((a) => a.id === params.audioId)
-            if (audio) handleSelectAudio(audio)
+            if (audio) void handleSelectAudio(audio)
         }
     }, [params.audioId, params.t, loadedAudioFiles])
 
@@ -521,7 +523,7 @@ export function useAsr() {
 
     // Load sample audio files
     useEffect(() => {
-        ;(async () => {
+        void (async () => {
             const files: LoadedAudioFile[] = []
             for (const s of SAMPLE_AUDIO_FILES) {
                 try {

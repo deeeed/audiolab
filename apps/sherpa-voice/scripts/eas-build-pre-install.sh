@@ -22,7 +22,7 @@ echo "=== Built audio-studio ==="
 
 # 4. Download sherpa-onnx prebuilt binaries if missing
 SHERPA_PKG="../../packages/sherpa-onnx.rn"
-SHERPA_VERSION="1.13.0"
+SHERPA_VERSION="2.0.1"
 CHECK_FILE="$SHERPA_PKG/prebuilt/android/arm64-v8a/libsherpa-onnx-jni.so"
 IOS_CHECK_FILE="$SHERPA_PKG/prebuilt/ios/device/libonnxruntime.a"
 

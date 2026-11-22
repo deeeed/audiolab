@@ -30,7 +30,7 @@ data class VadModelConfig(
     var tenVadModelConfig: TenVadModelConfig = TenVadModelConfig(),
 )
 
-class SpeechSegment(val start: Int, val samples: FloatArray)
+class SpeechSegment(val start: Long, val samples: FloatArray)
 
 class Vad(
     assetManager: AssetManager? = null,
@@ -43,6 +43,9 @@ class Vad(
             ptr = newFromAsset(assetManager, config)
         } else {
             ptr = newFromFile(config)
+        }
+        require(ptr != 0L) {
+            "Invalid VadConfig: failed to create native Vad"
         }
     }
 

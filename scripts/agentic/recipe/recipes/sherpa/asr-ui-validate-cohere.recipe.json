@@ -1,0 +1,34 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice ASR UI validation: Cohere Transcribe (en)",
+  "description": "Drives the /features/asr screen end-to-end with the Cohere Transcribe model and the bundled `en.wav` test sample, asserting the transcript displayed in the UI is non-empty (i.e. not '(no speech detected)'). Requires the Cohere model to be downloaded on the target device.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "ui-validate": {
+        "action": "call",
+        "intent": "Ui validate.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-ui-validate",
+        "params": {
+          "modelId": "cohere-transcribe-14-lang-int8-2026-04-01",
+          "audioId": "2"
+        }
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "ui-validate"
+      }
+    }
+  }
+}

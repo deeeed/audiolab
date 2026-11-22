@@ -123,8 +123,8 @@ Basic UI recipes cover the normal diarization screen. The long-file windowed/glo
 
 ```bash
 cd apps/sherpa-voice
-yarn recipe:agentic:run scripts/agentic/teams/sherpa/recipes/diarization-ui-bundled-turns.json --device Arthur
-yarn recipe:agentic:run scripts/agentic/teams/sherpa/recipes/diarization-ui-custom-5m-wav.json --device Arthur
+yarn recipe:run sherpa.diarization-ui-bundled-turns --platform ios --device Arthur
+yarn recipe:run sherpa.diarization-ui-custom-5m-wav --platform ios --device Arthur
 ```
 
 Native sweep helper from CDP:
@@ -455,7 +455,7 @@ Validation command:
 
 ```bash
 cd apps/sherpa-voice
-ADB_SERIAL=29071JEGR20638 yarn recipe:agentic:run scripts/agentic/teams/sherpa/recipes/live-transcription-diarization-replay.json --device 'Pixel 6a'
+ADB_SERIAL=29071JEGR20638 yarn recipe:run sherpa.live-transcription-diarization-replay --platform android --device 'Pixel 6a'
 ```
 
 The recipe passed on device. This proves the composed live event contract can keep up on a mid-range Android device for fixture replay. It is not a formal diarization-quality/DER result; offline/windowed diarization remains the quality baseline.
@@ -472,7 +472,7 @@ Validation command:
 
 ```bash
 cd apps/sherpa-voice
-ADB_SERIAL=29071JEGR20638 yarn recipe:agentic:run scripts/agentic/teams/sherpa/recipes/live-mic-transcription-diarization.json --device 'Pixel 6a'
+ADB_SERIAL=29071JEGR20638 yarn recipe:run sherpa.live-mic-transcription-diarization --platform android --device 'Pixel 6a'
 ```
 
 This run did not include controlled speech in the room, so it proves the live microphone/backpressure path rather than transcription quality. The fixture replay above proves transcript and speaker-attribution events on known audio.
@@ -518,5 +518,5 @@ Use the recipes for machine validation and the UI for human spot checks of turn 
 
 ```bash
 cd apps/sherpa-voice
-ADB_SERIAL=29071JEGR20638 yarn recipe:agentic:run scripts/agentic/teams/sherpa/recipes/live-transcription-diarization-ui-replay.json --device 'Pixel 6a'
+ADB_SERIAL=29071JEGR20638 yarn recipe:run sherpa.live-transcription-diarization-ui-replay --platform android --device 'Pixel 6a'
 ```

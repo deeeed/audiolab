@@ -52,8 +52,13 @@
 
     const gtcrn = initSherpaOnnxOfflineSpeechDenoiserGtcrnModelConfig(config.gtcrn, Module);
 
-    const len = gtcrn.len + 3 * 4;
+    // C struct continues after provider with dpdfnet { model, attenuation_limit_db }
+    // and (v2.0.0+) voxlock { enroll_model, chunk_model, voice_sample }. Only
+    // gtcrn is wired here; zero the rest so the C API reads NULL/0 instead of
+    // whatever follows the allocation.
+    const len = gtcrn.len + 3 * 4 + 2 * 4 + 3 * 4;
     const ptr = Module._malloc(len);
+    Module.HEAPU8.fill(0, ptr, ptr + len);
 
     let offset = 0;
     Module._CopyHeap(gtcrn.ptr, gtcrn.len, ptr + offset);

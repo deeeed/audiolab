@@ -207,7 +207,8 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 val modelAbsPath = File(assetBasePath, modelFileName).absolutePath
                 val tokensAbsPath = File(assetBasePath, tokensFileName).absolutePath
                 val voicesAbsPath = voicesFile?.let { File(assetBasePath, it).absolutePath }
-                val lexiconAbsPath = lexiconFile?.let { File(assetBasePath, it).absolutePath }
+                // Kokoro takes a comma-separated lexicon list; join each entry with the base path.
+                val lexiconAbsPaths = lexiconFile?.split(",")?.map { File(assetBasePath, it.trim()).absolutePath }
                 // Determine absolute data dir path based on input, relative to the final assetBasePath
                 val dataDirAbsPath = when {
                     dataDirInput == null || dataDirInput.isEmpty() -> {
@@ -228,7 +229,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "Using Model path: $modelAbsPath")
                 Log.i(TAG, "Using Tokens path: $tokensAbsPath")
                 Log.i(TAG, "Using Voices path: $voicesAbsPath")
-                Log.i(TAG, "Using Lexicon path: $lexiconAbsPath")
+                Log.i(TAG, "Using Lexicon path: $lexiconAbsPaths")
                 Log.i(TAG, "Using Data path: $dataDirAbsPath")
                 
                 // Check if files exist (using the potentially adjusted paths)
@@ -251,13 +252,13 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 }
                 
                 // Validate optional files — clear path if file is missing to avoid native protobuf parse failures
-                val effectiveLexiconAbsPath = lexiconAbsPath?.let {
+                val effectiveLexiconAbsPath = lexiconAbsPaths?.filter {
                     val file = File(it)
                     if (!file.exists()) {
                         Log.w(TAG, "Lexicon file not found, ignoring: $it")
-                        null
-                    } else it
-                }
+                    }
+                    file.exists()
+                }?.joinToString(",")?.ifEmpty { null }
                 val effectiveVoicesAbsPath = voicesAbsPath?.let {
                     val file = File(it)
                     if (!file.exists()) {
@@ -300,6 +301,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                         
                         // Set data directory and other properties
                         kokoroConfig.dataDir = dataDirAbsPath
+                        kokoroConfig.lexicon = effectiveLexiconAbsPath ?: ""
                         kokoroConfig.lengthScale = 1.0f
                         if (!lang.isNullOrEmpty()) {
                             kokoroConfig.lang = lang
@@ -414,6 +416,20 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
         val speakingRate = config.getDouble("speakingRate").toFloat()
         val playAudio = config.getBoolean("playAudio")
         val fileNamePrefix = config.getString("fileNamePrefix")
+        // Pre-phonemized input (sherpa-onnx v2.0+); when present it replaces `text`.
+        val phonemeCodepoints = if (config.hasKey("phonemeCodepoints")) {
+            config.getArray("phonemeCodepoints")?.let { sentences ->
+                Array(sentences.size()) { i ->
+                    val sentence = sentences.getArray(i)
+                    IntArray(sentence?.size() ?: 0) { j -> sentence!!.getInt(j) }
+                }
+            }
+        } else null
+        val generationConfig = GenerationConfig(
+            sid = speakerId,
+            speed = speakingRate,
+            phonemeCodepoints = phonemeCodepoints
+        )
         
         // Extract with validation and proper defaults
         val lengthScale = if (config.hasKey("lengthScale")) {
@@ -453,7 +469,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
         }
 
         // Validate text is not empty
-        if (text.isBlank()) {
+        if (text.isBlank() && phonemeCodepoints.isNullOrEmpty()) {
             promise.reject("ERR_INVALID_TEXT", "Text cannot be empty")
             return
         }
@@ -532,7 +548,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
 
                 if (playAudio) {
                     // Generate and play in real-time
-                    Log.d(TAG, "Using generateWithCallback method for real-time playback")
+                    Log.d(TAG, "Using generateWithConfigAndCallback for real-time playback")
                     
                     var totalSamplesWritten = 0
                     var totalCalls = 0
@@ -546,8 +562,8 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     
                     // Use explicit Function1 object instead of a lambda to prevent D8 from
                     // desugaring it into ExternalSyntheticLambda, which breaks the JNI lookup
-                    // of invoke([F)Ljava/lang/Integer; in generateWithCallbackImpl.
-                    tts?.generateWithCallback(text, speakerId, speakingRate, object : Function1<FloatArray, Int> {
+                    // of invoke([F)Ljava/lang/Integer; in generateWithConfigImpl.
+                    tts?.generateWithConfigAndCallback(text, generationConfig, object : Function1<FloatArray, Int> {
                         override fun invoke(samples: FloatArray): Int {
                         if (!isActive(requestId)) {
                             Log.i(TAG, "TTS generation interrupted by stop request")
@@ -681,7 +697,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                             return 1  // Continue but skip playing this chunk
                         }
                         } // end invoke
-                    }) // end object / generateWithCallback
+                    }) // end object / generateWithConfigAndCallback
 
                     // Short utterances can finish before reaching the prefill threshold.
                     //
@@ -749,7 +765,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 } else {
                     // Generate without playback
                     Log.d(TAG, "Using generate method without callback")
-                    val generatedAudio = tts?.generate(text, speakerId, speakingRate)
+                    val generatedAudio = tts?.generateWithConfig(text, generationConfig)
                     // tts.generate() blocks for the whole synthesis and cannot be
                     // interrupted, so a stop arriving during it is only observable here.
                     // Without this the cancelled request still saved a file and resolved
@@ -772,8 +788,9 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 val duration = endTime - startTime
                 Log.d(TAG, "Speech generation completed in ${duration}ms")
 
-                // Save audio to file if needed
-                if (audio != null) {
+                // Save audio to file if needed. Empty audio (e.g. no lexicon since
+                // sherpa-onnx v2.0) takes the retry path below and fails there.
+                if (audio != null && audio.isNotEmpty()) {
                     val fileName = fileNamePrefix?.let { "${it}_${System.currentTimeMillis()}" }
                         ?: "generated_audio_${System.currentTimeMillis()}"
                     val filePath = "${reactContext.cacheDir.absolutePath}/$fileName.wav"
@@ -806,7 +823,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     Log.w(TAG, "No audio generated with callback method, trying again without callback")
                     
                     // Fallback: try again without callback
-                    val generatedAudio = tts?.generate(text, speakerId, speakingRate)
+                    val generatedAudio = tts?.generateWithConfig(text, generationConfig)
                     // Same recheck as the other fallback: this call blocks for the
                     // whole synthesis and cannot be interrupted, so a stop during it
                     // is only observable here. This is the common path, not the
@@ -817,8 +834,8 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     }
                     audio = generatedAudio?.samples
                     
-                    if (audio == null) {
-                        throw Exception("Failed to generate speech audio")
+                    if (audio == null || audio.isEmpty()) {
+                        throw Exception("Failed to generate speech audio. Since sherpa-onnx v2.0 this model may need a lexicon file or phonemeCodepoints.")
                     }
                     
                     val fileName = fileNamePrefix?.let { "${it}_${System.currentTimeMillis()}" }

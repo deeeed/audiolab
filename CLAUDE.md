@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Core Packages
 - **`@siteed/expo-audio-studio`** - Main audio processing library with dual-stream recording, device management, and format conversion
 - **`@siteed/audio-ui`** - React Native Skia-based audio visualization components (waveforms, spectrograms)
-- **`@siteed/react-native-essentia`** - Advanced audio analysis using Essentia (feature extraction, classification)
+- **`@siteed/react-native-essentia`** - Deprecated: no longer maintained, kept for reference. Do not release or publish this package.
 - **`@siteed/sherpa-onnx.rn`** - Speech-to-text and text-to-speech capabilities (development)
 
 ### Applications
@@ -186,36 +186,6 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - **CDP bridge details**: `apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md`
 - **Testing strategy**: `packages/expo-audio-studio/docs/TESTING_STRATEGY.md`
 
-## Task Tracking
-
-Maintain a `.task.md` file in the project root. Update it:
-- **START** of any task → status: `working`, describe what you're doing
-- When **BLOCKED** → status: `blocked`, describe why
-- When **DONE** → status: `done`, summarize what was completed
-- When **IDLE** → status: `idle`
-
-Format:
-```
-## Current Task
-<one-liner describing the goal>
-
-## Status
-working|blocked|needs-validation|done|idle
-
-## Approach
-<1-2 sentences on HOW you're solving it — enough to judge direction>
-
-## Progress
-- bullet 1
-- bullet 2
-- bullet 3 (3-5 max)
-
-## Last Updated
-<timestamp>
-```
-
-This file is read by the orchestrator to track progress across sessions. Keep it high-level.
-
 ## HARD RULE: no library change merges without on-device validation
 
 **A change to library runtime code must be validated on every platform it affects before
@@ -283,8 +253,7 @@ Before merging a covered change:
      the fact. If you captured none of them, say so rather than presenting a partial log
      as full coverage
 4. State in the PR exactly what the evidence proves and what it does not
-5. `.task.md` status stays `needs-validation` until this is done, and nothing merges in
-   that state
+5. Don't mark the farm task complete until this is done, and nothing merges before it
 
 If validation seems impossible, that conclusion is probably wrong. #436 was first treated
 as an audio validation blocker, then reproduced and fixed at the runtime dependency.
@@ -295,8 +264,9 @@ The Hermes SIGSEGV in #436 was a debugger use-after-free in Hermes V1
 `250829098.0.16`. `Runtime.evaluate` compiled transient source while full debug info was
 enabled, but the runtime borrowed the CDP request buffer after the request released it.
 Later debugger work crashed in `CodeBlock::getDebugSourceLocationsOffset()` during a
-microtask checkpoint. Hermes `250829098.0.17` copies retained eval source. The root Yarn
-patch pins the runtime, and a version-scoped resolution pins the matching compiler.
+microtask checkpoint. Hermes `250829098.0.17` copies retained eval source, and the
+`260318099` line carries the same fix from `.0.2` on. React Native 0.88.1 ships
+`260318099.0.5`, so the stock runtime and compiler are used without a patch or resolution.
 
 Validation on the fixed runtime used `record-max-duration-validation.json`, which performs
 continuous CDP polling, two starts, a manual stop, and an auto-stop. It passed 5/5 runs on
@@ -309,10 +279,10 @@ fire-and-store internally. A workflow that needs intermediate state can do the s
 explicitly: schedule the call, stash success or failure in a global, and poll it with
 short evals. This is result handling, not a crash workaround.
 
-The runtime patch and compiler override are scoped to the versions shipped by React Native
-0.86.2. When bumping React Native, remove or refresh both together and rerun the Android
-and iOS max-duration recipe matrix. `yarn check:deps` fails if the fixed Hermes pin is
-missing or if the selected runtime, tag, and compiler versions differ.
+`scripts/check-hermes-version.mjs` pins the Hermes version React Native 0.88.1 ships. When
+bumping React Native, confirm the new Hermes still copies retained eval source, refresh the
+pin, and rerun the Android and iOS max-duration recipe matrix. `yarn check:deps` fails if
+the selected runtime, tag, and compiler versions differ from the pin.
 
 Working recipe, exactly as run (from `apps/playground/`). Substitute a real device
 name — `--device <name>` unquoted is shell redirection, not a placeholder:

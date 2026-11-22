@@ -1,0 +1,127 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa Voice diarization UI validation with 5-minute WAV fixture",
+  "description": "Runs the existing Speaker Diarization page against a device-local 5-minute 16 kHz mono WAV fixture copied to the app sandbox. Requires pyannote-segmentation-3-0 and speaker-id-en-voxceleb to be downloaded, and the fixture at files/validation/perps_controller_refactor_5m_16k_mono.wav.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-diarization": {
+        "action": "ui.navigate",
+        "intent": "Nav diarization.",
+        "next": "wait-init",
+        "path": "/features/diarization"
+      },
+      "wait-init": {
+        "action": "audiolab.query",
+        "intent": "Wait init.",
+        "next": "press-init",
+        "timeout_ms": 30000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-init-btn\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "press-init": {
+        "action": "ui.press",
+        "intent": "Initialize the selected speech model.",
+        "next": "wait-ready",
+        "test_id": "diar-init-btn"
+      },
+      "wait-ready": {
+        "action": "audiolab.query",
+        "intent": "Wait ready.",
+        "next": "set-custom-path",
+        "fail_when": {
+          "operator": "not_null",
+          "field": "pageState.error"
+        },
+        "timeout_ms": 120000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-release-btn\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "set-custom-path": {
+        "action": "ui.set_input",
+        "intent": "Choose the custom audio file for diarization.",
+        "next": "use-custom-path",
+        "test_id": "diar-custom-audio-input",
+        "value": "file:///data/user/0/net.siteed.sherpavoice.development/files/validation/perps_controller_refactor_5m_16k_mono.wav"
+      },
+      "use-custom-path": {
+        "action": "ui.press",
+        "intent": "Use custom path.",
+        "next": "wait-run-button",
+        "test_id": "diar-use-custom-audio-btn"
+      },
+      "wait-run-button": {
+        "action": "audiolab.query",
+        "intent": "Wait run button.",
+        "next": "press-run",
+        "timeout_ms": 30000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"diar-run-btn\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "press-run": {
+        "action": "ui.press",
+        "intent": "Process the selected diarization sample.",
+        "next": "wait-result",
+        "test_id": "diar-run-btn"
+      },
+      "wait-result": {
+        "action": "audiolab.query",
+        "intent": "wait for non-empty 5-minute diarization result",
+        "next": "assert-speaker-count",
+        "assert": {
+          "operator": "gt",
+          "field": "segmentsCount",
+          "value": 0
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "error"
+        },
+        "timeout_ms": 300000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || {})",
+        "poll": true
+      },
+      "assert-speaker-count": {
+        "action": "audiolab.query",
+        "intent": "capture final 5-minute diarization page state",
+        "next": "done",
+        "assert": {
+          "operator": "gte",
+          "field": "numSpeakers",
+          "value": 1
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || {})"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "nav-diarization"
+      }
+    }
+  }
+}

@@ -54,6 +54,7 @@ class RealTtsFunctionalityTest {
         // Download and extract the lightweight TTS model
         runBlocking {
             downloadAndExtractModel()
+            downloadLexicon()
         }
     }
 
@@ -128,6 +129,14 @@ class RealTtsFunctionalityTest {
         println("Model extracted in ${extractTime}ms")
     }
 
+    // sherpa-onnx v2.0 dropped espeak-ng: VITS speaks text only with a lexicon (or phonemeCodepoints).
+    private suspend fun downloadLexicon() {
+        val model = LightweightModelDownloader.TestModel.LEXICON_EN_US
+        val lexicon = File("$extractedModelPath/vits-icefall-en_US-ljspeech-low", "lexicon-en-us.txt")
+        if (lexicon.length() == model.sizeBytes) return
+        LightweightModelDownloader.downloadModel(context, model).copyTo(lexicon, overwrite = true)
+    }
+
     @Test
     fun testRealTtsInitialization() {
         assertNotNull("Model should be extracted", extractedModelPath)
@@ -141,7 +150,7 @@ class RealTtsFunctionalityTest {
             putString("ttsModelType", "vits")
             putString("modelFile", "model.onnx")
             putString("tokensFile", "tokens.txt")
-            putString("dataDir", "$extractedModelPath/vits-icefall-en_US-ljspeech-low/espeak-ng-data")
+            putString("lexiconFile", "lexicon-en-us.txt")
             putInt("numThreads", 2)
             putBoolean("debug", true)
             putString("provider", "cpu")
@@ -517,7 +526,7 @@ class RealTtsFunctionalityTest {
             putString("ttsModelType", "vits")
             putString("modelFile", "model.onnx")
             putString("tokensFile", "tokens.txt")
-            putString("dataDir", "$extractedModelPath/vits-icefall-en_US-ljspeech-low/espeak-ng-data")
+            putString("lexiconFile", "lexicon-en-us.txt")
             putInt("numThreads", 2)
             putBoolean("debug", false)
             putString("provider", "cpu")

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "AudioLab Recipe v1 navigation smoke",
+  "description": "Proves the AudioLab playground bridge can inspect the runtime, navigate core screens, and capture screenshot evidence.",
+  "proofTargets": [
+    {
+      "id": "runtime",
+      "claim": "The assigned AudioLab runtime returns an observed route."
+    },
+    {
+      "id": "navigation",
+      "claim": "The assigned playground reaches its More screen.",
+      "proofMode": "state"
+    },
+    {
+      "id": "restored",
+      "claim": "The smoke restores the original route after proof or failure."
+    }
+  ],
+  "workflow": {
+    "entry": "target",
+    "nodes": {
+      "target": {
+        "action": "app.status",
+        "next": "status",
+        "intent": "Connect to a controllable AudioLab playground runtime before running proof steps."
+      },
+      "status": {
+        "action": "app.status",
+        "next": "assert-start",
+        "intent": "Read the current AudioLab playground state so the run starts from an observed baseline."
+      },
+      "record": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/record",
+        "next": "import",
+        "intent": "Open the recorder for audio validation."
+      },
+      "import": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/import",
+        "next": "files",
+        "intent": "Open the audio import options."
+      },
+      "files": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/files",
+        "next": "more",
+        "intent": "Inspect the saved audio files."
+      },
+      "more": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/more",
+        "next": "navigation-proof",
+        "intent": "Open the additional audio tools."
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "assert-start": {
+        "action": "assert_output",
+        "source": "status",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "matches",
+          "value": "^/"
+        },
+        "proves": [
+          "runtime"
+        ],
+        "intent": "Verify the starting route is observable.",
+        "next": "record"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Restore the original observed route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoration.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "Verify the original route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "navigation-proof": {
+        "action": "call",
+        "ref": "playground.flows.navigation-proof",
+        "claimBindings": {
+          "navigation": "navigation"
+        },
+        "proves": [
+          "navigation"
+        ],
+        "intent": "Verify the observed More route and preserve its navigation evidence.",
+        "next": "done"
+      }
+    },
+    "teardown": "restore"
+  }
+}

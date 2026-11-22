@@ -1,0 +1,387 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Audio Player Widget validation",
+  "description": "Drives the audio-player demo screen end-to-end via __AGENTIC__.audioPlayer probes. Verifies progressive preview streaming, silence threshold plumbing, transport (play / pause), seek-by-tap, and AudioExtractionError mapping.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-audio-player": {
+        "action": "ui.navigate",
+        "intent": "Nav audio player.",
+        "next": "wait-route",
+        "path": "/audio-player"
+      },
+      "wait-route": {
+        "action": "audiolab.query",
+        "intent": "Wait route.",
+        "next": "wait-mounted",
+        "timeout_ms": 10000,
+        "ref": "route",
+        "assert": {
+          "operator": "eq",
+          "field": "pathname",
+          "value": "/audio-player"
+        },
+        "poll": true
+      },
+      "wait-mounted": {
+        "action": "audiolab.query",
+        "intent": "Wait mounted.",
+        "next": "load-sample",
+        "assert": {
+          "operator": "eq",
+          "field": "mounted",
+          "value": true
+        },
+        "timeout_ms": 10000,
+        "poll_ms": 200,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "load-sample": {
+        "action": "audiolab.query",
+        "intent": "Load sample.",
+        "next": "wait-streaming-mid",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-load-sample"
+      },
+      "wait-streaming-mid": {
+        "action": "audiolab.query",
+        "intent": "Wait streaming mid.",
+        "next": "wait-streaming-complete",
+        "assert": {
+          "operator": "gt",
+          "field": "pointsReceived",
+          "value": 0
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 50,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "wait-streaming-complete": {
+        "action": "audiolab.query",
+        "intent": "Wait streaming complete.",
+        "next": "transport-switch",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isStreaming",
+              "value": false
+            },
+            {
+              "operator": "gte",
+              "field": "totalPoints",
+              "value": 50
+            },
+            {
+              "operator": "gt",
+              "field": "durationMs",
+              "value": 1000
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 200,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "transport-switch": {
+        "action": "audiolab.choose",
+        "intent": "Transport switch.",
+        "rules": [
+          {
+            "operator": "eq",
+            "field": "env.platform",
+            "value": "web"
+          },
+          {
+            "operator": "contains",
+            "field": "env.device",
+            "value": "web"
+          }
+        ],
+        "cases": {
+          "case-0": "set-threshold-high",
+          "case-1": "set-threshold-high"
+        },
+        "default": "play-audio"
+      },
+      "play-audio": {
+        "action": "audiolab.query",
+        "intent": "Play audio.",
+        "next": "wait-playing",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-play"
+      },
+      "wait-playing": {
+        "action": "audiolab.query",
+        "intent": "Wait playing.",
+        "next": "pause-after-play",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isPlaying",
+              "value": true
+            },
+            {
+              "operator": "gt",
+              "field": "currentTimeMs",
+              "value": 0
+            }
+          ]
+        },
+        "timeout_ms": 15000,
+        "poll_ms": 100,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "pause-after-play": {
+        "action": "audiolab.query",
+        "intent": "Pause after play.",
+        "next": "wait-paused-after-play",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-pause"
+      },
+      "wait-paused-after-play": {
+        "action": "audiolab.query",
+        "intent": "Wait paused after play.",
+        "next": "seek-half",
+        "assert": {
+          "operator": "eq",
+          "field": "isPlaying",
+          "value": false
+        },
+        "timeout_ms": 5000,
+        "poll_ms": 100,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "seek-half": {
+        "action": "audiolab.query",
+        "intent": "Seek half.",
+        "next": "wait-seeked",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-seek-half"
+      },
+      "wait-seeked": {
+        "action": "audiolab.query",
+        "intent": "Wait seeked.",
+        "next": "set-threshold-high",
+        "assert": {
+          "operator": "gte",
+          "field": "currentRatio",
+          "value": 0.4
+        },
+        "timeout_ms": 5000,
+        "poll_ms": 100,
+        "expression": "(function(){ var s = globalThis.__AGENTIC__ && globalThis.__AGENTIC__.audioPlayer ? globalThis.__AGENTIC__.audioPlayer.getState() : null; if (!s) return JSON.stringify({ ok: false }); return JSON.stringify({ currentRatio: s.durationMs > 0 ? s.currentTimeMs / s.durationMs : 0 }); })()",
+        "poll": true
+      },
+      "set-threshold-high": {
+        "action": "audiolab.query",
+        "intent": "Set threshold high.",
+        "next": "wait-threshold-applied",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-set-threshold-high"
+      },
+      "wait-threshold-applied": {
+        "action": "audiolab.query",
+        "intent": "Wait threshold applied.",
+        "next": "toggle-silence-off",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isStreaming",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "threshold",
+              "value": 0.5
+            },
+            {
+              "operator": "gt",
+              "field": "silentSegmentCount",
+              "value": 0
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 200,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "toggle-silence-off": {
+        "action": "audiolab.query",
+        "intent": "Toggle silence off.",
+        "next": "wait-silence-off",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-toggle-silence-off"
+      },
+      "wait-silence-off": {
+        "action": "audiolab.query",
+        "intent": "Wait silence off.",
+        "next": "toggle-silence-on",
+        "assert": {
+          "operator": "eq",
+          "field": "showSilenceTrack",
+          "value": false
+        },
+        "timeout_ms": 3000,
+        "poll_ms": 100,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "toggle-silence-on": {
+        "action": "audiolab.query",
+        "intent": "Toggle silence on.",
+        "next": "wait-silence-on",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-toggle-silence-on"
+      },
+      "wait-silence-on": {
+        "action": "audiolab.query",
+        "intent": "Wait silence on.",
+        "next": "load-bogus",
+        "assert": {
+          "operator": "eq",
+          "field": "showSilenceTrack",
+          "value": true
+        },
+        "timeout_ms": 3000,
+        "poll_ms": 100,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "load-bogus": {
+        "action": "audiolab.query",
+        "intent": "Load bogus.",
+        "next": "wait-error-mapped",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-load-bogus"
+      },
+      "wait-error-mapped": {
+        "action": "audiolab.query",
+        "intent": "Wait error mapped.",
+        "next": "reload-sample",
+        "assert": {
+          "all": [
+            {
+              "operator": "not_null",
+              "field": "lastError"
+            },
+            {
+              "operator": "not_null",
+              "field": "lastError.code"
+            }
+          ]
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 200,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "reload-sample": {
+        "action": "audiolab.query",
+        "intent": "Reload sample.",
+        "next": "wait-recovered",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "ref": "audio-player-load-sample"
+      },
+      "wait-recovered": {
+        "action": "audiolab.query",
+        "intent": "Wait recovered.",
+        "next": "done",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isStreaming",
+              "value": false
+            },
+            {
+              "operator": "gte",
+              "field": "totalPoints",
+              "value": 50
+            },
+            {
+              "operator": "eq",
+              "field": "lastError",
+              "value": null
+            }
+          ]
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 200,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.audioPlayer?.getState() || null)",
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "nav-audio-player"
+      }
+    }
+  }
+}

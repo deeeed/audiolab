@@ -1,0 +1,81 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "AudioLab Recipe v1 native audio lifecycle",
+  "description": "Runs a native audio extraction probe through the existing app bridge, polls the async result, and records UI evidence.",
+  "proofTargets": [
+    {
+      "id": "native",
+      "claim": "Recipe v1 can drive AudioLab native-module probes through a namespaced action."
+    },
+    {
+      "id": "evidence",
+      "claim": "The selected native runtime produces a retained recorder screenshot."
+    }
+  ],
+  "workflow": {
+    "entry": "status",
+    "nodes": {
+      "status": {
+        "action": "audiolab.query",
+        "next": "record",
+        "intent": "Read the current AudioLab recorder state through the project bridge.",
+        "ref": "recording-state"
+      },
+      "record": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/record",
+        "next": "extractPreview",
+        "intent": "Open the recorder for audio validation."
+      },
+      "extractPreview": {
+        "action": "audiolab.native_preview",
+        "timeout_ms": 30000,
+        "assert": {
+          "operator": "eq",
+          "value": "success",
+          "field": "status"
+        },
+        "next": "assert-preview",
+        "intent": "Run the native extractPreview probe and wait for its bridged success result."
+      },
+      "proof": {
+        "action": "ui.screenshot",
+        "next": "assert-capture",
+        "intent": "Preserve the recorder after native audio extraction.",
+        "path": "screenshots/audiolab-native-audio-v1.png"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "assert-preview": {
+        "action": "assert_output",
+        "source": "extractPreview",
+        "assert": {
+          "path": "$.status",
+          "operator": "eq",
+          "value": "success"
+        },
+        "proves": [
+          "native"
+        ],
+        "intent": "Verify native audio extraction succeeded.",
+        "next": "proof"
+      },
+      "assert-capture": {
+        "action": "assert_output",
+        "source": "proof",
+        "assert": {
+          "path": "$.captured",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "evidence"
+        ],
+        "intent": "Verify the recorder screenshot was captured.",
+        "next": "done"
+      }
+    }
+  }
+}

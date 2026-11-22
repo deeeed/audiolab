@@ -19,6 +19,27 @@ cd "$APP_ROOT"
 
 PLATFORM="${PLATFORM:-ios}"
 APP_VARIANT_EFFECTIVE="${APP_VARIANT:-development}"
+LAUNCH_STARTED=$SECONDS
+LAUNCH_TIMEOUT="${AGENTIC_LAUNCH_TIMEOUT:-540}"
+case "$LAUNCH_TIMEOUT" in
+  ''|*[!0-9]*) fail "AGENTIC_LAUNCH_TIMEOUT must be a positive number of seconds"; exit 1 ;;
+  *) ;;
+esac
+launch_stage() {
+  local id="$1" ceiling="$2"
+  shift 2
+  local remaining=$((LAUNCH_TIMEOUT - (SECONDS - LAUNCH_STARTED)))
+  if [[ "$remaining" -le 0 ]]; then fail "Launch deadline reached before ${id}"; return 1; fi
+  if [[ "$ceiling" -gt "$remaining" ]]; then ceiling="$remaining"; fi
+  local params
+  params=$(python3 - "$@" <<'PARAMS'
+import json, sys
+print(json.dumps(dict(argument.split('=', 1) for argument in sys.argv[1:])))
+PARAMS
+)
+  node "$MONOREPO_ROOT/scripts/agentic/lib/stage-runner.mjs" "$id" \
+    --app "$(basename "$APP_ROOT")" --timeout "$ceiling" --params "$params"
+}
 
 load_env_defaults() {
   local env_file="$1"
@@ -52,6 +73,34 @@ load_env_defaults ".env.${APP_VARIANT_EFFECTIVE}"
 load_env_defaults ".env.${APP_VARIANT_EFFECTIVE}.local"
 IOS_DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM:-${APPLE_TEAM_ID:-}}"
 
+native_fingerprint() {
+  APP_VARIANT="$APP_VARIANT_EFFECTIVE" node - "$APP_ROOT" "$PLATFORM" <<'FINGERPRINT'
+// Include shared audio-studio C++, config plugin sources and native codegen specs; exclude other workspace JS and documentation.
+Promise.resolve().then(() => {
+  const [appRoot, platform] = process.argv.slice(2);
+  const expo = require.resolve('expo', { paths: [appRoot] });
+  const { createProjectHashAsync } = require(require.resolve('@expo/fingerprint', { paths: [expo] }));
+  return createProjectHashAsync(appRoot, {
+    platforms: [platform], preset: 'strict', concurrentIoLimit: 4, silent: true,
+    extraSources: [
+      { type: 'dir', filePath: '../../packages/audio-studio/cpp', reasons: ['audioStudioSharedCpp'] },
+      { type: 'dir', filePath: '../../packages/audio-studio/plugin/src', reasons: ['audioStudioConfigPlugin'] },
+    ],
+    ignorePaths: ['docs/**/*', 'src/**/*', 'lib/**/*', '*.md', 'wasm/**/*', 'wasm-src/**/*']
+      .map(pattern => `../../packages/*/${pattern}`)
+      .concat('!../../packages/*/src/**/Native*.ts', '../../packages/moonshine.rn/prebuilt/ios/current/**/*',
+        '../../packages/moonshine.rn/prebuilt/android/moonshine-voice-isolated.aar',
+        '../../packages/audio-studio/plugin/src/**/*.test.ts'),
+  });
+})
+  .then(hash => {
+    if (!/^[a-f0-9]{40}$/.test(hash)) throw new Error('Invalid native fingerprint');
+    process.stdout.write(hash);
+  })
+  .catch(error => { console.error('[preflight] FAIL Could not compute native fingerprint:', error.message); process.exitCode = 1; });
+FINGERPRINT
+}
+
 run_simctl_timeout() {
   python3 - "$@" <<'PY'
 import subprocess
@@ -75,6 +124,16 @@ simulator_app_installed() {
   return 1
 }
 
+physical_ios_app_installed() {
+  if xcrun devicectl device info apps --timeout 10 --device "$IOS_DEVICE_UDID" 2>/dev/null | grep -Fq "$BUNDLE_ID_IOS"; then return 0; fi
+  # CoreDevice on iOS 26 can return an empty inventory after a successful install.
+  # The selected-device installation service remains available on those phones.
+  launch_stage ios-app-inventory 10 "device=$IOS_DEVICE_UDID" | python3 -c '
+import json,sys
+sys.exit(0 if sys.argv[1] in json.load(sys.stdin) else 1)
+' "$BUNDLE_ID_IOS"
+}
+
 resolve_ios_workspace_and_scheme() {
   local variant="$1"
   local workspace_basename="${AGENTIC_IOS_WORKSPACE_PRODUCTION:-AudioPlayground}"
@@ -90,12 +149,18 @@ resolve_ios_workspace_and_scheme() {
     local setup_script="${APP_ROOT}/scripts/setup-env.sh"
     if [ -x "$setup_script" ]; then
       info "Preparing iOS prebuild for variant ${variant}..."
-      (cd "$APP_ROOT" && "$setup_script" "$variant" force)
+      # CocoaPods host stubs must use the selected Xcode SDK, not a newer CLT SDK.
+      (cd "$APP_ROOT" && SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" "$setup_script" "$variant" force)
     else
       fail "Missing iOS workspace for variant ${variant}: ${workspace_path}"
       fail "Run APP_VARIANT=${variant} yarn expo prebuild --clean"
       exit 1
     fi
+  fi
+
+  if [ ! -d "$workspace_path" ]; then
+    fail "iOS prebuild did not create ${workspace_path}; resolve the CocoaPods error before building."
+    exit 1
   fi
 
   IOS_WORKSPACE_PATH="$workspace_path"
@@ -143,55 +208,24 @@ print(ios[-1]['identifier'])
 # ── 1. Boot device ──────────────────────────────────────────────
 info "Step 1: Boot device (${PLATFORM})"
 if [ "$PLATFORM" = "ios" ]; then
-  # Determine device mode:
-  #   - IOS_SIMULATOR explicitly empty (ios:device sets IOS_SIMULATOR=) → physical device preferred
-  #   - IOS_SIMULATOR unset or non-empty → use simulator
   USE_IOS_PHYSICAL=false
-  if [ "${IOS_SIMULATOR+set}" = "set" ] && [ -z "${IOS_SIMULATOR}" ]; then
+  if [[ "${DEVICE_MODE:-}" = device ]] || [[ -n "${IOS_DEVICE_UDID:-}" ]] || { [[ "${IOS_SIMULATOR+set}" = set ]] && [[ -z "$IOS_SIMULATOR" ]]; }; then
     USE_IOS_PHYSICAL=true
   fi
-
   if [ "$USE_IOS_PHYSICAL" = true ]; then
-    # Auto-detect connected physical iOS device via xcrun devicectl
-    IOS_PHYSICAL_UDID=""
-    IOS_PHYSICAL_NAME=""
-    if command -v xcrun &>/dev/null; then
-      # Parse devicectl verbose output for the real UDID (not CoreDevice identifier)
-      IOS_PHYSICAL_INFO=$(xcrun devicectl list devices -v 2>/dev/null | python3 -c "
-import sys, re
-text = sys.stdin.read()
-blocks = re.split(r'(?=▿ .+ - [0-9A-F]{8}-)', text)
-for block in blocks:
-    if 'available' not in block and 'paired' not in block:
-        continue
-    if 'physical' not in block:
-        continue
-    udid_match = re.search(r'udid: Optional\(\"([^\"]+)\"\)', block)
-    name_match = re.search(r'marketingName: Optional\(\"([^\"]+)\"\)', block)
-    if udid_match:
-        name = name_match.group(1) if name_match else 'unknown'
-        print(f'{udid_match.group(1)}|{name}')
-        break
-" 2>/dev/null || true)
-      if [ -n "$IOS_PHYSICAL_INFO" ]; then
-        IOS_PHYSICAL_UDID="${IOS_PHYSICAL_INFO%%|*}"
-        IOS_PHYSICAL_NAME="${IOS_PHYSICAL_INFO##*|}"
-      fi
-    fi
-
-    if [ -n "$IOS_PHYSICAL_UDID" ]; then
-      IOS_DEVICE_UDID="$IOS_PHYSICAL_UDID"
-      IOS_DEVICE_MODE="physical"
-      pass "Physical iOS device detected: ${IOS_PHYSICAL_NAME} (${IOS_DEVICE_UDID})"
+    if IOS_PHYSICAL_INFO=$(node "$MONOREPO_ROOT/scripts/agentic/lib/ios-devices.mjs"); then
+      IFS=$'\t' read -r IOS_DEVICE_UDID IOS_PHYSICAL_NAME < <(
+        printf '%s' "$IOS_PHYSICAL_INFO" | python3 -c 'import json,sys;device=json.load(sys.stdin);print(device["udid"]+"\t"+device["name"])'
+      )
+      export IOS_DEVICE_UDID
+      IOS_DEVICE_MODE=physical
+      pass "Physical iOS device selected: ${IOS_PHYSICAL_NAME} (${IOS_DEVICE_UDID})"
+    elif [[ -z "${IOS_DEVICE_UDID:-}" ]] && [[ "${DEVICE_MODE:-}" != device ]] && [[ "$AGENTIC_IOS_PHYSICAL_FALLBACK" = simulator ]]; then
+      info "No physical iOS device selected; falling back to simulator"
+      USE_IOS_PHYSICAL=false
     else
-      if [ "$AGENTIC_IOS_PHYSICAL_FALLBACK" = "simulator" ]; then
-        info "No physical iOS device found — falling back to simulator"
-        USE_IOS_PHYSICAL=false
-        SIM="${IOS_SIMULATOR:-${AGENTIC_DEFAULT_SIMULATOR}}"
-      else
-        fail "No physical iOS device found — connect a device via USB"
-        exit 1
-      fi
+      fail "Requested physical iOS device is unavailable"
+      exit 1
     fi
   fi
 
@@ -203,8 +237,7 @@ for block in blocks:
       pass "Simulator ${SIM} already booted"
     else
       xcrun simctl boot "${SIM}" 2>/dev/null || true
-      sleep 2
-      pass "Simulator ${SIM} booted"
+      info "Simulator ${SIM} boot requested"
     fi
 
     SIM_UUID=$(xcrun simctl list devices -j | python3 -c "
@@ -212,7 +245,7 @@ import json,sys
 data=json.load(sys.stdin)
 for runtime,devs in data['devices'].items():
   for d in devs:
-    if d['name']=='${SIM}' and d['isAvailable']:
+    if (d['name']=='${SIM}' or d['udid']=='${SIM}') and d['isAvailable']:
       print(d['udid']); sys.exit(0)
 sys.exit(1)
 " 2>/dev/null || true)
@@ -220,6 +253,7 @@ sys.exit(1)
       fail "Could not resolve simulator UUID for ${SIM}"
       exit 1
     fi
+    launch_stage simulator-boot 120 "device=$SIM_UUID"
   fi
 elif [ "$PLATFORM" = "android" ]; then
   # Determine device mode:
@@ -227,7 +261,7 @@ elif [ "$PLATFORM" = "android" ]; then
   #   - If ANDROID_DEVICE is unset → default emulator
   #   - If ANDROID_DEVICE is explicitly empty → physical device
   USE_PHYSICAL=false
-  if [ "${ANDROID_DEVICE+set}" = "set" ] && [ -z "${ANDROID_DEVICE}" ]; then
+  if [[ "${DEVICE_MODE:-}" = device ]] || { [[ -n "${ADB_SERIAL:-}" ]] && [[ "$ADB_SERIAL" != emulator-* ]]; } || { [[ "${ANDROID_DEVICE+set}" = set ]] && [[ -z "$ANDROID_DEVICE" ]]; }; then
     USE_PHYSICAL=true
   fi
 
@@ -243,17 +277,15 @@ elif [ "$PLATFORM" = "android" ]; then
       SERIAL=$(adb devices 2>/dev/null | grep -E '^\S+\s+device$' | grep -v '^emulator-' | grep -v ':[0-9]*\s' | head -1 | awk '{print $1}')
     fi
     if [ -z "$SERIAL" ]; then
-      info "No physical Android device found — falling back to emulator"
-      USE_PHYSICAL=false
+      fail "No physical Android device found; select its ADB_SERIAL"
+      exit 1
     else
       pass "Physical device detected: ${SERIAL}"
     fi
   fi
 
   if [ "$USE_PHYSICAL" = true ]; then
-    adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
     adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
-    adb -s "${SERIAL}" reverse tcp:8081 tcp:"${PORT}" 2>/dev/null || true
   elif [ "$AGENTIC_ANDROID_EMULATOR_AUTOBOOT" = "true" ]; then
     SERIAL="${ADB_SERIAL:-${AGENTIC_DEFAULT_EMULATOR_SERIAL}}"
     AVD="${ANDROID_DEVICE:-${AGENTIC_DEFAULT_AVD}}"
@@ -268,8 +300,7 @@ elif [ "$PLATFORM" = "android" ]; then
         adb -s "${SERIAL}" emu kill 2>/dev/null || true
         sleep 2
         emulator -avd "$AVD" -port "$EMU_PORT" -no-snapshot-load &>/dev/null &
-        adb -s "${SERIAL}" wait-for-device
-        until adb -s "${SERIAL}" shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; do sleep 2; done
+        launch_stage android-boot 120 "serial=$SERIAL"
         pass "Emulator ${AVD} restarted with window"
       else
         pass "Emulator ${SERIAL} already running"
@@ -277,15 +308,11 @@ elif [ "$PLATFORM" = "android" ]; then
     else
       info "Emulator ${SERIAL} not found — booting ${AVD}..."
       emulator -avd "$AVD" -port "$EMU_PORT" $WINDOW_FLAG -no-snapshot-load &>/dev/null &
-      sleep 5
-      adb -s "${SERIAL}" wait-for-device
       SERIAL="emulator-${EMU_PORT}"
-      until adb -s "${SERIAL}" shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; do sleep 2; done
+      launch_stage android-boot 120 "serial=$SERIAL"
       pass "Emulator ${AVD} booted on ${SERIAL}"
     fi
-    adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
     adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
-    adb -s "${SERIAL}" reverse tcp:8081 tcp:"${PORT}" 2>/dev/null || true
   else
     SERIAL="${ADB_SERIAL:-${AGENTIC_DEFAULT_EMULATOR_SERIAL}}"
     if adb devices 2>/dev/null | grep -q "${SERIAL}"; then
@@ -295,16 +322,14 @@ elif [ "$PLATFORM" = "android" ]; then
       fail "Emulator ${SERIAL} not running"
       exit 1
     fi
-    adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
     adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
-    adb -s "${SERIAL}" reverse tcp:8081 tcp:"${PORT}" 2>/dev/null || true
   fi
 fi
 
 # ── 2. Start Metro ─────────────────────────────────────────────
 info "Step 2: Start Metro on port ${PORT}"
 MONOREPO_ROOT="$(cd "$APP_ROOT" && git rev-parse --show-toplevel)"
-APP_ROOT="$APP_ROOT" WATCHER_PORT="${PORT}" bash "${MONOREPO_ROOT}/scripts/agentic/start-metro.sh"
+launch_stage metro 60
 
 # ── 3. Build + install app if needed ───────────────────────────
 info "Step 3: Check if app is installed"
@@ -312,7 +337,7 @@ APP_INSTALLED=false
 
 if [[ "${SKIP_BUILD:-0}" == "1" ]] && [[ "$AGENTIC_SKIP_BUILD_SUPPORTED" == "true" ]]; then
   if [[ "$PLATFORM" == "ios" ]] && [[ "${IOS_DEVICE_MODE:-simulator}" == "physical" ]]; then
-    if xcrun devicectl device info apps --device "${IOS_DEVICE_UDID}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
+    if physical_ios_app_installed; then
       APP_INSTALLED=true
       pass "App ${BUNDLE_ID_IOS} already installed on physical device ${IOS_DEVICE_UDID}"
     fi
@@ -333,7 +358,15 @@ if [[ "${SKIP_BUILD:-0}" == "1" ]] && [[ "$AGENTIC_SKIP_BUILD_SUPPORTED" == "tru
 elif [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   # Check if already installed (for non-skip-build apps)
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "simulator" ]; then
-    info "Skipping iOS simulator install probe on ${SIM}; rebuilding/installing is more reliable than simctl listapps on this CoreSimulator runtime"
+    if simulator_app_installed "${SIM_UUID}" "${BUNDLE_ID_IOS}"; then
+      APP_INSTALLED=true
+      pass "Development client ${BUNDLE_ID_IOS} already installed on ${SIM}"
+    fi
+  elif [[ "$PLATFORM" = ios ]]; then
+    if physical_ios_app_installed; then
+      APP_INSTALLED=true
+      pass "Development client ${BUNDLE_ID_IOS} already installed on ${IOS_DEVICE_UDID}"
+    fi
   elif [ "$PLATFORM" = "android" ]; then
     if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then
       APP_INSTALLED=true
@@ -342,37 +375,71 @@ elif [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   fi
 fi
 
+# Stamps survive checkout resets and belong to one variant, platform and device.
+if [ "$PLATFORM" = android ]; then
+  FINGERPRINT_BUNDLE="$BUNDLE_ID_ANDROID"
+  FINGERPRINT_DEVICE="$SERIAL"
+else
+  FINGERPRINT_BUNDLE="$BUNDLE_ID_IOS"
+  if [ "${IOS_DEVICE_MODE:-simulator}" = physical ]; then
+    FINGERPRINT_DEVICE="$IOS_DEVICE_UDID"
+  else
+    FINGERPRINT_DEVICE="$SIM_UUID"
+  fi
+fi
+FINGERPRINT_STAMP="${XDG_CACHE_HOME:-${HOME}/.cache}/audiolab-dev-client/${FINGERPRINT_BUNDLE}/${PLATFORM}-${FINGERPRINT_DEVICE}.fingerprint"
+CURRENT_NATIVE_FINGERPRINT=""
+if [ "$APP_INSTALLED" = true ] && [ "${REBUILD:-0}" != 1 ]; then
+  if ! CURRENT_NATIVE_FINGERPRINT=$(native_fingerprint); then
+    if [ "${SKIP_BUILD:-0}" != 1 ]; then exit 1; fi
+    info "WARNING: Could not check dev client native fingerprint; keeping SKIP_BUILD=1 behavior"
+  else
+    INSTALLED_NATIVE_FINGERPRINT=$(cat "$FINGERPRINT_STAMP" 2>/dev/null || true)
+    if [[ ! "$INSTALLED_NATIVE_FINGERPRINT" =~ ^[a-f0-9]{40}$ ]]; then INSTALLED_NATIVE_FINGERPRINT=missing; fi
+    if [ "$INSTALLED_NATIVE_FINGERPRINT" != "$CURRENT_NATIVE_FINGERPRINT" ]; then
+      if [ "${SKIP_BUILD:-0}" = 1 ]; then
+        info "WARNING: dev client native fingerprint changed (${INSTALLED_NATIVE_FINGERPRINT} → ${CURRENT_NATIVE_FINGERPRINT}); SKIP_BUILD=1 keeps the installed client"
+      else
+        info "dev client native fingerprint changed (${INSTALLED_NATIVE_FINGERPRINT} → ${CURRENT_NATIVE_FINGERPRINT})"
+        APP_INSTALLED=false
+      fi
+    else
+      pass "Dev client native fingerprint unchanged (${CURRENT_NATIVE_FINGERPRINT})"
+    fi
+  fi
+fi
+
 # REBUILD=1 forces reinstall even if app is already installed
 if [ "${REBUILD:-0}" = "1" ]; then APP_INSTALLED=false; fi
 
 if [ "$APP_INSTALLED" = false ]; then
-  info "App not installed — building..."
+  info "Development client needs a build..."
 
   # Run pre-build hook if defined
   if [ -n "${AGENTIC_PRE_BUILD_HOOK:-}" ]; then
     info "Running pre-build hook: ${AGENTIC_PRE_BUILD_HOOK}"
-    eval "$AGENTIC_PRE_BUILD_HOOK"
+    if [[ "$AGENTIC_PRE_BUILD_HOOK" != "yarn build:deps" ]]; then
+      fail "Native dependency hook must name a command in launch-stages.json"
+      exit 1
+    fi
+    launch_stage native-deps 300
+  fi
+
+  if [ "$PLATFORM" = ios ]; then resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"; fi
+  # Capture the inputs after dependency hooks/prebuild, before native compilation.
+  if ! CURRENT_NATIVE_FINGERPRINT=$(native_fingerprint); then
+    if [ "${SKIP_BUILD:-0}" != 1 ]; then exit 1; fi
+    CURRENT_NATIVE_FINGERPRINT=""
+    info "WARNING: Could not compute dev client native fingerprint; SKIP_BUILD=1 continues the build without recording a stamp"
   fi
 
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; then
-    resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"
     info "Building iOS app for physical device ${IOS_DEVICE_UDID} using ${IOS_SCHEME_NAME}..."
     BUILD_LOG=".agent/ios-device-build-$(date -u +%Y%m%dT%H%M%SZ).log"
     mkdir -p .agent
-    XCODEBUILD_SIGNING_ARGS=()
-    if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
-      XCODEBUILD_SIGNING_ARGS+=(DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}")
-      XCODEBUILD_SIGNING_ARGS+=(CODE_SIGN_STYLE=Automatic)
-    fi
     set +e
-    xcodebuild -workspace "$IOS_WORKSPACE_PATH" -scheme "$IOS_SCHEME_NAME" \
-      -destination "id=${IOS_DEVICE_UDID}" \
-      -configuration Debug \
-      -derivedDataPath ios/build-device \
-      -allowProvisioningUpdates \
-      -allowProvisioningDeviceRegistration \
-      "${XCODEBUILD_SIGNING_ARGS[@]}" \
-      build 2>&1 | tee "$BUILD_LOG"
+    launch_stage ios-device-build 420 "scheme=$IOS_SCHEME_NAME" "device=$IOS_DEVICE_UDID" \
+      "team=${IOS_DEVELOPMENT_TEAM:-}" 2>&1 | tee "$BUILD_LOG"
     XCODEBUILD_STATUS=${PIPESTATUS[0]}
     set -e
     if [ "$XCODEBUILD_STATUS" -ne 0 ]; then
@@ -387,16 +454,11 @@ if [ "$APP_INSTALLED" = false ]; then
     xcrun devicectl device install app --device "${IOS_DEVICE_UDID}" "$APP_PATH"
     pass "iOS app built and installed on physical device"
   elif [ "$PLATFORM" = "ios" ]; then
-    resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"
     info "Building iOS app for simulator ${SIM} (${SIM_UUID}) using ${IOS_SCHEME_NAME}..."
     BUILD_LOG=".agent/ios-simulator-build-$(date -u +%Y%m%dT%H%M%SZ).log"
     mkdir -p .agent
     set +e
-    xcodebuild -workspace "$IOS_WORKSPACE_PATH" -scheme "$IOS_SCHEME_NAME" \
-      -destination "platform=iOS Simulator,id=${SIM_UUID}" \
-      -configuration Debug \
-      -derivedDataPath ios/build \
-      build 2>&1 | tee "$BUILD_LOG"
+    launch_stage ios-simulator-build 420 "scheme=$IOS_SCHEME_NAME" "device=$SIM_UUID" 2>&1 | tee "$BUILD_LOG"
     XCODEBUILD_STATUS=${PIPESTATUS[0]}
     set -e
     if [ "$XCODEBUILD_STATUS" -ne 0 ]; then
@@ -412,7 +474,7 @@ if [ "$APP_INSTALLED" = false ]; then
     pass "iOS app built and installed on ${SIM}"
   elif [ "$PLATFORM" = "android" ]; then
     info "Building Android app for ${SERIAL}..."
-    cd android && ./gradlew :app:assembleDebug && cd ..
+    launch_stage android-build 420
     APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
     if [ ! -f "$APK_PATH" ]; then
       fail "APK not found at $APK_PATH"
@@ -420,6 +482,12 @@ if [ "$APP_INSTALLED" = false ]; then
     fi
     adb -s "${SERIAL}" install -r "$APK_PATH"
     pass "Android app built and installed on ${SERIAL}"
+  fi
+  if [ -n "$CURRENT_NATIVE_FINGERPRINT" ]; then
+    mkdir -p "$(dirname "$FINGERPRINT_STAMP")"
+    printf '%s\n' "$CURRENT_NATIVE_FINGERPRINT" > "${FINGERPRINT_STAMP}.$$"
+    mv "${FINGERPRINT_STAMP}.$$" "$FINGERPRINT_STAMP"
+    pass "Recorded dev client native fingerprint (${CURRENT_NATIVE_FINGERPRINT})"
   fi
 fi
 
@@ -463,8 +531,7 @@ if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; 
   IOS_PHYSICAL_LAUNCH_STATUS=$?
   set -e
 
-  sleep 5
-  if [ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]; then
+  if [[ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]]; then
     set +e
     xcrun devicectl device process launch \
       --timeout 30 \
@@ -475,7 +542,7 @@ if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; 
     set -e
   fi
 
-  if [ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ] && [ "${AGENTIC_STRICT_IOS_PHYSICAL_LAUNCH:-false}" = "true" ]; then
+  if [[ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]]; then
     fail "Physical iOS launch failed; full log: ${APP_ROOT}/${IOS_PHYSICAL_LAUNCH_LOG}"
     tail -40 "${IOS_PHYSICAL_LAUNCH_LOG}" || true
     exit "$IOS_PHYSICAL_LAUNCH_STATUS"
@@ -487,49 +554,30 @@ elif [ "$PLATFORM" = "ios" ]; then
   xcrun simctl spawn "${SIM_UUID}" defaults write "${BUNDLE_ID_IOS}" EXDevMenuDisableAutoLaunch -bool YES 2>/dev/null || true
 
   run_simctl_timeout terminate "${SIM_UUID}" "${BUNDLE_ID_IOS}" 2>/dev/null || true
-  sleep 1
   run_simctl_timeout openurl "${SIM_UUID}" "${DEV_CLIENT_URL}" 2>/dev/null || true
 
-  sleep 5
-  if ! xcrun simctl spawn "${SIM_UUID}" launchctl list 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
-    info "App exited after launch — retrying..."
-    sleep 2
-    run_simctl_timeout openurl "${SIM_UUID}" "${DEV_CLIENT_URL}" 2>/dev/null || true
-  fi
   pass "App launched on ${SIM} → localhost:${PORT}"
 
 elif [ "$PLATFORM" = "android" ]; then
+  ANDROID_ACTIVITY="$(adb -s "${SERIAL}" shell cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p "${BUNDLE_ID_ANDROID}" | tr -d '\r' | tail -n 1)"
+  if [[ "$ANDROID_ACTIVITY" != "${BUNDLE_ID_ANDROID}/"* ]]; then
+    fail "No launcher activity for ${BUNDLE_ID_ANDROID}"
+    exit 1
+  fi
   PREFS_DIR="/data/data/${BUNDLE_ID_ANDROID}/shared_prefs"
   PREFS_FILE="expo.modules.devmenu.sharedpreferences.xml"
   adb -s "${SERIAL}" shell "mkdir -p ${PREFS_DIR} && echo '<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?><map><boolean name=\"isOnboardingFinished\" value=\"true\" /></map>' > ${PREFS_DIR}/${PREFS_FILE}" 2>/dev/null || true
 
   adb -s "${SERIAL}" shell am force-stop "${BUNDLE_ID_ANDROID}" 2>/dev/null || true
-  sleep 1
-  adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" 2>/dev/null || true
+  adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY" # NOSONAR: Assigned development Metro uses local/LAN HTTP; no credentials are passed.
 
-  sleep 5
-  if ! adb -s "${SERIAL}" shell pidof "${BUNDLE_ID_ANDROID}" >/dev/null 2>&1; then
-    info "App exited after launch — retrying..."
-    sleep 2
-    adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" 2>/dev/null || true
-  fi
   pass "App launched on ${SERIAL} → ${METRO_HOST}:${PORT}"
 fi
 
-# ── 5. Wait for CDP / health ──────────────────────────────────
-info "Step 5: Wait for app health (CDP)"
-HEALTH_TIMEOUT=90
-ELAPSED=0
-while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
-  HEALTH=$(WATCHER_PORT="${PORT}" node "${APP_ROOT}/scripts/agentic/cdp-bridge.mjs" get-route 2>/dev/null || true)
-  if [ -n "$HEALTH" ] && echo "$HEALTH" | grep -q '"pathname"'; then
-    pass "App responding via CDP after ${ELAPSED}s"
-    echo "$HEALTH"
-    exit 0
-  fi
-  sleep 2
-  ELAPSED=$((ELAPSED + 2))
-done
-
-info "App did not respond via CDP within ${HEALTH_TIMEOUT}s — Metro is running, app may need manual interaction"
-exit 0
+# A successful process launch is not proof that Metro bundled JS or the bridge answered.
+info "Step 5: Wait for native dev-client handshake and app bridge"
+export WATCHER_PORT="$PORT" AUDIOLAB_RECIPE_PLATFORM="$PLATFORM"
+export IOS_SIMULATOR="${SIM:-}" ADB_SERIAL="${SERIAL:-}"
+DEVICE_NAME=$(node "$MONOREPO_ROOT/scripts/agentic/recipe/run.mjs" device --platform "$PLATFORM")
+launch_stage native-handshake 180 "name=$DEVICE_NAME"

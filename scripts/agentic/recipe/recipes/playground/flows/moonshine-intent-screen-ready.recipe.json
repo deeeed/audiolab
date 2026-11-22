@@ -1,0 +1,78 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground Moonshine intent screen smoke validation",
+  "description": "Playground Moonshine intent screen smoke validation",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-intent": {
+        "action": "ui.navigate",
+        "intent": "Nav intent.",
+        "next": "wait-intent-route",
+        "path": "/moonshine-intent"
+      },
+      "wait-intent-route": {
+        "action": "audiolab.query",
+        "intent": "Wait intent route.",
+        "next": "wait-prepare-button",
+        "ref": "route",
+        "assert": {
+          "operator": "eq",
+          "field": "pathname",
+          "value": "/moonshine-intent"
+        },
+        "poll": true
+      },
+      "wait-prepare-button": {
+        "action": "audiolab.query",
+        "intent": "Wait prepare button.",
+        "next": "wait-create-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"moonshine-intent-prepare\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-create-button": {
+        "action": "audiolab.query",
+        "intent": "Wait create button.",
+        "next": "wait-process-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"moonshine-intent-create\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-process-button": {
+        "action": "audiolab.query",
+        "intent": "Wait process button.",
+        "next": "done",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"moonshine-intent-process\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "nav-intent"
+      }
+    }
+  }
+}

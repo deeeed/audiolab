@@ -92,9 +92,6 @@ if command -v adb >/dev/null 2>&1; then
     if ! printf '%s\n' "$REVERSE_LIST" | grep -q "tcp:${WATCHER_PORT} tcp:${WATCHER_PORT}"; then
       fail "adb reverse is missing tcp:${WATCHER_PORT} -> tcp:${WATCHER_PORT} for ${ADB_SERIAL}"
     fi
-    if ! printf '%s\n' "$REVERSE_LIST" | grep -q "tcp:8081 tcp:${WATCHER_PORT}"; then
-      fail "adb reverse is missing tcp:8081 -> tcp:${WATCHER_PORT} for ${ADB_SERIAL}"
-    fi
     info "adb reverse OK for ${ADB_SERIAL}"
   fi
 fi

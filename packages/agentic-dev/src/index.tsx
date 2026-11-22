@@ -307,3 +307,6 @@ function AgentStepHudInner({ register }: AgentStepHudProps) {
     </View>
   )
 }
+
+export { RecipeHud } from './RecipeHud'
+export type { FarmslotRecipeHudStatus, FarmslotRecipeHudState, FarmslotRecipeHudText, FarmslotRecipeHudStyles, RecipeHudOptions, RecipeHudProps } from './RecipeHud'

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground Moonshine intent validation",
+  "description": "Drives the Moonshine intent demo screen end-to-end (download model, create recognizer with synced intents, process the default utterance) so the Android EmbeddingModel intent pipeline is exercised on-device.",
+  "workflow": {
+    "entry": "intent-screen-smoke",
+    "nodes": {
+      "intent-screen-smoke": {
+        "action": "call",
+        "intent": "Intent screen smoke.",
+        "next": "assert-route",
+        "ref": "playground.flows.moonshine-intent-screen-ready"
+      },
+      "assert-route": {
+        "action": "audiolab.query",
+        "intent": "Assert route.",
+        "next": "press-prepare",
+        "assert": {
+          "operator": "eq",
+          "field": "route",
+          "value": "/moonshine-intent"
+        },
+        "ref": "moonshine-intent-state"
+      },
+      "press-prepare": {
+        "action": "ui.press",
+        "intent": "Prepare the speech model for a new session.",
+        "next": "wait-model-downloaded",
+        "test_id": "moonshine-intent-prepare"
+      },
+      "wait-model-downloaded": {
+        "action": "audiolab.query",
+        "intent": "Wait model downloaded.",
+        "next": "press-create",
+        "assert": {
+          "operator": "eq",
+          "field": "status.modelDownloaded",
+          "value": true
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "status.error"
+        },
+        "timeout_ms": 600000,
+        "poll_ms": 2000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "press-create": {
+        "action": "ui.press",
+        "intent": "Create a speech recognition session.",
+        "next": "wait-recognizer-ready",
+        "test_id": "moonshine-intent-create"
+      },
+      "wait-recognizer-ready": {
+        "action": "audiolab.query",
+        "intent": "Wait recognizer ready.",
+        "next": "press-process",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "status.hasRecognizer",
+              "value": true
+            },
+            {
+              "operator": "gte",
+              "field": "status.intentCount",
+              "value": 3
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "status.error"
+        },
+        "timeout_ms": 60000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "press-process": {
+        "action": "ui.press",
+        "intent": "Recognize the supplied audio.",
+        "next": "wait-match",
+        "test_id": "moonshine-intent-process"
+      },
+      "wait-match": {
+        "action": "audiolab.query",
+        "intent": "Wait match.",
+        "next": "press-release",
+        "assert": {
+          "operator": "contains",
+          "field": "status.matchText",
+          "value": "turn on the lights"
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "status.error"
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 500,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "press-release": {
+        "action": "ui.press",
+        "intent": "Release the speech recognition session.",
+        "next": "wait-recognizer-released",
+        "test_id": "moonshine-intent-release"
+      },
+      "wait-recognizer-released": {
+        "action": "audiolab.query",
+        "intent": "Wait recognizer released.",
+        "next": "done",
+        "assert": {
+          "operator": "eq",
+          "field": "status.hasRecognizer",
+          "value": false
+        },
+        "timeout_ms": 10000,
+        "poll_ms": 500,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

@@ -88,14 +88,15 @@ See **[Getting Started: Web](docs/GETTING_STARTED_WEB.md)** for the full guide i
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 import type { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 
-// Initialize TTS with a Kokoro model
+// Initialize TTS with a Kokoro model. sherpa-onnx v2.0 removed espeak-ng, so
+// English voices need a lexicon such as upstream's tts-models/lexicon-en-us.txt.
 const config: TtsModelConfig = {
   modelDir: `${FileSystem.documentDirectory}models/kokoro-en-v0_19/`,
   ttsModelType: 'kokoro',
   modelFile: 'model.onnx',
   tokensFile: 'tokens.txt',
   voicesFile: 'voices.bin',
-  dataDir: `${FileSystem.documentDirectory}models/kokoro-en-v0_19/espeak-ng-data`,
+  lexiconFile: 'lexicon-en-us.txt',
 };
 
 const initResult = await SherpaOnnx.TTS.initialize(config);
@@ -266,6 +267,12 @@ yarn install
 
 ### Using Sherpa with Moonshine or another ONNX Runtime package
 
+If your iOS app links both `@siteed/sherpa-onnx.rn` and
+`@siteed/moonshine.rn`, use `@siteed/moonshine.rn >= 0.4.2`. Its isolated
+xcframework keeps Moonshine's ONNX Runtime symbols private so Sherpa can use
+ONNX Runtime 1.28.2 without a model-load crash. In an Audiolab checkout, run
+`yarn ios:ort:check` to check the native artifacts before building the app.
+
 If your Expo Android app installs both `@siteed/sherpa-onnx.rn` and
 `@siteed/moonshine.rn`, use Moonshine's default isolated Android artifact.
 Sherpa keeps `libonnxruntime.so`, while Moonshine loads
@@ -301,8 +308,8 @@ interface TtsModelConfig {
   tokensFile: string;            // Tokens file (e.g., tokens.txt)
   voicesFile?: string;           // Voices file for Kokoro models
   vocoderFile?: string;          // Vocoder file for Matcha models
-  lexiconFile?: string;          // Lexicon file
-  dataDir?: string;              // Data directory (espeak-ng-data)
+  lexiconFile?: string;          // Lexicon file(s); Kokoro accepts a comma-separated list
+  dataDir?: string;              // Deprecated: ignored since sherpa-onnx v2.0 (espeak-ng removed)
   dictDir?: string;              // Dictionary directory
   lang?: string;                 // Language code for multi-lingual Kokoro
   ruleFstsFile?: string;         // Rule FSTs file paths

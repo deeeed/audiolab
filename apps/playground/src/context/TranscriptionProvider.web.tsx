@@ -31,7 +31,7 @@ import type {
     RealtimeTranscribeResult,
     BatchTranscribeParams,
 } from './TranscriptionProvider.types'
-import type { TranscribeNewSegmentsResult } from 'whisper.rn'
+import type { TranscribeNewSegmentsResult } from 'whisper.rn/index'
 
 const logger = baseLogger.extend('TranscriptionProvider')
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice Cohere Transcribe bridge roundtrip validation",
+  "description": "Exercises the Cohere Transcribe offline backend end-to-end via __AGENTIC__.testASR('cohere', undefined, 'en'). Proves the wrapper plumbs `language`, `usePunct`, `useItn` into the new modelType branch. Requires the cohere-transcribe-14-lang-int8-2026-04-01 model to be downloaded.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "asr-cohere-roundtrip": {
+        "action": "call",
+        "intent": "Asr cohere roundtrip.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-cohere-roundtrip"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "asr-cohere-roundtrip"
+      }
+    }
+  }
+}

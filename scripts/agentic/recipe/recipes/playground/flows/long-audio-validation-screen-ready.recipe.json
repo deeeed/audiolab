@@ -1,0 +1,138 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground long audio validation screen ready",
+  "description": "Playground long audio validation screen ready",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-long-audio-validation": {
+        "action": "ui.navigate",
+        "intent": "Nav long audio validation.",
+        "next": "wait-route",
+        "path": "/long-audio-validation"
+      },
+      "wait-route": {
+        "action": "audiolab.query",
+        "intent": "Wait route.",
+        "next": "wait-fixture-input",
+        "ref": "route",
+        "assert": {
+          "operator": "eq",
+          "field": "pathname",
+          "value": "/long-audio-validation"
+        },
+        "poll": true
+      },
+      "wait-fixture-input": {
+        "action": "audiolab.query",
+        "intent": "Wait fixture input.",
+        "next": "wait-segment-duration-input",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-fixture-uri\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-segment-duration-input": {
+        "action": "audiolab.query",
+        "intent": "Wait segment duration input.",
+        "next": "wait-range-end-input",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-sherpa-segment-duration-ms\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-range-end-input": {
+        "action": "audiolab.query",
+        "intent": "Wait range end input.",
+        "next": "wait-decode-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-range-end-ms\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-decode-button": {
+        "action": "audiolab.query",
+        "intent": "Wait decode button.",
+        "next": "wait-full-decode-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-start-decode\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-full-decode-button": {
+        "action": "audiolab.query",
+        "intent": "Wait full decode button.",
+        "next": "wait-moonshine-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-start-full-decode\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-moonshine-button": {
+        "action": "audiolab.query",
+        "intent": "Wait moonshine button.",
+        "next": "wait-sherpa-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-start-moonshine\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-sherpa-button": {
+        "action": "audiolab.query",
+        "intent": "Wait sherpa button.",
+        "next": "wait-sherpa-segments-button",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-start-sherpa-online\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-sherpa-segments-button": {
+        "action": "audiolab.query",
+        "intent": "Wait sherpa segments button.",
+        "next": "done",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"long-audio-start-sherpa-segments\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "nav-long-audio-validation"
+      }
+    }
+  }
+}

@@ -1,0 +1,176 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Record tab attributed transcription validation",
+  "description": "Runs the main Record tab Moonshine + Sherpa attributed-transcription pipeline with a staged reference multi-speaker WAV, then runs post-recording segmented Sherpa ASR replay on the same audio. The WAV must be staged at DocumentDirectory/benchmarks/record-attributed-validation.wav before running this recipe.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "record-screen-smoke": {
+        "action": "call",
+        "intent": "Record screen smoke.",
+        "next": "assert-probe-mounted",
+        "ref": "playground.flows.record-screen-smoke"
+      },
+      "assert-probe-mounted": {
+        "action": "audiolab.query",
+        "intent": "Assert probe mounted.",
+        "next": "start-injected-validation",
+        "assert": {
+          "operator": "exists",
+          "field": "status"
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.recordAttributedValidation?.getState?.() || null)"
+      },
+      "start-injected-validation": {
+        "action": "audiolab.query",
+        "intent": "Start injected validation.",
+        "next": "wait-live-running",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pending"
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.recordAttributedValidation?.run?.({ audioUri: globalThis.__AGENTIC__?.resolveDocumentFileUri?.('benchmarks/record-attributed-validation.wav')?.uri, chunkDurationMs: 200, realtime: true, postAsrModelId: 'sherpa-qwen3-asr-0.6b-int8' }) || null)"
+      },
+      "wait-live-running": {
+        "action": "audiolab.query",
+        "intent": "Wait live running.",
+        "next": "wait-validation-visible",
+        "assert": {
+          "any": [
+            {
+              "operator": "eq",
+              "field": "status",
+              "value": "running-live"
+            },
+            {
+              "operator": "eq",
+              "field": "status",
+              "value": "post-asr"
+            },
+            {
+              "operator": "eq",
+              "field": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "eq",
+          "field": "status",
+          "value": "error"
+        },
+        "timeout_ms": 120000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.recordAttributedValidation?.getState?.() || null)",
+        "poll": true
+      },
+      "wait-validation-visible": {
+        "action": "audiolab.query",
+        "intent": "Wait validation visible.",
+        "next": "wait-final-result",
+        "timeout_ms": 30000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"record-attributed-validation-result\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "wait-final-result": {
+        "action": "audiolab.query",
+        "intent": "Wait final result.",
+        "next": "assert-page-state-success",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "op",
+              "value": "recordAttributedValidation"
+            },
+            {
+              "operator": "eq",
+              "field": "status",
+              "value": "success"
+            },
+            {
+              "operator": "gte",
+              "field": "result.live.moonshineChunks",
+              "value": 3
+            },
+            {
+              "operator": "gte",
+              "field": "result.live.sherpaChunks",
+              "value": 3
+            },
+            {
+              "operator": "gte",
+              "field": "result.live.transcriptCharCount",
+              "value": 10
+            },
+            {
+              "operator": "gte",
+              "field": "result.postAsr.segmentCount",
+              "value": 1
+            },
+            {
+              "operator": "gte",
+              "field": "result.postAsr.transcriptCharCount",
+              "value": 10
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "eq",
+          "field": "status",
+          "value": "error"
+        },
+        "timeout_ms": 900000,
+        "poll_ms": 2000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLastResult?.() || null)",
+        "poll": true
+      },
+      "assert-page-state-success": {
+        "action": "audiolab.query",
+        "intent": "Assert page state success.",
+        "next": "done",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "recordAttributedValidationStatus",
+              "value": "success"
+            },
+            {
+              "operator": "gte",
+              "field": "recordAttributedValidationLive.sherpaChunks",
+              "value": 3
+            },
+            {
+              "operator": "gte",
+              "field": "recordAttributedValidationPostAsr.transcriptCharCount",
+              "value": 10
+            }
+          ]
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "record-screen-smoke"
+      }
+    }
+  }
+}

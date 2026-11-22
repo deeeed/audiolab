@@ -1,10 +1,10 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index d76784bd..40195c54 100644
+index 2306e57..4684da1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -66,6 +66,7 @@ option(SHERPA_ONNX_ENABLE_WASM_VAD "Whether to enable WASM for VAD" OFF)
- option(SHERPA_ONNX_ENABLE_WASM_VAD_ASR "Whether to enable WASM for VAD+ASR" OFF)
+@@ -67,6 +67,7 @@ option(SHERPA_ONNX_ENABLE_WASM_VAD_ASR "Whether to enable WASM for VAD+ASR" OFF)
  option(SHERPA_ONNX_ENABLE_WASM_NODEJS "Whether to enable WASM for NodeJS" OFF)
+ option(SHERPA_ONNX_ENABLE_WASM_WEB "Whether to enable WASM for Web browser" OFF)
  option(SHERPA_ONNX_ENABLE_WASM_SPEECH_ENHANCEMENT "Whether to enable WASM for speech enhancement" OFF)
 +option(SHERPA_ONNX_ENABLE_WASM_COMBINED "Whether to enable combined WASM (all features, wrapper-carried)" OFF)
  option(SHERPA_ONNX_ENABLE_BINARY "Whether to build binaries" ${SUGGEST_BUILD_BINARIES})
@@ -12,7 +12,7 @@ index d76784bd..40195c54 100644
  option(SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION "Whether to build speaker diarization related code" ON)
 diff --git a/build-wasm-simd-combined.sh b/build-wasm-simd-combined.sh
 new file mode 100755
-index 00000000..428bdb9f
+index 0000000..6a1ca72
 --- /dev/null
 +++ b/build-wasm-simd-combined.sh
 @@ -0,0 +1,59 @@
@@ -30,7 +30,7 @@ index 00000000..428bdb9f
 +    echo "Please install emscripten first"
 +    echo ""
 +    echo "git clone https://github.com/emscripten-core/emsdk.git"
-+    echo "cd emsdk && ./emsdk install 4.0.7 && ./emsdk activate 4.0.7"
++    echo "cd emsdk && ./emsdk install 4.0.23 && ./emsdk activate 4.0.23"
 +    echo "source ./emsdk_env.sh"
 +    exit 1
 +  else
@@ -76,37 +76,23 @@ index 00000000..428bdb9f
 +
 +ls -lh install/bin/wasm/combined
 diff --git a/wasm/CMakeLists.txt b/wasm/CMakeLists.txt
-index 0f18d313..2ea46af9 100644
+index a9b24e1..c8ff7dd 100644
 --- a/wasm/CMakeLists.txt
 +++ b/wasm/CMakeLists.txt
-@@ -29,3 +29,7 @@ endif()
- if(SHERPA_ONNX_ENABLE_WASM_NODEJS)
-   add_subdirectory(nodejs)
+@@ -33,3 +33,7 @@ endif()
+ if(SHERPA_ONNX_ENABLE_WASM_WEB)
+   add_subdirectory(web)
  endif()
 +
 +if(SHERPA_ONNX_ENABLE_WASM_COMBINED)
 +  add_subdirectory(combined)
 +endif()
-diff --git a/wasm/asr/CMakeLists.txt b/wasm/asr/CMakeLists.txt
-index 5b0b3074..10e4955b 100644
---- a/wasm/asr/CMakeLists.txt
-+++ b/wasm/asr/CMakeLists.txt
-@@ -54,7 +54,8 @@ if (NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ".js")
- endif()
- # set(CMAKE_EXECUTABLE_SUFFIX ".html")
- 
--add_executable(sherpa-onnx-wasm-main-asr sherpa-onnx-wasm-main-asr.cc)
-+add_executable(sherpa-onnx-wasm-main-asr sherpa-onnx-wasm-main-asr.cc
-+  ${CMAKE_SOURCE_DIR}/../../wasm-shim/libcxx_fs_shim.cc)
- target_link_libraries(sherpa-onnx-wasm-main-asr sherpa-onnx-c-api)
- install(TARGETS sherpa-onnx-wasm-main-asr DESTINATION bin/wasm/asr)
- 
 diff --git a/wasm/combined/CMakeLists.txt b/wasm/combined/CMakeLists.txt
 new file mode 100644
-index 00000000..3ca8ae15
+index 0000000..98bd9ab
 --- /dev/null
 +++ b/wasm/combined/CMakeLists.txt
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,185 @@
 +# Combined WASM target — wrapper-carried (siteed/sherpa-onnx.rn).
 +# Builds ONE wasm bundle exporting C-API symbols across all features
 +# (ASR online+offline, TTS, VAD, KWS, speech enhancement, speaker
@@ -281,9 +267,7 @@ index 00000000..3ca8ae15
 +  message(FATAL_ERROR "The default suffix for building executables should be .js!")
 +endif()
 +
-+add_executable(sherpa-onnx-wasm-combined
-+  sherpa-onnx-wasm-main-combined.cc
-+  ${CMAKE_SOURCE_DIR}/../../wasm-shim/libcxx_fs_shim.cc)
++add_executable(sherpa-onnx-wasm-combined sherpa-onnx-wasm-main-combined.cc)
 +target_link_libraries(sherpa-onnx-wasm-combined sherpa-onnx-c-api)
 +install(TARGETS sherpa-onnx-wasm-combined DESTINATION bin/wasm/combined)
 +
@@ -296,7 +280,7 @@ index 00000000..3ca8ae15
 +)
 diff --git a/wasm/combined/sherpa-onnx-wasm-main-combined.cc b/wasm/combined/sherpa-onnx-wasm-main-combined.cc
 new file mode 100644
-index 00000000..f7398231
+index 0000000..f739823
 --- /dev/null
 +++ b/wasm/combined/sherpa-onnx-wasm-main-combined.cc
 @@ -0,0 +1,24 @@

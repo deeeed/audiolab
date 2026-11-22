@@ -29,9 +29,9 @@ scripts/agentic/app-navigate.sh "/features/kws"
 scripts/agentic/screenshot.sh my-label
 
 # Recipes
-bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-screen-validation.json
-bash scripts/agentic/validate-flow-schema.sh
-bash scripts/agentic/validate-pre-conditions.sh
+yarn recipe:run sherpa.asr-screen-validation
+yarn --cwd ../.. recipe:validate
+yarn recipe validate sherpa.asr-screen-validation
 
 # Native logs
 scripts/agentic/native-logs.sh android

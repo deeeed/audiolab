@@ -49,7 +49,7 @@ export async function getMoonshineIntentModelStatus(
     }
 
     const dirUri = getModelDirectoryUri(variant)
-    const files = getMoonshineIntentFiles(variant)
+    const files = getMoonshineIntentFiles(variant, Platform.OS)
     const statuses = await Promise.all(
         files.map((fileName) => FileSystem.getInfoAsync(`${dirUri}/${fileName}`))
     )
@@ -80,7 +80,7 @@ export async function prepareMoonshineIntentModel(
     }).catch(() => {})
 
     const baseUrl = 'https://download.moonshine.ai/model/embeddinggemma-300m'
-    for (const fileName of getMoonshineIntentFiles(variant)) {
+    for (const fileName of getMoonshineIntentFiles(variant, Platform.OS)) {
         const targetPath = `${dirUri}/${fileName}`
         const existing = await FileSystem.getInfoAsync(targetPath)
         if (existing.exists) continue

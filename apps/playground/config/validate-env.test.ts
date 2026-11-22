@@ -9,6 +9,7 @@ test('validation errors contain key names but never environment values', () => {
         () =>
             validatePlaygroundEnvironment({
                 APP_VARIANT: secret,
+                EAS_PROJECT_ID: '',
                 UNRELATED_CREDENTIAL: secret,
             }),
         (error: unknown) => {
@@ -29,4 +30,10 @@ test('validation applies the production variant default', () => {
     })
 
     assert.equal(validated.APP_VARIANT, 'production')
+    assert.equal(validated.EAS_PROJECT_ID, 'project-id')
+})
+
+test('uses the public Playground EAS project when no override is supplied', () => {
+    assert.equal(validatePlaygroundEnvironment({}).EAS_PROJECT_ID,
+        'c1583cae-84c8-4071-b3ac-1e90a2fee815')
 })

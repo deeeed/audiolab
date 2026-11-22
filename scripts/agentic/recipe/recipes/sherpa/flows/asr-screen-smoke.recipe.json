@@ -1,0 +1,53 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice ASR screen smoke validation",
+  "description": "Sherpa voice ASR screen smoke validation",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-asr": {
+        "action": "ui.navigate",
+        "intent": "Nav asr.",
+        "next": "wait-init-button",
+        "path": "/features/asr"
+      },
+      "wait-init-button": {
+        "action": "audiolab.query",
+        "intent": "Wait init button.",
+        "next": "assert-asr-ui",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"btn-init-asr\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "assert-asr-ui": {
+        "action": "audiolab.query",
+        "intent": "Assert asr ui.",
+        "next": "done",
+        "assert": {
+          "operator": "eq",
+          "field": "initVisible",
+          "value": true
+        },
+        "ref": "asr-ui"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "nav-asr"
+      }
+    }
+  }
+}

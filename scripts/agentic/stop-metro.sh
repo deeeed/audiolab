@@ -2,9 +2,8 @@
 # Stop a Metro bundler instance started by start-metro.sh.
 #
 # Behavior:
-#   1. If .agent/metro.pid exists and the process is alive, kill it.
-#   2. As a fallback, kill any process listening on $PORT.
-#   3. Clean up the PID file.
+#   Signal only verified Metro processes whose cwd is this app checkout.
+#   Refuse foreign listeners and ignore stale or foreign PID-file entries.
 #
 # Exit 0 if Metro was stopped (or wasn't running). Exit 1 on errors.
 
@@ -13,51 +12,4 @@ APP_ROOT="${APP_ROOT:-$(pwd)}"
 source "$(cd "$APP_ROOT" && git rev-parse --show-toplevel)/scripts/agentic/_lib.sh"
 cd "$APP_ROOT"
 
-PIDFILE=".agent/metro.pid"
-
-stopped=false
-
-# --- Try the PID file first ---
-if [ -f "$PIDFILE" ]; then
-  PID=$(cat "$PIDFILE")
-  if kill -0 "$PID" 2>/dev/null; then
-    echo "Stopping Metro (PID $PID)..."
-    kill "$PID" 2>/dev/null
-    # Wait up to 5s for graceful exit
-    for i in $(seq 1 5); do
-      kill -0 "$PID" 2>/dev/null || break
-      sleep 1
-    done
-    # Force kill if still alive
-    if kill -0 "$PID" 2>/dev/null; then
-      echo "Forcing kill (PID $PID)..."
-      kill -9 "$PID" 2>/dev/null || true
-    fi
-    stopped=true
-  else
-    echo "PID $PID from $PIDFILE is not running (stale PID file)."
-  fi
-  rm -f "$PIDFILE"
-fi
-
-# --- Fallback: kill anything on the port ---
-PORT_PID=$(lsof -ti:"$PORT" 2>/dev/null || true)
-if [ -n "$PORT_PID" ]; then
-  echo "Killing process on port $PORT (PID $PORT_PID)..."
-  kill "$PORT_PID" 2>/dev/null || true
-  sleep 1
-  # Force kill if still alive
-  REMAINING=$(lsof -ti:"$PORT" 2>/dev/null || true)
-  if [ -n "$REMAINING" ]; then
-    kill -9 "$REMAINING" 2>/dev/null || true
-  fi
-  stopped=true
-else
-  [ "$stopped" = false ] && echo "Nothing listening on port $PORT."
-fi
-
-if [ "$stopped" = true ]; then
-  echo "Metro stopped."
-else
-  echo "Metro was not running (no PID, no process on port $PORT)."
-fi
+exec node "$MONOREPO_ROOT/scripts/agentic/lib/metro-process.mjs" stop "$APP_ROOT" "$PORT"

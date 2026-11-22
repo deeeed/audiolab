@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "apps": [
+    "playground",
+    "sherpa-voice"
+  ],
+  "tools": {
+    "xcrun": "/usr/bin/xcrun",
+    "xcodebuild": "/usr/bin/xcodebuild",
+    "bash": "/bin/bash",
+    "node": "node-runtime",
+    "yarn": "{{node_bin}}/yarn",
+    "adb": "{{android_home}}/platform-tools/adb",
+    "gradle": "{{appRoot}}/android/gradlew",
+    "ios-python": "{{repo}}/.agent/tools/ios/bin/python"
+  },
+  "stages": {
+    "simulator-boot": {
+      "tool": "xcrun",
+      "argv": [
+        "simctl",
+        "bootstatus",
+        "{{device}}",
+        "-b"
+      ],
+      "parameters": {
+        "device": {
+          "pattern": "^[A-Fa-f0-9-]{16,36}$"
+        }
+      },
+      "mode": "run",
+      "timeoutSeconds": 120
+    },
+    "android-boot": {
+      "tool": "adb",
+      "argv": [
+        "-s",
+        "{{serial}}",
+        "shell",
+        "getprop",
+        "sys.boot_completed"
+      ],
+      "parameters": {
+        "serial": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        }
+      },
+      "mode": "poll",
+      "timeoutSeconds": 120,
+      "stdoutEquals": "1"
+    },
+    "metro": {
+      "tool": "bash",
+      "argv": [
+        "{{repo}}/scripts/agentic/start-metro.sh"
+      ],
+      "parameters": {},
+      "mode": "run",
+      "timeoutSeconds": 60
+    },
+    "native-deps": {
+      "tool": "yarn",
+      "argv": [
+        "build:deps"
+      ],
+      "parameters": {},
+      "mode": "run",
+      "timeoutSeconds": 300
+    },
+    "ios-simulator-build": {
+      "tool": "xcodebuild",
+      "argv": [
+        "-workspace",
+        "ios/{{scheme}}.xcworkspace",
+        "-scheme",
+        "{{scheme}}",
+        "-destination",
+        "platform=iOS Simulator,id={{device}}",
+        "-configuration",
+        "Debug",
+        "-derivedDataPath",
+        "ios/build",
+        "build"
+      ],
+      "parameters": {
+        "scheme": {
+          "enum": [
+            "AudioDevPlayground",
+            "AudioPlayground",
+            "SherpaVoiceDev",
+            "SherpaVoice"
+          ]
+        },
+        "device": {
+          "pattern": "^[A-Fa-f0-9-]{16,36}$"
+        }
+      },
+      "mode": "run",
+      "timeoutSeconds": 420
+    },
+    "ios-device-build": {
+      "tool": "xcodebuild",
+      "argv": [
+        "-workspace",
+        "ios/{{scheme}}.xcworkspace",
+        "-scheme",
+        "{{scheme}}",
+        "-destination",
+        "id={{device}}",
+        "-configuration",
+        "Debug",
+        "-derivedDataPath",
+        "ios/build-device",
+        "-allowProvisioningUpdates",
+        "-allowProvisioningDeviceRegistration",
+        {
+          "when": "team",
+          "value": "DEVELOPMENT_TEAM={{team}}"
+        },
+        {
+          "when": "team",
+          "value": "CODE_SIGN_STYLE=Automatic"
+        },
+        "build"
+      ],
+      "parameters": {
+        "scheme": {
+          "enum": [
+            "AudioDevPlayground",
+            "AudioPlayground",
+            "SherpaVoiceDev",
+            "SherpaVoice"
+          ]
+        },
+        "device": {
+          "pattern": "^[A-Fa-f0-9-]{16,36}$"
+        },
+        "team": {
+          "pattern": "^[A-Z0-9]{10}$",
+          "optional": true
+        }
+      },
+      "mode": "run",
+      "timeoutSeconds": 420
+    },
+    "android-build": {
+      "tool": "gradle",
+      "argv": [
+        ":app:assembleDebug"
+      ],
+      "parameters": {},
+      "mode": "run",
+      "timeoutSeconds": 420,
+      "cwd": "android"
+    },
+    "native-handshake": {
+      "tool": "node",
+      "argv": [
+        "{{repo}}/apps/{{app}}/scripts/agentic/cdp-bridge.mjs",
+        "--device",
+        "{{name}}",
+        "get-route"
+      ],
+      "parameters": {
+        "name": {
+          "pattern": "^(?!-)[\\p{L}\\p{N}:_.()'\u2019 -]{1,128}$",
+          "flags": "u"
+        }
+      },
+      "mode": "poll",
+      "timeoutSeconds": 180
+    },
+    "ios-screenshot": {
+      "tool": "ios-python",
+      "argv": [
+        "{{repo}}/scripts/agentic/lib/ios-screenshot.py",
+        "{{device}}",
+        "{{app}}",
+        "{{filename}}"
+      ],
+      "parameters": {
+        "device": {
+          "pattern": "^[A-Fa-f0-9-]{16,36}$"
+        },
+        "filename": {
+          "pattern": "^[A-Za-z0-9._-]{1,240}\\.png$"
+        }
+      },
+      "mode": "run",
+      "timeoutSeconds": 35
+    },
+    "ios-app-inventory": {
+      "tool": "ios-python",
+      "argv": [
+        "{{repo}}/scripts/agentic/lib/ios-apps.py",
+        "{{device}}"
+      ],
+      "parameters": {
+        "device": {
+          "pattern": "^[A-Fa-f0-9-]{16,36}$"
+        }
+      },
+      "mode": "run",
+      "timeoutSeconds": 10,
+      "dataOutput": true
+    }
+  }
+}

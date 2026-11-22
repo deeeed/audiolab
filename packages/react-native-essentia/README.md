@@ -1,3 +1,5 @@
+> Deprecated: no longer maintained; kept for reference. Last published version: 0.3.2-beta.1 (beta), 0.3.1 (latest).
+
 #  @siteed/react-native-essentia
 
 A React Native module providing access to the [Essentia audio analysis library](https://essentia.upf.edu/) for Android and iOS. Extract advanced audio features directly within your React Native apps.

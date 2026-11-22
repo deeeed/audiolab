@@ -1,0 +1,46 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground More route proof and capture",
+  "description": "Assert the observed More route and retain its screenshot within one navigation proof call.",
+  "proofTargets": [
+    {
+      "id": "navigation",
+      "claim": "The assigned playground reaches its More screen.",
+      "proofMode": "state"
+    }
+  ],
+  "workflow": {
+    "entry": "observe-more",
+    "nodes": {
+      "observe-more": {
+        "action": "app.status",
+        "intent": "Read the route after opening More.",
+        "next": "assert-more"
+      },
+      "assert-more": {
+        "action": "assert_output",
+        "source": "observe-more",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "/more"
+        },
+        "proves": [
+          "navigation"
+        ],
+        "intent": "Verify the playground reached More.",
+        "next": "proof"
+      },
+      "proof": {
+        "action": "ui.screenshot",
+        "next": "done",
+        "intent": "Preserve the visible audio tools as navigation proof.",
+        "path": "screenshots/audiolab-navigation-v1.png"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground ASR benchmark validation",
+  "description": "Loads the dev-only ASR benchmark screen and asserts the benchmark state is exposed to agentic automation.",
+  "workflow": {
+    "entry": "benchmark-screen-smoke",
+    "nodes": {
+      "benchmark-screen-smoke": {
+        "action": "call",
+        "intent": "Benchmark screen smoke.",
+        "next": "assert-route",
+        "ref": "playground.flows.asr-benchmark-screen-ready"
+      },
+      "assert-route": {
+        "action": "audiolab.query",
+        "intent": "Assert route.",
+        "next": "assert-model-count",
+        "assert": {
+          "operator": "eq",
+          "field": "route",
+          "value": "/asr-benchmark"
+        },
+        "ref": "asr-benchmark-state"
+      },
+      "assert-model-count": {
+        "action": "audiolab.query",
+        "intent": "Assert model count.",
+        "next": "switch-to-simulated",
+        "assert": {
+          "operator": "gte",
+          "field": "benchmarkModelCount",
+          "value": 3
+        },
+        "ref": "asr-benchmark-state"
+      },
+      "switch-to-simulated": {
+        "action": "ui.press",
+        "intent": "Switch to simulated.",
+        "next": "assert-simulated-mode",
+        "test_id": "asr-benchmark-mode-simulated"
+      },
+      "assert-simulated-mode": {
+        "action": "audiolab.query",
+        "intent": "Assert simulated mode.",
+        "next": "wait-simulated-action",
+        "assert": {
+          "operator": "eq",
+          "field": "mode",
+          "value": "simulated"
+        },
+        "ref": "asr-benchmark-state"
+      },
+      "wait-simulated-action": {
+        "action": "audiolab.query",
+        "intent": "Wait simulated action.",
+        "next": "done",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"asr-benchmark-run-simulated\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

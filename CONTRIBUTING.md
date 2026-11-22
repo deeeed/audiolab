@@ -43,7 +43,7 @@ yarn workspace @siteed/audio-ui build
 packages/
   audio-studio/          # Core audio recording, analysis, processing
   audio-ui/              # Skia-based visualization components
-  react-native-essentia/ # Audio feature extraction (Essentia bindings)
+  react-native-essentia/ # Deprecated: no longer maintained, kept for reference
   sherpa-onnx.rn/        # Speech-to-text / text-to-speech
 apps/
   playground/            # Full demo app (App Store / Play Store)

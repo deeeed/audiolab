@@ -1,0 +1,30 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice ASR bridge roundtrip validation",
+  "description": "Exercises the sherpa-onnx native bridge end-to-end via __AGENTIC__.testASR('streaming'). Proves init/decode/release works against the currently linked sherpa-onnx + ONNX Runtime libraries. Requires the streaming-zipformer-en-20m-mobile model to be downloaded.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "asr-bridge-roundtrip": {
+        "action": "call",
+        "intent": "Asr bridge roundtrip.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-bridge-roundtrip"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "asr-bridge-roundtrip"
+      }
+    }
+  }
+}

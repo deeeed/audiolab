@@ -100,6 +100,15 @@
         "releaseStatus": "draft"
       }
     },
+    "play-production": {
+      "ios": {
+        "ascAppId": "6739774966"
+      },
+      "android": {
+        "track": "production",
+        "releaseStatus": "completed"
+      }
+    },
     "open-testing": {
       "android": {
         "track": "beta",

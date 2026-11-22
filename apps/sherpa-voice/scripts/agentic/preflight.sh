@@ -7,7 +7,10 @@ export EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE="${EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE:
 
 if [ "${PLATFORM:-ios}" = "android" ]; then
   bash scripts/sync-android-dev-config.sh
-  bash scripts/agentic/android-doctor.sh
 fi
 
-exec bash "$(git rev-parse --show-toplevel)/scripts/agentic/preflight.sh" "$@"
+bash "$(git rev-parse --show-toplevel)/scripts/agentic/preflight.sh" "$@"
+
+if [ "${PLATFORM:-ios}" = "android" ]; then
+  bash scripts/agentic/android-doctor.sh
+fi

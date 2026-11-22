@@ -1,0 +1,47 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice Qwen3-ASR bridge roundtrip (init/decode/release)",
+  "description": "Sherpa voice Qwen3-ASR bridge roundtrip (init/decode/release)",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "fire-asr": {
+        "action": "audiolab.query",
+        "intent": "Fire asr.",
+        "next": "assert-transcript",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;if(!A||!A.testASR||!A.getLastResult){return Promise.resolve({status:'error',error:'agentic bridge missing testASR/getLastResult'});}A.testASR('qwen3');return new Promise(function(resolve){var i=0;function tick(){var r=A.getLastResult();if(r&&r.op==='asrTest'&&r.status!=='pending'){resolve(r);return;}i++;if(i>=240){resolve({status:'timeout'});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true
+      },
+      "assert-transcript": {
+        "action": "audiolab.query",
+        "intent": "Assert transcript.",
+        "next": "done",
+        "assert": {
+          "operator": "length_gt",
+          "field": "result.transcript",
+          "value": 0
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__.getLastResult())"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "fire-asr"
+      }
+    }
+  }
+}

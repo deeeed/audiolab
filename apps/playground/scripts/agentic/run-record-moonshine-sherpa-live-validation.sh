@@ -9,7 +9,7 @@ SAY_VOICE_1="${SAY_VOICE_1:-Daniel}"
 SAY_VOICE_2="${SAY_VOICE_2:-Karen}"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-.agent/artifacts/record-moonshine-sherpa-live-${TIMESTAMP}}"
-RECIPE="scripts/agentic/teams/playground/recipes/record-moonshine-sherpa-live-validation.json"
+RECIPE="playground.record-moonshine-sherpa-live-validation"
 BRIDGE="scripts/agentic/cdp-bridge.mjs"
 
 if ! command -v say >/dev/null 2>&1; then
@@ -95,9 +95,9 @@ SPEECH_WATCHER_PID=$!
 
 set +e
 if [ -n "$ADB_SERIAL" ]; then
-  ADB_SERIAL="$ADB_SERIAL" yarn recipe:agentic:run "$RECIPE" --device "$DEVICE_NAME" --artifacts-dir "$ARTIFACTS_DIR"
+  ADB_SERIAL="$ADB_SERIAL" yarn recipe:run "$RECIPE" --platform "${PLATFORM:-android}" --device "$DEVICE_NAME" --artifacts-dir "$ARTIFACTS_DIR"
 else
-  yarn recipe:agentic:run "$RECIPE" --device "$DEVICE_NAME" --artifacts-dir "$ARTIFACTS_DIR"
+  yarn recipe:run "$RECIPE" --platform "${PLATFORM:-android}" --device "$DEVICE_NAME" --artifacts-dir "$ARTIFACTS_DIR"
 fi
 STATUS=$?
 set -e

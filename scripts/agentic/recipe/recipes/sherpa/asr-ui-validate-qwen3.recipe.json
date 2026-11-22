@@ -1,0 +1,34 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice ASR UI validation: Qwen3-ASR (raokouling)",
+  "description": "Drives the /features/asr screen end-to-end with the Qwen3-ASR 0.6B int8 model and the bundled `raokouling.wav` Mandarin sample, asserting the transcript displayed in the UI is non-empty. Requires the Qwen3 model to be downloaded on the target device. KNOWN FLAKY: Qwen3 lands at the bottom of the model picker FlatList; `findFiberByTestId` + `press` cannot reliably reach off-screen virtualized rows. Use `asr-qwen3-roundtrip` (bridge-level) for stable validation until the recipe runner gains a scroll-to-testID-visible primitive.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "ui-validate": {
+        "action": "call",
+        "intent": "Ui validate.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-ui-validate",
+        "params": {
+          "modelId": "qwen3-asr-0.6B-int8-2026-03-25",
+          "audioId": "1"
+        }
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "ui-validate"
+      }
+    }
+  }
+}

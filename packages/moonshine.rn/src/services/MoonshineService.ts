@@ -575,24 +575,27 @@ export class MoonshineService {
   private ensureEventSubscription(): void {
     if (this.eventSubscription || !isMoonshineNativeAvailable()) return;
 
-    const emitter =
-      Platform.OS === 'web'
-        ? DeviceEventEmitter
-        : new NativeEventEmitter(requireNativeMoonshineModule());
-    this.eventSubscription = emitter.addListener(
-      MOONSHINE_EVENT_NAME,
-      (event: MoonshineTranscriptEvent) => {
+    const onEvent = (event: MoonshineTranscriptEvent) => {
+      for (const listener of this.listeners) {
+        listener(event);
+      }
+      const syntheticProgress = this.offlineProgressTracker.observe(event);
+      if (syntheticProgress) {
         for (const listener of this.listeners) {
-          listener(event);
-        }
-        const syntheticProgress = this.offlineProgressTracker.observe(event);
-        if (syntheticProgress) {
-          for (const listener of this.listeners) {
-            listener(syntheticProgress);
-          }
+          listener(syntheticProgress);
         }
       }
-    );
+    };
+    // RN 0.88's emitter types differ per emitter, so each subscribes on its own branch.
+    this.eventSubscription =
+      Platform.OS === 'web'
+        ? DeviceEventEmitter.addListener(MOONSHINE_EVENT_NAME, onEvent)
+        : new NativeEventEmitter<{
+            [MOONSHINE_EVENT_NAME]: [MoonshineTranscriptEvent];
+          }>(requireNativeMoonshineModule()).addListener(
+            MOONSHINE_EVENT_NAME,
+            onEvent
+          );
   }
 
   private loadDefaultTranscriberFromResult(

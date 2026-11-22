@@ -6,7 +6,12 @@
       "model.onnx": "vits-icefall-en_US-ljspeech-low/model.onnx",
       "tokens.txt": "vits-icefall-en_US-ljspeech-low/tokens.txt"
     },
-    "espeakNgData": "vits-icefall-en_US-ljspeech-low/espeak-ng-data"
+    "extraDownloads": [
+      {
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/lexicon-en-us.txt",
+        "renameAs": "lexicon-en-us.txt"
+      }
+    ]
   },
   "asr": {
     "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile.tar.bz2",

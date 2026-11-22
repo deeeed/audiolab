@@ -1,0 +1,141 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice ASR screen UI validation (parametrized)",
+  "description": "Drives the actual /features/asr screen end-to-end (model picker -> init -> audio picker -> recognize -> read transcript). Params: modelId (registry key) and audioId (test_wavs/<audioId>.wav). Uses a full-tree fiber walker for the model/audio pickers because they are horizontal virtualized FlatLists and the target item may be off-screen.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-asr": {
+        "action": "ui.navigate",
+        "intent": "Nav asr.",
+        "next": "scroll-to-models",
+        "path": "/features/asr"
+      },
+      "scroll-to-models": {
+        "action": "ui.scroll",
+        "intent": "Reveal the available speech models.",
+        "next": "select-model",
+        "test_id": "model-picker-list",
+        "offset_y": 800
+      },
+      "select-model": {
+        "action": "audiolab.query",
+        "intent": "Select model.",
+        "next": "wait-init-button",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;var TARGET='model-option-{{params.modelId}}';function findFiber(){var found=null;function walk(fiber){if(!fiber||found)return;var p=fiber.memoizedProps;if(p&&p.testID===TARGET){found=fiber;return;}if(fiber.child)walk(fiber.child);if(fiber.sibling)walk(fiber.sibling);}var anchor=A.findFiberByTestId('btn-init-asr')||A.findFiberByTestId('btn-recognize')||A.findFiberByTestId('btn-release-asr');if(!anchor)return null;var root=anchor;while(root.return)root=root.return;walk(root);return found;}return new Promise(function(resolve){var attempts=0;function tick(){var f=findFiber();if(f){var onPress=f.memoizedProps&&f.memoizedProps.onPress;if(typeof onPress==='function'){try{onPress();resolve({status:'pressed',testId:TARGET});}catch(e){resolve({status:'error',error:String(e)});}return;}resolve({status:'no-onpress'});return;}attempts++;if(attempts>=40){resolve({status:'not-found',testId:TARGET});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true
+      },
+      "wait-init-button": {
+        "action": "audiolab.query",
+        "intent": "Wait init button.",
+        "next": "press-init",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"btn-init-asr\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "press-init": {
+        "action": "ui.press",
+        "intent": "Initialize the selected speech model.",
+        "next": "wait-init-complete",
+        "test_id": "btn-init-asr"
+      },
+      "wait-init-complete": {
+        "action": "audiolab.query",
+        "intent": "Wait init complete.",
+        "next": "select-audio",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"btn-release-asr\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "select-audio": {
+        "action": "audiolab.query",
+        "intent": "Select audio.",
+        "next": "wait-recognize-button",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pressed"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;var TARGET='audio-option-{{params.audioId}}';function findFiber(){var found=null;function walk(fiber){if(!fiber||found)return;var p=fiber.memoizedProps;if(p&&p.testID===TARGET){found=fiber;return;}if(fiber.child)walk(fiber.child);if(fiber.sibling)walk(fiber.sibling);}var anchor=A.findFiberByTestId('btn-release-asr');if(!anchor)return null;var root=anchor;while(root.return)root=root.return;walk(root);return found;}return new Promise(function(resolve){var attempts=0;function tick(){var f=findFiber();if(f){var onPress=f.memoizedProps&&f.memoizedProps.onPress;if(typeof onPress==='function'){try{onPress();resolve({status:'pressed',testId:TARGET});}catch(e){resolve({status:'error',error:String(e)});}return;}resolve({status:'no-onpress'});return;}attempts++;if(attempts>=40){resolve({status:'not-found',testId:TARGET});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true
+      },
+      "wait-recognize-button": {
+        "action": "audiolab.query",
+        "intent": "Wait recognize button.",
+        "next": "press-recognize",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.(\"btn-recognize\")})",
+        "assert": {
+          "operator": "eq",
+          "field": "visible",
+          "value": true
+        },
+        "poll": true
+      },
+      "press-recognize": {
+        "action": "ui.press",
+        "intent": "Recognize speech in the selected sample.",
+        "next": "wait-result",
+        "test_id": "btn-recognize"
+      },
+      "wait-result": {
+        "action": "audiolab.query",
+        "intent": "Wait result.",
+        "next": "press-release",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "expression": "(function(){var A=globalThis.__AGENTIC__;function readResult(){var fiber=A.findFiberByTestId('text-recognition-result');if(!fiber)return null;var c=fiber.memoizedProps&&fiber.memoizedProps.children;if(typeof c==='string')return c;if(Array.isArray(c))return c.filter(function(x){return typeof x==='string';}).join('');return null;}return new Promise(function(resolve){var i=0;function tick(){var t=readResult();if(t!==null&&t!==''&&t!=='(no speech detected)'){resolve({status:'success',transcript:t});return;}if(t==='(no speech detected)'){resolve({status:'no-speech-detected',transcript:t});return;}i++;if(i>=240){resolve({status:'timeout'});return;}setTimeout(tick,500);}tick();});})()",
+        "async": true
+      },
+      "press-release": {
+        "action": "ui.press",
+        "intent": "Release the speech recognition session.",
+        "next": "done",
+        "test_id": "btn-release-asr"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "nav-asr"
+      }
+    }
+  },
+  "paramsSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "modelId": {
+        "type": "string",
+        "default": "qwen3-asr-0.6B-int8-2026-03-25"
+      },
+      "audioId": {
+        "type": "string",
+        "default": "1"
+      }
+    }
+  }
+}

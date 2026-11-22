@@ -1,8 +1,8 @@
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt
-index 51a15f49..b77ba776 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt
-@@ -54,9 +54,11 @@ class AudioTagging(
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt
+index 740f677..5158345 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt
+@@ -57,9 +57,11 @@ class AudioTagging(
          return OfflineStream(p)
      }
  
@@ -17,7 +17,7 @@ index 51a15f49..b77ba776 100644
      }
  
      private external fun newFromAsset(
-@@ -72,6 +74,7 @@ class AudioTagging(
+@@ -75,6 +77,7 @@ class AudioTagging(
  
      private external fun createStream(ptr: Long): Long
  
@@ -25,10 +25,10 @@ index 51a15f49..b77ba776 100644
      private external fun compute(ptr: Long, streamPtr: Long, topK: Int): Array<AudioEvent>
  
      companion object {
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt
-index 2d2eba45..aea1d740 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt
+index 2d2eba4..aea1d74 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/FeatureConfig.kt
 @@ -3,7 +3,7 @@ package com.k2fsa.sherpa.onnx
  data class FeatureConfig(
      var sampleRate: Int = 16000,
@@ -38,10 +38,10 @@ index 2d2eba45..aea1d740 100644
  )
  
  fun getFeatureConfig(sampleRate: Int, featureDim: Int): FeatureConfig {
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt
-index 8baa3ffa..645b553c 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt
+index 8baa3ff..645b553 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/HomophoneReplacerConfig.kt
 @@ -1,7 +1,7 @@
  package com.k2fsa.sherpa.onnx
  
@@ -51,10 +51,10 @@ index 8baa3ffa..645b553c 100644
      var lexicon: String = "",
      var ruleFsts: String = "",
  )
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt
-index c0452eae..99569300 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt
+index 0468a58..9903e08 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/KeywordSpotter.kt
 @@ -18,13 +18,7 @@ data class KeywordSpotterResult(
      val tokens: Array<String>,
      val timestamps: FloatArray,
@@ -70,11 +70,11 @@ index c0452eae..99569300 100644
  
  class KeywordSpotter(
      assetManager: AssetManager? = null,
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt
-index 55113e83..708e6194 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt
-@@ -65,7 +65,7 @@ class OfflineSpeakerDiarization(
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt
+index 8c15b2e..fff3348 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.kt
+@@ -71,7 +71,7 @@ class OfflineSpeakerDiarization(
  
      fun processWithCallback(
          samples: FloatArray,
@@ -83,7 +83,7 @@ index 55113e83..708e6194 100644
          arg: Long = 0,
      ) = processWithCallback(ptr, samples, callback, arg)
  
-@@ -92,7 +92,7 @@ class OfflineSpeakerDiarization(
+@@ -98,7 +98,7 @@ class OfflineSpeakerDiarization(
      private external fun processWithCallback(
          ptr: Long,
          samples: FloatArray,
@@ -92,11 +92,11 @@ index 55113e83..708e6194 100644
          arg: Long,
      ): Array<OfflineSpeakerDiarizationSegment>
  
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt
-index fd940ec7..1a963351 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt
-@@ -22,6 +22,20 @@ data class OfflineSpeechDenoiserConfig(
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt
+index 63855c8..68c9627 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.kt
+@@ -41,6 +41,20 @@ data class OfflineSpeechDenoiserConfig(
      var model: OfflineSpeechDenoiserModelConfig = OfflineSpeechDenoiserModelConfig(),
  )
  
@@ -117,11 +117,11 @@ index fd940ec7..1a963351 100644
  class OfflineSpeechDenoiser(
      assetManager: AssetManager? = null,
      config: OfflineSpeechDenoiserConfig,
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt
-index 96393a72..ab316c52 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt
-@@ -4,10 +4,6 @@ class OfflineStream(var ptr: Long) {
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt
+index c354228..d5e9222 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineStream.kt
+@@ -8,10 +8,6 @@ class OfflineStream(var ptr: Long) {
      fun acceptWaveform(samples: FloatArray, sampleRate: Int) =
          acceptWaveform(ptr, samples, sampleRate)
  
@@ -132,7 +132,7 @@ index 96393a72..ab316c52 100644
      protected fun finalize() {
          if (ptr != 0L) {
              delete(ptr)
-@@ -26,8 +22,6 @@ class OfflineStream(var ptr: Long) {
+@@ -30,8 +26,6 @@ class OfflineStream(var ptr: Long) {
      }
  
      private external fun acceptWaveform(ptr: Long, samples: FloatArray, sampleRate: Int)
@@ -141,11 +141,11 @@ index 96393a72..ab316c52 100644
      private external fun delete(ptr: Long)
  
      companion object {
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt
-index ace8623f..cb15a9a4 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt
-@@ -6,10 +6,6 @@ class OnlineStream(var ptr: Long = 0) {
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt
+index 10497eb..fb97f4b 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OnlineStream.kt
+@@ -10,10 +10,6 @@ class OnlineStream(var ptr: Long = 0) {
  
      fun inputFinished() = inputFinished(ptr)
  
@@ -156,7 +156,7 @@ index ace8623f..cb15a9a4 100644
      protected fun finalize() {
          if (ptr != 0L) {
              delete(ptr)
-@@ -29,8 +25,6 @@ class OnlineStream(var ptr: Long = 0) {
+@@ -33,8 +29,6 @@ class OnlineStream(var ptr: Long = 0) {
  
      private external fun acceptWaveform(ptr: Long, samples: FloatArray, sampleRate: Int)
      private external fun inputFinished(ptr: Long)
@@ -165,11 +165,11 @@ index ace8623f..cb15a9a4 100644
      private external fun delete(ptr: Long)
  
  
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt
-index deb24382..07ddafc4 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt
-@@ -91,8 +91,8 @@ fun getSpokenLanguageIdentificationConfig(
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt
+index cfd0137..483c442 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.kt
+@@ -94,8 +94,8 @@ fun getSpokenLanguageIdentificationConfig(
              val modelDir = "sherpa-onnx-whisper-base"
              return SpokenLanguageIdentificationConfig(
                  whisper = SpokenLanguageIdentificationWhisperConfig(
@@ -180,273 +180,10 @@ index deb24382..07ddafc4 100644
                  ),
                  numThreads = 1,
                  debug = true,
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Tts.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Tts.kt
-index 31e496d7..75b5ec65 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Tts.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Tts.kt
-@@ -8,7 +8,7 @@ data class OfflineTtsVitsModelConfig(
-     var lexicon: String = "",
-     var tokens: String = "",
-     var dataDir: String = "",
--    var dictDir: String = "", // unused
-+    var dictDir: String = "",
-     var noiseScale: Float = 0.667f,
-     var noiseScaleW: Float = 0.8f,
-     var lengthScale: Float = 1.0f,
-@@ -20,7 +20,7 @@ data class OfflineTtsMatchaModelConfig(
-     var lexicon: String = "",
-     var tokens: String = "",
-     var dataDir: String = "",
--    var dictDir: String = "", // unused
-+    var dictDir: String = "",
-     var noiseScale: Float = 1.0f,
-     var lengthScale: Float = 1.0f,
- )
-@@ -31,11 +31,13 @@ data class OfflineTtsKokoroModelConfig(
-     var tokens: String = "",
-     var dataDir: String = "",
-     var lexicon: String = "",
-+    // MODIFIED(v1.12.28): added lang field to match JNI ABI; upstream was missing this field
-     var lang: String = "",
--    var dictDir: String = "", // unused
-+    var dictDir: String = "",
-     var lengthScale: Float = 1.0f,
- )
- 
-+// MODIFIED(v1.13.0): added to match JNI ABI; upstream Kotlin bundled here was missing this class
- data class OfflineTtsZipVoiceModelConfig(
-     var tokens: String = "",
-     var encoder: String = "",
-@@ -57,49 +59,40 @@ data class OfflineTtsKittenModelConfig(
-     var lengthScale: Float = 1.0f,
- )
- 
--/**
-- * Configuration for Pocket TTS models.
-- *
-- * See https://k2-fsa.github.io/sherpa/onnx/tts/pocket/index.html for details.
-- *
-- * @property lmFlow Path to the LM flow model (.onnx)
-- * @property lmMain Path to the LM main model (.onnx)
-- * @property encoder Path to the encoder model (.onnx)
-- * @property decoder Path to the decoder model (.onnx)
-- * @property textConditioner Path to the text conditioner model (.onnx)
-- * @property vocabJson Path to vocabulary JSON file
-- * @property tokenScoresJson Path to token scores JSON file
-- */
- data class OfflineTtsPocketModelConfig(
--  var lmFlow: String = "",
--  var lmMain: String = "",
--  var encoder: String = "",
--  var decoder: String = "",
--  var textConditioner: String = "",
--  var vocabJson: String = "",
--  var tokenScoresJson: String = "",
--  var voiceEmbeddingCacheCapacity: Int = 50,
-+    var lmFlow: String = "",
-+    var lmMain: String = "",
-+    var encoder: String = "",
-+    var decoder: String = "",
-+    var textConditioner: String = "",
-+    var vocabJson: String = "",
-+    var tokenScoresJson: String = "",
-+    var voiceEmbeddingCacheCapacity: Int = 0,
- )
- 
-+// MODIFIED(v1.13.0): added to match JNI ABI; upstream Kotlin bundled here was missing this class
- data class OfflineTtsSupertonicModelConfig(
--  var durationPredictor: String = "",
--  var textEncoder: String = "",
--  var vectorEstimator: String = "",
--  var vocoder: String = "",
--  var ttsJson: String = "",
--  var unicodeIndexer: String = "",
--  var voiceStyle: String = "",
-+    var durationPredictor: String = "",
-+    var textEncoder: String = "",
-+    var vectorEstimator: String = "",
-+    var vocoder: String = "",
-+    var ttsJson: String = "",
-+    var unicodeIndexer: String = "",
-+    var voiceStyle: String = "",
- )
- 
- data class OfflineTtsModelConfig(
-     var vits: OfflineTtsVitsModelConfig = OfflineTtsVitsModelConfig(),
-     var matcha: OfflineTtsMatchaModelConfig = OfflineTtsMatchaModelConfig(),
-     var kokoro: OfflineTtsKokoroModelConfig = OfflineTtsKokoroModelConfig(),
-+    // MODIFIED(v1.13.0): added zipvoice to match JNI ABI; without it initTts aborts the process
-+    // with NoSuchFieldError before any model loads. Field order must match upstream.
-     var zipvoice: OfflineTtsZipVoiceModelConfig = OfflineTtsZipVoiceModelConfig(),
-+    // MODIFIED(v1.12.28): added kitten and pocket fields to match JNI ABI; upstream was missing these
-     var kitten: OfflineTtsKittenModelConfig = OfflineTtsKittenModelConfig(),
-     var pocket: OfflineTtsPocketModelConfig = OfflineTtsPocketModelConfig(),
-+    // MODIFIED(v1.13.0): added supertonic to match JNI ABI
-     var supertonic: OfflineTtsSupertonicModelConfig = OfflineTtsSupertonicModelConfig(),
--
-     var numThreads: Int = 1,
-     var debug: Boolean = false,
-     var provider: String = "cpu",
-@@ -127,17 +120,6 @@ class GeneratedAudio(
-     ): Boolean
- }
- 
--data class GenerationConfig(
--    var silenceScale: Float = 0.2f,
--    var speed: Float = 1.0f,
--    var sid: Int = 0,
--    var referenceAudio: FloatArray? = null,
--    var referenceSampleRate: Int = 0,
--    var referenceText: String? = null,
--    var numSteps: Int = 5,
--    var extra: Map<String, String>? = null
--)
--
- class OfflineTts(
-     assetManager: AssetManager? = null,
-     var config: OfflineTtsConfig,
-@@ -179,21 +161,6 @@ class OfflineTts(
-         )
-     }
- 
--    fun generateWithConfig(
--      text: String,
--      config: GenerationConfig
--    ): GeneratedAudio {
--        return generateWithConfigImpl(ptr, text, config, null)
--    }
--
--    fun generateWithConfigAndCallback(
--        text: String,
--        config: GenerationConfig,
--        callback: (samples: FloatArray) -> Int
--    ): GeneratedAudio {
--        return generateWithConfigImpl(ptr, text, config, callback)
--    }
--
-     fun allocate(assetManager: AssetManager? = null) {
-         if (ptr == 0L) {
-             ptr = if (assetManager != null) {
-@@ -233,10 +200,6 @@ class OfflineTts(
-     private external fun getSampleRate(ptr: Long): Int
-     private external fun getNumSpeakers(ptr: Long): Int
- 
--    // The returned array has two entries:
--    //  - the first entry is an 1-D float array containing audio samples.
--    //    Each sample is normalized to the range [-1, 1]
--    //  - the second entry is the sample rate
-     private external fun generateImpl(
-         ptr: Long,
-         text: String,
-@@ -252,14 +215,6 @@ class OfflineTts(
-         callback: (samples: FloatArray) -> Int
-     ): GeneratedAudio
- 
--
--    private external fun generateWithConfigImpl(
--        ptr: Long,
--        text: String,
--        config: GenerationConfig,
--        callback: ((samples: FloatArray) -> Int)?
--    ): GeneratedAudio
--
-     companion object {
-         init {
-             System.loadLibrary("sherpa-onnx-jni")
-@@ -275,14 +230,13 @@ fun getOfflineTtsConfig(
-     modelName: String, // for VITS
-     acousticModelName: String, // for Matcha
-     vocoder: String, // for Matcha
--    voices: String, // for Kokoro or kitten
-+    voices: String, // for Kokoro
-     lexicon: String,
-     dataDir: String,
--    dictDir: String, // unused
-+    dictDir: String,
-     ruleFsts: String,
-     ruleFars: String,
--    numThreads: Int? = null,
--    isKitten: Boolean = false
-+    numThreads: Int? = null
- ): OfflineTtsConfig {
-     // For Matcha TTS, please set
-     // acousticModelName, vocoder
-@@ -290,16 +244,13 @@ fun getOfflineTtsConfig(
-     // For Kokoro TTS, please set
-     // modelName, voices
- 
--    // For Kitten TTS, please set
--    // modelName, voices, isKitten
--
-     // For VITS, please set
-     // modelName
- 
-     val numberOfThreads = if (numThreads != null) {
-         numThreads
-     } else if (voices.isNotEmpty()) {
--        // for Kokoro and Kitten TTS models, we use more threads
-+        // for Kokoro TTS models, we use more threads
-         4
-     } else {
-         2
-@@ -323,6 +274,7 @@ fun getOfflineTtsConfig(
-             lexicon = "$modelDir/$lexicon",
-             tokens = "$modelDir/tokens.txt",
-             dataDir = dataDir,
-+            dictDir = dictDir,
-         )
-     } else {
-         OfflineTtsVitsModelConfig()
-@@ -334,13 +286,14 @@ fun getOfflineTtsConfig(
-             vocoder = vocoder,
-             lexicon = "$modelDir/$lexicon",
-             tokens = "$modelDir/tokens.txt",
-+            dictDir = dictDir,
-             dataDir = dataDir,
-         )
-     } else {
-         OfflineTtsMatchaModelConfig()
-     }
- 
--    val kokoro = if (voices.isNotEmpty() && !isKitten) {
-+    val kokoro = if (voices.isNotEmpty()) {
-         OfflineTtsKokoroModelConfig(
-             model = "$modelDir/$modelName",
-             voices = "$modelDir/$voices",
-@@ -351,28 +304,17 @@ fun getOfflineTtsConfig(
-                 "," in lexicon -> lexicon
-                 else -> "$modelDir/$lexicon"
-             },
-+            dictDir = dictDir,
-         )
-     } else {
-         OfflineTtsKokoroModelConfig()
-     }
- 
--    val kitten = if (isKitten) {
--        OfflineTtsKittenModelConfig(
--            model = "$modelDir/$modelName",
--            voices = "$modelDir/$voices",
--            tokens = "$modelDir/tokens.txt",
--            dataDir = dataDir,
--        )
--    } else {
--        OfflineTtsKittenModelConfig()
--    }
--
-     return OfflineTtsConfig(
-         model = OfflineTtsModelConfig(
-             vits = vits,
-             matcha = matcha,
-             kokoro = kokoro,
--            kitten = kitten,
-             numThreads = numberOfThreads,
-             debug = true,
-             provider = "cpu",
-diff --git i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt
-index 8407e3ad..0cafc73d 100644
---- i/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt
-+++ w/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt
+index 434cb24..44e8d18 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/Vad.kt
 @@ -17,17 +17,17 @@ data class TenVadModelConfig(
      var threshold: Float = 0.5F,
      var minSilenceDuration: Float = 0.25F,
@@ -466,8 +203,8 @@ index 8407e3ad..0cafc73d 100644
 +    var tenVadModelConfig: TenVadModelConfig = TenVadModelConfig(),
  )
  
- class SpeechSegment(val start: Int, val samples: FloatArray)
-@@ -55,17 +55,12 @@ class Vad(
+ class SpeechSegment(val start: Long, val samples: FloatArray)
+@@ -58,17 +58,12 @@ class Vad(
  
      fun release() = finalize()
  
@@ -486,7 +223,7 @@ index 8407e3ad..0cafc73d 100644
  
      fun clear() = clear(ptr)
  
-@@ -87,8 +82,6 @@ class Vad(
+@@ -90,8 +85,6 @@ class Vad(
      ): Long
  
      private external fun acceptWaveform(ptr: Long, samples: FloatArray)
@@ -495,7 +232,7 @@ index 8407e3ad..0cafc73d 100644
      private external fun empty(ptr: Long): Boolean
      private external fun pop(ptr: Long)
      private external fun clear(ptr: Long)
-@@ -105,14 +98,10 @@ class Vad(
+@@ -108,14 +101,10 @@ class Vad(
  }
  
  // Please visit
@@ -511,7 +248,7 @@ index 8407e3ad..0cafc73d 100644
  fun getVadModelConfig(type: Int): VadModelConfig? {
      when (type) {
          0 -> {
-@@ -129,21 +118,6 @@ fun getVadModelConfig(type: Int): VadModelConfig? {
+@@ -132,21 +121,6 @@ fun getVadModelConfig(type: Int): VadModelConfig? {
                  provider = "cpu",
              )
          }

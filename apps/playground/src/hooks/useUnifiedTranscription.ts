@@ -8,7 +8,7 @@ import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { isWeb } from '../utils/utils'
 
-import type { TranscribeRealtimeOptions } from 'whisper.rn'
+import type { TranscribeRealtimeOptions } from '../context/TranscriptionProvider.types'
 const logger = baseLogger.extend('useUnifiedTranscription')
 
 // Type alias for audio data types

@@ -20,7 +20,7 @@ fi
 source "$_CONF"
 
 # Resolve runtime values (env overrides config)
-PORT="${WATCHER_PORT:-$AGENTIC_PORT}"
+PORT="$(node "$MONOREPO_ROOT/scripts/agentic/lib/runtime-config.cjs" "$AGENTIC_PORT")"
 BUNDLE_BASE="${AGENTIC_BUNDLE_BASE}"
 
 # Load .env.development if present (only sets vars not already in env)

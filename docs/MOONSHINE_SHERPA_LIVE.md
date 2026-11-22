@@ -15,14 +15,12 @@ The recorder emits mono 16 kHz float chunks. The page fans each chunk out to Moo
 ## Validation recipe
 
 ```bash
-yarn workspace audio-playground recipe:schema \
-  scripts/agentic/teams/playground/flows/moonshine-live-screen-ready.json \
-  scripts/agentic/teams/playground/recipes/moonshine-sherpa-live-validation.json
+yarn recipe:validate
 
 ADB_SERIAL=<adb-serial> yarn workspace audio-playground android:device:launch
-ADB_SERIAL=<adb-serial> yarn workspace audio-playground recipe:agentic:run \
-  scripts/agentic/teams/playground/recipes/moonshine-sherpa-live-validation.json \
-  --device "<agentic-device-name>"
+ADB_SERIAL=<adb-serial> yarn workspace audio-playground recipe:run \
+  playground.moonshine-sherpa-live-validation \
+  --platform android --device "<agentic-device-name>"
 
 # Preferred Record-tab validation: readiness-gated controlled speech.
 # The runner starts desktop TTS only after the app reports recording=true and Sherpa ready=true.

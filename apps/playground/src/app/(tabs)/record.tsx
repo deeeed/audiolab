@@ -49,6 +49,7 @@ import { useAudioFiles } from '../../context/AudioFilesProvider'
 import { useTranscription } from '../../context/TranscriptionProvider'
 import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
+import { recordingAudioStream } from '../../utils/recordingAudioStream'
 import { isWeb } from '../../utils/utils'
 import { useSileroVAD } from '../../hooks/useSileroVAD'
 import { useMoonshineSherpaLiveDiarization } from '../../hooks/useMoonshineSherpaLiveDiarization'
@@ -299,15 +300,16 @@ export default function RecordScreen() {
             logger.debug(`Received transcription update for job ${data.id}: "${data.text.substring(0, 50)}..."`)
             
             // Important: Make sure we're actually receiving updates
-            setTranscripts((prev) => {
-                const existingIndex = prev.findIndex((t) => t.id === data.id)
-                if (existingIndex >= 0) {
-                    const updated = [...prev]
-                    updated[existingIndex] = data
-                    return updated
-                }
-                return [...prev, data]
-            })
+            const prev = transcriptsRef.current
+            const existingIndex = prev.findIndex((t) => t.id === data.id)
+            const next = [...prev]
+            if (existingIndex >= 0) {
+                next[existingIndex] = data
+            } else {
+                next.push(data)
+            }
+            transcriptsRef.current = next
+            setTranscripts(next)
             
             // Always update the active transcript when a new one arrives
             setActiveTranscript(data)
@@ -315,6 +317,8 @@ export default function RecordScreen() {
     })
 
     const [transcripts, setTranscripts] = useState<TranscriberData[]>([])
+    // The final realtime update lands while stopping, after the stop handler's render
+    const transcriptsRef = useRef<TranscriberData[]>([])
     const [activeTranscript, setActiveTranscript] = useState<TranscriberData | null>(null)
 
     const { show } = useToast()
@@ -494,6 +498,9 @@ export default function RecordScreen() {
                         }
                     }
 
+                    // Realtime transcription listens to this stream while it runs
+                    recordingAudioStream.push(data)
+
                     // Process if needed
                     if (isProgressiveBatchRunningRef.current &&
                         enableLiveTranscriptionRef.current &&
@@ -534,7 +541,7 @@ export default function RecordScreen() {
             }
         }
 
-        preloadWhisperModel()
+        void preloadWhisperModel()
     }, [
         enableLiveTranscription, 
         validSRTranscription, 
@@ -578,7 +585,7 @@ export default function RecordScreen() {
             setEnableMoonshineSherpaLive(true)
             setEnableLiveTranscription(false)
             setResult(null)
-            moonshineSherpaLive.clear()
+            moonshineSherpaLiveRef.current.clear()
             updateRecordAttributedValidation({
                 audioUri: options.audioUri,
                 error: undefined,
@@ -611,7 +618,7 @@ export default function RecordScreen() {
                     statusMessage: 'Starting live Moonshine + Sherpa session...',
                 })
 
-                await moonshineSherpaLive.startSession({ externalAudio: true })
+                await moonshineSherpaLiveRef.current.startSession({ externalAudio: true })
                 liveStarted = true
 
                 for (
@@ -621,7 +628,7 @@ export default function RecordScreen() {
                 ) {
                     const chunkStartedAt = Date.now()
                     const chunk = Float32Array.from(wav.samples.slice(offset, offset + chunkSize))
-                    await moonshineSherpaLive.processAudioEvent({
+                    await moonshineSherpaLiveRef.current.processAudioEvent({
                         data: chunk,
                         eventDataSize: chunk.byteLength,
                         fileUri: options.audioUri,
@@ -653,7 +660,7 @@ export default function RecordScreen() {
                     progress: 1,
                     statusMessage: 'Finalizing live transcript and speaker turns...',
                 })
-                await moonshineSherpaLive.stopSession({ stopRecorder: false })
+                await moonshineSherpaLiveRef.current.stopSession({ stopRecorder: false })
                 liveStarted = false
                 await sleep(1500)
 
@@ -723,11 +730,11 @@ export default function RecordScreen() {
                 throw validationError
             } finally {
                 if (liveStarted) {
-                    await moonshineSherpaLive.stopSession({ stopRecorder: false }).catch(() => undefined)
+                    await moonshineSherpaLiveRef.current.stopSession({ stopRecorder: false }).catch(() => undefined)
                 }
             }
         },
-        [moonshineSherpaLive, updateRecordAttributedValidation],
+        [updateRecordAttributedValidation],
     )
 
     useEffect(() => {
@@ -1012,6 +1019,7 @@ export default function RecordScreen() {
                 webAudioChunks.current = new Float32Array(0)
                 currentSize.current = 0
                 setLiveWebAudio(null)
+                transcriptsRef.current = []
                 setTranscripts([])
                 setActiveTranscript(null)
                 setResult(null)
@@ -1359,7 +1367,7 @@ export default function RecordScreen() {
 
             // Add transcripts to the result
             if (enableLiveTranscriptionRef.current) {
-                result.transcripts = transcripts
+                result.transcripts = transcriptsRef.current
             }
 
             setResult(result)
@@ -1420,12 +1428,12 @@ export default function RecordScreen() {
             setProcessing(false)
             setCustomFileName('')
             // Reset transcripts
+            transcriptsRef.current = []
             setTranscripts([])
             setActiveTranscript(null)
         }
     }, [
         router,
-        transcripts,
         refreshFiles,
         stopRecording,
         isRealtimeTranscribing,
@@ -2234,7 +2242,7 @@ style={{
             }
         }
 
-        initializeDefaultDirectory()
+        void initializeDefaultDirectory()
     }, [show])
 
     if (error) {

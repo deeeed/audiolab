@@ -204,7 +204,7 @@ __AGENTIC__.testASR('streaming')
 __AGENTIC__.testASR('qwen3')
 ```
 
-If models are not already on the device, use the download-and-test recipes under `apps/sherpa-voice/scripts/agentic/teams/sherpa/recipes/`. Keep routine validation focused on representative mobile-sized models; reserve very large specialized models for targeted backend checks.
+If models are not already on the device, use the download-and-test recipes under `scripts/agentic/recipe/recipes/sherpa/`. Keep routine validation focused on representative mobile-sized models; reserve very large specialized models for targeted backend checks.
 
 ## Test Infrastructure Features
 

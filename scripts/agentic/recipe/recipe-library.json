@@ -1,0 +1,10 @@
+{
+  "platforms": [
+    "web",
+    "ios",
+    "android"
+  ],
+  "actions": {
+    "shared": "action-manifest.json"
+  }
+}

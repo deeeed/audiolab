@@ -1,0 +1,35 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice Qwen3-ASR download + bridge roundtrip",
+  "description": "Downloads the Qwen3-ASR 0.6B int8 model (~614 MB) on-device via __AGENTIC__.downloadModel, polls until status === 'downloaded', then runs the testASR('qwen3') roundtrip. Heavy: budget several minutes for the download per device.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "qwen3-download-and-test": {
+        "action": "call",
+        "intent": "Qwen3 download and test.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-download-and-test",
+        "params": {
+          "modelId": "qwen3-asr-0.6B-int8-2026-03-25",
+          "alias": "qwen3",
+          "language": ""
+        }
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "qwen3-download-and-test"
+      }
+    }
+  }
+}

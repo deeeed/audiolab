@@ -16,7 +16,7 @@
 #   asr/encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt
 #   language-id/tiny-encoder.onnx, tiny-decoder.onnx
 #   vad/silero_vad_v5.onnx
-#   tts/model.onnx, tokens.txt, espeak-ng-data.zip
+#   tts/model.onnx, tokens.txt, lexicon-en-us.txt
 #   kws/encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt, keywords.txt
 #   speakers/segmentation.onnx, embedding.onnx
 #   enhancement/gtcrn.onnx
@@ -35,6 +35,7 @@ ASR_ARCHIVE="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/
 LANGID_ARCHIVE="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2"
 VAD_MODEL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad_v5.onnx"
 TTS_ARCHIVE="https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-en_US-ljspeech-low.tar.bz2"
+TTS_LEXICON="https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/lexicon-en-us.txt"
 KWS_ARCHIVE="https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2"
 SPEAKER_SEG_ARCHIVE="https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2"
 SPEAKER_EMB_MODEL="https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx"
@@ -95,13 +96,8 @@ mkdir -p "$WORK_DIR/tts-extract"
 tar -xjf "$WORK_DIR/tts-archive.tar.bz2" -C "$WORK_DIR/tts-extract"
 find "$WORK_DIR/tts-extract" -name "model.onnx" -exec cp {} "$WORK_DIR/tts/model.onnx" \;
 find "$WORK_DIR/tts-extract" -name "tokens.txt" -exec cp {} "$WORK_DIR/tts/tokens.txt" \;
-# espeak-ng-data needs to be zipped
-ESPEAK_DIR=$(find "$WORK_DIR/tts-extract" -type d -name "espeak-ng-data" | head -1)
-if [ -n "$ESPEAK_DIR" ]; then
-  (cd "$(dirname "$ESPEAK_DIR")" && zip -r "$WORK_DIR/tts/espeak-ng-data.zip" espeak-ng-data)
-elif [ -f "$PUBLIC_WASM/tts/espeak-ng-data.zip" ]; then
-  cp "$PUBLIC_WASM/tts/espeak-ng-data.zip" "$WORK_DIR/tts/"
-fi
+# sherpa-onnx v2.0 removed espeak-ng; the web TTS loader fetches this lexicon instead.
+curl -L --progress-bar "$TTS_LEXICON" -o "$WORK_DIR/tts/lexicon-en-us.txt"
 echo "TTS files:" && ls -lh "$WORK_DIR/tts/"
 
 # --- KWS ---

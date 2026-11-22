@@ -12,7 +12,7 @@ const APP_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const REPO_ROOT = path.resolve(APP_ROOT, '..', '..');
 const BRIDGE = path.join(APP_ROOT, 'scripts/agentic/cdp-bridge.mjs');
 const REPORT_DIR = path.join(APP_ROOT, '.agent', 'reports');
-const RECIPE = 'scripts/agentic/teams/playground/recipes/record-attributed-transcription-validation.json';
+const RECIPE = 'playground.record-attributed-transcription-validation';
 const WORDS_ROOT = process.env.AMI_WORDS_ROOT || '/Volumes/c910ssd/datasets/ami_public_manual_1.6.2/words';
 const AMI_AUDIO_ROOT = process.env.AMI_AUDIO_ROOT || '/Volumes/c910ssd/datasets/amicorpus';
 const MEETING_ID = process.env.AMI_MEETING_ID || 'IS1001a';
@@ -299,7 +299,7 @@ async function main() {
 
   run(
     'yarn',
-    ['recipe:agentic:run', RECIPE, ...(deviceName ? ['--device', deviceName] : []), '--artifacts-dir', artifactsDir],
+    ['recipe:run', RECIPE, '--platform', 'android', ...(deviceName ? ['--device', deviceName] : []), '--artifacts-dir', artifactsDir],
     { cwd: APP_ROOT, maxBuffer: 50 * 1024 * 1024 }
   );
 

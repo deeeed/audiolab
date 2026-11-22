@@ -1,0 +1,31 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice recipe smoke validation",
+  "description": "Composes the ASR smoke flow and confirms the ASR controls remain visible.",
+  "workflow": {
+    "entry": "asr-screen-smoke",
+    "nodes": {
+      "asr-screen-smoke": {
+        "action": "call",
+        "intent": "Asr screen smoke.",
+        "next": "assert-asr-ui",
+        "ref": "sherpa.flows.asr-screen-smoke"
+      },
+      "assert-asr-ui": {
+        "action": "audiolab.query",
+        "intent": "Assert asr ui.",
+        "next": "done",
+        "assert": {
+          "operator": "eq",
+          "field": "initVisible",
+          "value": true
+        },
+        "ref": "asr-ui"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

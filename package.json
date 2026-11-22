@@ -4,11 +4,13 @@
     "workspaces": [
         "packages/*",
         "apps/*",
-        "documentation_site"
+        "documentation_site",
+        "scripts/agentic"
     ],
     "scripts": {
         "format": "prettier --write .",
         "android:ort:check": "bash scripts/check-android-ort-compat.sh",
+        "ios:ort:check": "bash scripts/check-ios-ort-compat.sh",
         "check:deps": "bash scripts/check-runtime-deps.sh && node scripts/check-hermes-version.mjs",
         "test:diarization-reference": "node --test scripts/diarization-benchmark/ami-reference.test.mjs scripts/diarization-benchmark/cpwer.test.mjs scripts/diarization-benchmark/path-policy.test.mjs",
         "score:diarization-report": "node scripts/diarization-benchmark/score-report.mjs",
@@ -19,21 +21,23 @@
         "benchmark:diarization:sherpa-python": "node scripts/diarization-benchmark/run-sherpa-python.mjs",
         "verify:diarization-benchmark": "node scripts/diarization-benchmark/verify-contract.mjs",
         "doctor:diarization-benchmark": "node scripts/diarization-benchmark/doctor.mjs",
-        "check": "bash scripts/check.sh"
+        "check": "bash scripts/check.sh",
+        "recipe": "node scripts/agentic/recipe/run.mjs",
+        "recipe:validate": "node scripts/agentic/recipe/validate-all.mjs",
+        "test:recipes": "node --test scripts/agentic/recipe/*.test.mjs scripts/agentic/cdp-bridge.origin.test.mjs scripts/agentic/web-browser.close.test.mjs"
     },
     "nohoist": [
         "**/react-native",
         "**/react-native/**"
     ],
     "resolutions": {
-        "hermes-compiler@npm:250829098.0.16": "250829098.0.17",
-        "react": "19.2.3",
-        "react-dom": "19.2.3",
-        "react-native@npm:0.86.2": "patch:react-native@npm%3A0.86.2#~/.yarn/patches/react-native-npm-0.86.2-c9d546616f.patch"
+        "react": "19.3.0",
+        "react-dom": "19.3.0"
     },
     "devDependencies": {
-        "@expo/config-plugins": "~57.0.8",
+        "@expo/config-plugins": "~58.0.11",
         "@storybook/react-native-web-vite": "^10.2.10",
+        "commander": "^12.0.0",
         "eslint-import-resolver-typescript": "^3.7.0",
         "eslint-plugin-import": "^2.31.0",
         "globals": "^15.8.0",

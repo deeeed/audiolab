@@ -16,8 +16,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
 ];
-// 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
+// 3. Resolve app and workspace imports only from the `nodeModulesPaths`
+// (requests from installed packages are the exception in step 4)
 config.resolver.disableHierarchicalLookup = true;
+
+const appNodeModules = path.resolve(projectRoot, 'node_modules') + path.sep;
 
 // 4. Resolve workspace packages from source so relative imports (e.g. prebuilt/wasm/) work
 config.resolver.resolveRequest = (context, moduleName, platform) => {
@@ -26,6 +29,15 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       filePath: path.resolve(workspaceRoot, 'packages/audio-studio/src/index.ts'),
       type: 'sourceFile',
     };
+  }
+  // Installed packages still need their own nested dependencies: expo's HMR client
+  // breaks on the pretty-format 30 that Jest 30 hoists into this app.
+  if (context.originModulePath.startsWith(appNodeModules)) {
+    return context.resolveRequest(
+      { ...context, disableHierarchicalLookup: false },
+      moduleName,
+      platform
+    );
   }
   return context.resolveRequest(context, moduleName, platform);
 };

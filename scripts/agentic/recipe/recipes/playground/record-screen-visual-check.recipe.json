@@ -1,0 +1,45 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground record screen visual validation",
+  "description": "Uses setup and teardown hooks around a web screenshot baseline for the record screen.",
+  "workflow": {
+    "entry": "open-record-screen",
+    "nodes": {
+      "capture-record-screen": {
+        "action": "ui.screenshot",
+        "intent": "Preserve the idle recorder for visual comparison.",
+        "next": "done",
+        "path": "screenshots/capture-record-screen.png",
+        "baseline": "scripts/agentic/recipe/baselines/playground/record-screen-web.png",
+        "max_diff_pixels": 0,
+        "pixel_threshold": 18
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "open-record-screen": {
+        "action": "call",
+        "intent": "Open record screen.",
+        "ref": "playground.flows.record-screen-smoke",
+        "next": "capture-record-screen"
+      },
+      "cleanup-assert-record-route": {
+        "action": "audiolab.query",
+        "intent": "Cleanup assert record route.",
+        "assert": {
+          "operator": "eq",
+          "field": "pathname",
+          "value": "/record"
+        },
+        "ref": "route",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
+      }
+    },
+    "teardown": "cleanup-assert-record-route"
+  }
+}

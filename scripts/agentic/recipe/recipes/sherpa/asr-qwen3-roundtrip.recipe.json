@@ -1,0 +1,30 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice Qwen3-ASR bridge roundtrip validation",
+  "description": "Exercises the Qwen3-ASR offline backend end-to-end via __AGENTIC__.testASR('qwen3'). Proves the wrapper plumbs convFrontend / encoder / decoder / tokenizer-dir paths through the new modelType branch. Requires the qwen3-asr-0.6B-int8-2026-03-25 model to be downloaded.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "asr-qwen3-roundtrip": {
+        "action": "call",
+        "intent": "Asr qwen3 roundtrip.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-qwen3-roundtrip"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "asr-qwen3-roundtrip"
+      }
+    }
+  }
+}

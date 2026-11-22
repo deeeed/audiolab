@@ -464,6 +464,7 @@ export function TranscriptionScreen() {
 
             {selectedFile && (
                 <Transcript
+                    testID="transcription-transcript"
                     transcribedData={transcriptionData}
                     isBusy={isTranscribing}
                     showActions={false}

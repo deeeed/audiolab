@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const fixedHermesVersion = '250829098.0.17'
+const fixedHermesVersion = '260318099.0.5'
 const workspaces = ['apps', 'packages'].flatMap((group) => {
     const dir = path.join(root, group)
     return fs
@@ -53,7 +53,9 @@ for (const workspace of workspaces) {
             .split('\n')
             .map((line) => line.split('=', 2))
     )
-    const runtime = properties.HERMES_V1_VERSION_NAME
+    // RN 0.88 ships Hermes V1 as its only engine and writes just HERMES_VERSION_NAME.
+    const runtime =
+        properties.HERMES_V1_VERSION_NAME ?? properties.HERMES_VERSION_NAME
     const compiler = JSON.parse(fs.readFileSync(compilerPath, 'utf8')).version
     const tag = fs.readFileSync(tagPath, 'utf8').trim()
 

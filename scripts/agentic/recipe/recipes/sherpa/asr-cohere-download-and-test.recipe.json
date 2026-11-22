@@ -1,0 +1,35 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa voice Cohere Transcribe download + bridge roundtrip",
+  "description": "Downloads the Cohere Transcribe 14-lang int8 model (~1.58 GB tar.bz2, extracts to ~2.7 GB) on-device via __AGENTIC__.downloadModel, polls until status === 'downloaded', then runs the testASR('cohere', _, 'en') roundtrip with English `test_wavs/en.wav`. Validates the new `language` / `usePunct` / `useItn` plumbing through the wrapper handlers.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "cohere-download-and-test": {
+        "action": "call",
+        "intent": "Cohere download and test.",
+        "next": "done",
+        "ref": "sherpa.flows.asr-download-and-test",
+        "params": {
+          "modelId": "cohere-transcribe-14-lang-int8-2026-04-01",
+          "alias": "cohere",
+          "language": "en"
+        }
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "cohere-download-and-test"
+      }
+    }
+  }
+}

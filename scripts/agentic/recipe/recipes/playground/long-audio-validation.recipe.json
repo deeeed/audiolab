@@ -1,0 +1,173 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Playground long audio validation UI smoke",
+  "description": "Opens the long-audio validation page, verifies the long fixture controls including Sherpa/Qwen3 segments, starts the staged 100-minute fixture in decode-only mode long enough to prove chunk/progress updates, cancels, then starts decode + Moonshine long enough to prove combined decode/transcription progress is visible. For full unattended runs, use `yarn workspace @siteed/audio-studio validate:stream-long --moonshine` or `--sherpa-offline-segments --sherpa-config <qwen3.json>` after staging/building the app.",
+  "workflow": {
+    "entry": "screen-ready",
+    "nodes": {
+      "screen-ready": {
+        "action": "call",
+        "intent": "Screen ready.",
+        "next": "assert-screen-state",
+        "ref": "playground.flows.long-audio-validation-screen-ready"
+      },
+      "assert-screen-state": {
+        "action": "audiolab.query",
+        "intent": "Assert screen state.",
+        "next": "press-decode",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "route",
+              "value": "/long-audio-validation"
+            },
+            {
+              "operator": "contains",
+              "field": "fileUri",
+              "value": "perps_controller_refactor_100m.opus"
+            }
+          ]
+        },
+        "ref": "long-audio-validation-state"
+      },
+      "press-decode": {
+        "action": "ui.press",
+        "intent": "Decode the selected long audio file.",
+        "next": "wait-decode-progress",
+        "test_id": "long-audio-start-decode"
+      },
+      "wait-decode-progress": {
+        "action": "audiolab.query",
+        "intent": "Wait decode progress.",
+        "next": "cancel-decode",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "mode",
+              "value": "decode-only"
+            },
+            {
+              "operator": "gte",
+              "field": "chunkCount",
+              "value": 40
+            },
+            {
+              "operator": "gt",
+              "field": "processedAudioMs",
+              "value": 9000
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 120000,
+        "poll_ms": 2000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLongAudioValidationProgress?.() || null)",
+        "poll": true
+      },
+      "cancel-decode": {
+        "action": "ui.press",
+        "intent": "Cancel decode.",
+        "next": "wait-decode-cancelled",
+        "test_id": "long-audio-cancel"
+      },
+      "wait-decode-cancelled": {
+        "action": "audiolab.query",
+        "intent": "Wait decode cancelled.",
+        "next": "press-moonshine",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "cancelled"
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 60000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLongAudioValidationProgress?.() || null)",
+        "poll": true
+      },
+      "press-moonshine": {
+        "action": "ui.press",
+        "intent": "Transcribe the decoded audio with Moonshine.",
+        "next": "wait-moonshine-progress",
+        "test_id": "long-audio-start-moonshine"
+      },
+      "wait-moonshine-progress": {
+        "action": "audiolab.query",
+        "intent": "Wait moonshine progress.",
+        "next": "cancel-moonshine",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "mode",
+              "value": "moonshine"
+            },
+            {
+              "operator": "gte",
+              "field": "chunkCount",
+              "value": 40
+            },
+            {
+              "operator": "gt",
+              "field": "processedAudioMs",
+              "value": 9000
+            }
+          ]
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 600000,
+        "poll_ms": 5000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLongAudioValidationProgress?.() || null)",
+        "poll": true
+      },
+      "cancel-moonshine": {
+        "action": "ui.press",
+        "intent": "Cancel moonshine.",
+        "next": "wait-moonshine-cancelled",
+        "test_id": "long-audio-cancel"
+      },
+      "wait-moonshine-cancelled": {
+        "action": "audiolab.query",
+        "intent": "Wait moonshine cancelled.",
+        "next": "log-watch",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "cancelled"
+        },
+        "fail_when": {
+          "operator": "not_null",
+          "field": "lastError"
+        },
+        "timeout_ms": 120000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLongAudioValidationProgress?.() || null)",
+        "poll": true
+      },
+      "log-watch": {
+        "action": "audiolab.logs",
+        "intent": "Log watch.",
+        "next": "done",
+        "watch_for": [
+          "[LongAudioValidation]",
+          "AudioStreamDecoder"
+        ]
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

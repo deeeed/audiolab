@@ -1,0 +1,260 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Record tab max-duration validation",
+  "description": "Validates maxDurationMs reached state and optional auto-stop through the Audio Playground recorder bridge.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "record-screen-smoke": {
+        "action": "call",
+        "intent": "Record screen smoke.",
+        "next": "start-notify-only-recording",
+        "ref": "playground.flows.record-screen-smoke"
+      },
+      "start-notify-only-recording": {
+        "action": "audiolab.query",
+        "intent": "Start notify only recording.",
+        "next": "wait-notify-only-event",
+        "assert": {
+          "operator": "eq",
+          "field": "scheduled",
+          "value": true
+        },
+        "expression": "(function () { globalThis.__RECIPE = globalThis.__RECIPE || {}; globalThis.__RECIPE['startNotifyOnly'] = null; setTimeout(function () { Promise.resolve(globalThis.__AGENTIC__?.startRecording?.({ interval: 1000, intervalAnalysis: 1000, sampleRate: 16000, encoding: 'pcm_16bit', enableProcessing: false, maxDurationMs: 1500, output: { primary: { enabled: false }, compressed: { enabled: false } } })).then(function (r) { globalThis.__RECIPE['startNotifyOnly'] = (r && r.error) ? { error: String(r.error) } : { ok: true }; }, function (e) { globalThis.__RECIPE['startNotifyOnly'] = { error: String(e) }; }); }, 800); return JSON.stringify({ scheduled: true }); })()",
+        "async": true
+      },
+      "wait-notify-only-event": {
+        "action": "audiolab.query",
+        "intent": "Wait notify only event.",
+        "next": "wait-startNotifyOnly-recorded",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "maxDurationReached",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "maxDurationMs",
+              "value": 1500
+            }
+          ]
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 250,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getState?.() || null)",
+        "poll": true
+      },
+      "assert-notify-only-still-recording": {
+        "action": "audiolab.query",
+        "intent": "Assert notify only still recording.",
+        "next": "stop-notify-only-recording",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": true
+        },
+        "ref": "recording-state"
+      },
+      "stop-notify-only-recording": {
+        "action": "audiolab.query",
+        "intent": "Stop notify only recording.",
+        "next": "wait-notify-only-stopped",
+        "assert": {
+          "operator": "eq",
+          "field": "scheduled",
+          "value": true
+        },
+        "expression": "(function () { globalThis.__RECIPE = globalThis.__RECIPE || {}; globalThis.__RECIPE['stopNotifyOnly'] = null; setTimeout(function () { Promise.resolve(globalThis.__AGENTIC__?.stopRecording?.()).then(function (r) { globalThis.__RECIPE['stopNotifyOnly'] = (r && r.error) ? { error: String(r.error) } : { ok: true }; }, function (e) { globalThis.__RECIPE['stopNotifyOnly'] = { error: String(e) }; }); }, 800); return JSON.stringify({ scheduled: true }); })()",
+        "async": true
+      },
+      "wait-notify-only-stopped": {
+        "action": "audiolab.query",
+        "intent": "Wait notify only stopped.",
+        "next": "wait-stopNotifyOnly-recorded",
+        "assert": {
+          "operator": "eq",
+          "field": "isRecording",
+          "value": false
+        },
+        "timeout_ms": 10000,
+        "poll_ms": 250,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getState?.() || null)",
+        "poll": true
+      },
+      "start-auto-stop-recording": {
+        "action": "audiolab.query",
+        "intent": "Start auto stop recording.",
+        "next": "wait-auto-stop-started",
+        "assert": {
+          "operator": "eq",
+          "field": "scheduled",
+          "value": true
+        },
+        "expression": "(function () { globalThis.__RECIPE = globalThis.__RECIPE || {}; globalThis.__RECIPE['startAutoStop'] = null; setTimeout(function () { Promise.resolve(globalThis.__AGENTIC__?.startRecording?.({ interval: 1000, intervalAnalysis: 500, sampleRate: 16000, encoding: 'pcm_16bit', enableProcessing: true, maxDurationMs: 2200, autoStopOnMaxDuration: true, output: { primary: { enabled: false }, compressed: { enabled: false } } })).then(function (r) { globalThis.__RECIPE['startAutoStop'] = (r && r.error) ? { error: String(r.error) } : { ok: true }; }, function (e) { globalThis.__RECIPE['startAutoStop'] = { error: String(e) }; }); }, 800); return JSON.stringify({ scheduled: true }); })()",
+        "async": true
+      },
+      "wait-auto-stop-stopped": {
+        "action": "audiolab.query",
+        "intent": "Wait auto stop stopped.",
+        "next": "wait-startAutoStop-recorded",
+        "assert": {
+          "all": [
+            {
+              "operator": "eq",
+              "field": "isRecording",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "isPaused",
+              "value": false
+            },
+            {
+              "operator": "eq",
+              "field": "maxDurationReached",
+              "value": true
+            },
+            {
+              "operator": "eq",
+              "field": "lastRecordingReason",
+              "value": "maxDuration"
+            },
+            {
+              "operator": "not_null",
+              "field": "lastRecording"
+            },
+            {
+              "operator": "gt",
+              "field": "lastRecording.durationMs",
+              "value": 0
+            },
+            {
+              "operator": "length_gt",
+              "field": "lastRecording.analysisData.dataPoints",
+              "value": 0
+            },
+            {
+              "operator": "gt",
+              "field": "lastRecordingAnalysisPointCount",
+              "value": 0
+            }
+          ]
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 250,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getState?.() || null)",
+        "poll": true
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "assert-startNotifyOnly-ok": {
+        "action": "audiolab.query",
+        "intent": "Assert startnotifyonly ok.",
+        "next": "assert-notify-only-still-recording",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['startNotifyOnly']; return JSON.stringify(r && r.error ? { ok: false, error: String(r.error) } : { ok: r ? true : false }); })()"
+      },
+      "assert-stopNotifyOnly-ok": {
+        "action": "audiolab.query",
+        "intent": "Assert stopnotifyonly ok.",
+        "next": "start-auto-stop-recording",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['stopNotifyOnly']; return JSON.stringify(r && r.error ? { ok: false, error: String(r.error) } : { ok: r ? true : false }); })()"
+      },
+      "assert-startAutoStop-ok": {
+        "action": "audiolab.query",
+        "intent": "Assert startautostop ok.",
+        "next": "done",
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['startAutoStop']; return JSON.stringify(r && r.error ? { ok: false, error: String(r.error) } : { ok: r ? true : false }); })()"
+      },
+      "wait-auto-stop-started": {
+        "action": "audiolab.query",
+        "intent": "Wait auto stop started.",
+        "next": "wait-auto-stop-stopped",
+        "assert": {
+          "operator": "eq",
+          "field": "started",
+          "value": true
+        },
+        "timeout_ms": 15000,
+        "poll_ms": 250,
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['startAutoStop']; var st = globalThis.__AGENTIC__ && globalThis.__AGENTIC__.getState ? globalThis.__AGENTIC__.getState() : null; return JSON.stringify({ started: (r !== null && r !== undefined) || (st ? st.isRecording === true : false) }); })()",
+        "poll": true
+      },
+      "wait-stopNotifyOnly-recorded": {
+        "action": "audiolab.query",
+        "intent": "Wait stopnotifyonly recorded.",
+        "next": "assert-stopNotifyOnly-ok",
+        "assert": {
+          "operator": "eq",
+          "field": "recorded",
+          "value": true
+        },
+        "timeout_ms": 10000,
+        "poll_ms": 200,
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['stopNotifyOnly']; return JSON.stringify({ recorded: r !== null && r !== undefined }); })()",
+        "poll": true
+      },
+      "wait-startNotifyOnly-recorded": {
+        "action": "audiolab.query",
+        "intent": "Wait startnotifyonly recorded.",
+        "next": "assert-startNotifyOnly-ok",
+        "assert": {
+          "operator": "eq",
+          "field": "recorded",
+          "value": true
+        },
+        "timeout_ms": 10000,
+        "poll_ms": 200,
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['startNotifyOnly']; return JSON.stringify({ recorded: r !== null && r !== undefined }); })()",
+        "poll": true
+      },
+      "wait-startAutoStop-recorded": {
+        "action": "audiolab.query",
+        "intent": "Wait startautostop recorded.",
+        "next": "assert-startAutoStop-ok",
+        "assert": {
+          "operator": "eq",
+          "field": "recorded",
+          "value": true
+        },
+        "timeout_ms": 10000,
+        "poll_ms": 200,
+        "expression": "(function () { var r = (globalThis.__RECIPE || {})['startAutoStop']; return JSON.stringify({ recorded: r !== null && r !== undefined }); })()",
+        "poll": true
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "playground.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The playground app is running with the agentic bridge installed.",
+        "next": "record-screen-smoke"
+      }
+    }
+  }
+}

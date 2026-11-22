@@ -46,7 +46,7 @@ SITEED_MOONSHINE_ANDROID_USE_MAVEN=1 yarn android:ort:check
 
 That command is expected to fail beside the current Sherpa prebuilts because
 Moonshine 0.1.5 imports `OrtGetApiBase@VERS_1.23.2` while Sherpa imports and
-exports `VERS_1.24.3`.
+exports `VERS_1.28.2`.
 
 ## Inspect a final APK
 

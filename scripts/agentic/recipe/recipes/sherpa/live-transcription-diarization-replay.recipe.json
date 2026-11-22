@@ -1,0 +1,123 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "Sherpa Voice live transcription + speaker-turn replay validation",
+  "description": "Replays a device-local 16 kHz mono WAV as live chunks through streaming ASR, VAD, and Speaker ID. Validates the combined LiveAttributedTranscriptionSession event contract and checks whether replay processing keeps up with realtime. Requires streaming-zipformer-en-20m-mobile, silero-vad-v5, and speaker-id-en-voxceleb to be downloaded.",
+  "workflow": {
+    "entry": "prepare-ready-0",
+    "nodes": {
+      "nav-diarization": {
+        "action": "ui.navigate",
+        "intent": "Nav diarization.",
+        "next": "check-validation-file",
+        "path": "/features/diarization"
+      },
+      "check-validation-file": {
+        "action": "audiolab.query",
+        "intent": "Fail early with a clear error if the device-local replay WAV is missing.",
+        "next": "wait-validation-file",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pending"
+        },
+        "expression": "JSON.stringify((function(){var A=globalThis.__AGENTIC__;if(!A||!A.checkFileExists||!A.getLastResult){return {status:'error',error:'agentic bridge missing checkFileExists/getLastResult'};}return A.checkFileExists((function(){var d=(A.getDocumentDirectory&&A.getDocumentDirectory().documentDirectory)||'';return d+'validation/perps_controller_refactor_5m_16k_mono.wav';})());})())"
+      },
+      "wait-validation-file": {
+        "action": "audiolab.query",
+        "intent": "Confirm the replay WAV exists before starting model validation.",
+        "next": "run-live-replay",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "fail_when": {
+          "operator": "eq",
+          "field": "status",
+          "value": "error"
+        },
+        "timeout_ms": 30000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLastResult?.() || {})",
+        "poll": true
+      },
+      "run-live-replay": {
+        "action": "audiolab.query",
+        "intent": "Fire live replay through ASR + VAD + Speaker ID on first 60s of the validation WAV.",
+        "next": "wait-live-result",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "pending"
+        },
+        "expression": "JSON.stringify((function(){var A=globalThis.__AGENTIC__;if(!A||!A.testLiveTranscriptionDiarizationReplay||!A.getLastResult){return {status:'error',error:'agentic bridge missing testLiveTranscriptionDiarizationReplay/getLastResult'};}return A.testLiveTranscriptionDiarizationReplay((function(){var d=(A.getDocumentDirectory&&A.getDocumentDirectory().documentDirectory)||'';return d+'validation/perps_controller_refactor_5m_16k_mono.wav';})(),{maxDurationMs:60000,chunkDurationMs:100,asrModelId:'streaming-zipformer-en-20m-mobile',vadModelId:'silero-vad-v5',speakerIdModelId:'speaker-id-en-voxceleb'});})())"
+      },
+      "assert-keeps-up": {
+        "action": "audiolab.query",
+        "intent": "Assert replay processing kept up with realtime on device.",
+        "next": "assert-transcript-events",
+        "assert": {
+          "operator": "eq",
+          "field": "result.keepsUpWithReplay",
+          "value": true
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__.getLastResult())"
+      },
+      "assert-transcript-events": {
+        "action": "audiolab.query",
+        "intent": "Assert live replay produced final transcript segments and speaker-turn events.",
+        "next": "assert-speaker-events",
+        "assert": {
+          "operator": "gt",
+          "field": "result.summary.finalSegmentCount",
+          "value": 0
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__.getLastResult())"
+      },
+      "assert-speaker-events": {
+        "action": "audiolab.query",
+        "intent": "Assert at least one turn reached finalization.",
+        "next": "done",
+        "assert": {
+          "operator": "gt",
+          "field": "result.eventCounts.turn_finalized",
+          "value": 0
+        },
+        "expression": "JSON.stringify(globalThis.__AGENTIC__.getLastResult())"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      },
+      "wait-live-result": {
+        "action": "audiolab.query",
+        "intent": "Poll fire-and-store live replay result.",
+        "next": "assert-keeps-up",
+        "assert": {
+          "operator": "eq",
+          "field": "status",
+          "value": "success"
+        },
+        "fail_when": {
+          "operator": "eq",
+          "field": "status",
+          "value": "error"
+        },
+        "timeout_ms": 300000,
+        "poll_ms": 1000,
+        "expression": "JSON.stringify(globalThis.__AGENTIC__?.getLastResult?.() || {})",
+        "poll": true
+      },
+      "prepare-ready-0": {
+        "action": "audiolab.query",
+        "ref": "sherpa.agentic_ready",
+        "assert": {
+          "operator": "not_null",
+          "field": "pathname"
+        },
+        "intent": "The sherpa-voice app is running with the agentic bridge installed.",
+        "next": "nav-diarization"
+      }
+    }
+  }
+}

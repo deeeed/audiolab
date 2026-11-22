@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Deprecated: no longer maintained; this publisher is kept for reference only.
+echo "Publishing disabled: @siteed/react-native-essentia is no longer maintained; kept for reference." >&2
+exit 1
+
 # Use script location as source directory
 SRC_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DEST_DIR="${1:-/Volumes/c910ssd/dev/rn-essentia-static}"

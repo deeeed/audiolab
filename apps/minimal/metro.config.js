@@ -35,7 +35,7 @@ const extraNodeModules = modules.reduce((acc, name) => {
 }, {})
 
 // Prevent metro from resolving duplicate packages
-const blacklistRE = exclusionList(
+const blockList = exclusionList(
     modules
         .map(
             (m) =>
@@ -70,7 +70,7 @@ config.resolver.nodeModulesPaths = [path.resolve(projectRoot, 'node_modules')]
 config.resolver = {
     ...config.resolver,
     extraNodeModules,
-    blacklistRE,
+    blockList,
     resolveRequest: (context, moduleName, platform) => {
         if (moduleName === '@siteed/audio-ui') {
             return {

@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native'
+import type { ScrollViewInstance } from 'react-native'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
@@ -22,6 +23,7 @@ interface TranscriptProps {
     isBusy?: boolean
     onSelectChunk?: (_: { chunk: Chunk }) => void
     useScrollView?: boolean
+    testID?: string
 }
 
 export default function Transcript({
@@ -32,10 +34,11 @@ export default function Transcript({
     currentTimeMs,
     showActions = true,
     useScrollView = false,
+    testID,
 }: TranscriptProps) {
     const theme = useTheme()
     const styles = useMemo(() => getStyles({ theme }), [theme])
-    const scrollViewRef = useRef<ScrollView | null>(null)
+    const scrollViewRef = useRef<ScrollViewInstance | null>(null)
 
     const handleChunkPress = (chunk: Chunk) => {
         if (onSelectChunk) {
@@ -56,7 +59,7 @@ export default function Transcript({
     const ContentWrapper = useScrollView ? ScrollView : View
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} testID={testID}>
             <ContentWrapper
                 ref={useScrollView ? scrollViewRef : undefined}
                 style={styles.contentWrapper}
