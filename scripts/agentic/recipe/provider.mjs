@@ -8,7 +8,7 @@ import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createBridge, createBridgeTransport, createAdapters } from './adapters.mjs';
 import { appDomain, appRootFor, createAudiolabManifest, resolveDevice, repoRoot } from './host.mjs';
-import { stopMetro, metroProcesses } from '../lib/metro-process.mjs';
+import { stopMetro, metroBinding, metroProcesses } from '../lib/metro-process.mjs';
 
 export function createProvider(context) {
   const root = context.project?.checkoutRoot ?? repoRoot;
@@ -114,7 +114,8 @@ export function createProvider(context) {
       readiness: { statusRuntime: true, captureProviders: ['Audiolab CDP bridge'] },
       async launch() {
         try {
-        launchedMetro = metroProcesses(appRoot, metro).length === 0;
+        // start-metro.sh starts or restarts Metro unless this app's own server is already up.
+        launchedMetro = metroBinding(appRoot, metro) !== 'this-app';
         if (platform === 'web') {
           await leaf('scripts/agentic/start-metro.sh', [], 60000);
           const existing = await fetch(`http://127.0.0.1:${cdp}/json/version`, { signal: AbortSignal.timeout(1000) }).catch(() => null);

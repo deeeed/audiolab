@@ -25,3 +25,38 @@ test('Metro stop refuses a foreign listener and stale PID but stops the owned se
   assert.equal(stopMetro(foreign, port).signalled, 1);
   await exit;
 });
+
+// Run 1ad82ba1 (#526): the slot Metro was serving apps/sherpa-voice when a playground run's
+// teardown stopped port 7464, and the "another checkout" refusal kept the slot occupied.
+// Another app root in the same checkout is this checkout's Metro: stop it, and report the
+// binding so a start for the selected app restarts it instead of reusing the wrong bundle.
+async function twoAppCheckout(t) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-provider-metro-apps-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const { execFileSync } = await import('node:child_process');
+  execFileSync('git', ['init', '-q', root]);
+  const voice = path.join(root, 'apps/sherpa-voice');const playground = path.join(root, 'apps/playground');
+  for (const dir of [voice, playground]) await fs.mkdir(path.join(dir, '.agent'), { recursive: true });
+  const script = path.join(root, 'metro-fixture.mjs');
+  await fs.writeFile(script, `import net from 'node:net';const s=net.createServer();s.listen(0,'127.0.0.1',()=>console.log(s.address().port));`);
+  const child = spawn(process.execPath, [script], { cwd: voice, stdio: ['ignore', 'pipe', 'pipe'] });
+  t.after(async () => { if (child.exitCode === null && child.signalCode === null) { child.kill();await once(child, 'exit'); } });
+  const port = Number((await once(child.stdout, 'data'))[0].toString().trim());
+  return { voice, playground, child, port };
+}
+
+test('Metro stop for one app root stops the Metro another app root of the same checkout started', async t => {
+  const { playground, child, port } = await twoAppCheckout(t);
+  const exit = once(child, 'exit');
+  assert.equal(stopMetro(playground, port).signalled, 1);
+  await exit;
+});
+
+test('Metro binding reports this app, another app of the checkout, or none', async t => {
+  const { voice, playground, child, port } = await twoAppCheckout(t);
+  const { metroBinding } = await import('../lib/metro-process.mjs');
+  assert.equal(metroBinding(playground, port), 'other-app');
+  assert.equal(metroBinding(voice, port), 'this-app');
+  child.kill();await once(child, 'exit');
+  assert.equal(metroBinding(playground, port), 'none');
+});
