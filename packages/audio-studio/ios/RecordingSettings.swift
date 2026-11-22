@@ -261,6 +261,24 @@ struct RecordingSettings {
     var maxDurationMs: Int64 = 0
     var autoStopOnMaxDuration: Bool = false
 
+    /// startRecording records an enabled Opus request as AAC because AVAudioRecorder cannot
+    /// encode Opus. That fallback has always produced an M4A file, so `preferRawStream`
+    /// (an AAC option) is cleared to keep the `.m4a` filename. Returns nil when no rewrite applies.
+    static func applyingOpusFallback(_ options: [String: Any]) -> [String: Any]? {
+        guard var output = options["output"] as? [String: Any],
+              var compressed = output["compressed"] as? [String: Any],
+              compressed["enabled"] as? Bool == true,
+              (compressed["format"] as? String)?.lowercased() == "opus" else {
+            return nil
+        }
+        compressed["format"] = "aac"
+        compressed["preferRawStream"] = false
+        output["compressed"] = compressed
+        var modified = options
+        modified["output"] = output
+        return modified
+    }
+
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Parse output configuration
         var outputSettings = OutputSettings()

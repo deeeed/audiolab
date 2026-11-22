@@ -9,7 +9,9 @@ The rest of this document is the design record for 2.11.0 (#253, #261) and is ke
 | `true` | `.aac`, raw ADTS | `.aac`, raw ADTS |
 | `false` / omitted | `.m4a`, MP4 container | `.m4a`, MP4 container |
 
-`AVAudioRecorder` with `kAudioFormatMPEG4AAC` chooses the container from the file extension, so iOS can produce raw ADTS. With raw ADTS, the `onAudioStream` compression chunks can be joined into a decodable stream. An M4A file only gets its `moov` atom at stop (#505). The claims below that iOS cannot produce raw AAC are wrong.
+`AVAudioRecorder` with `kAudioFormatMPEG4AAC` chooses the container from the file extension, so iOS can produce raw ADTS. With raw ADTS, the `onAudioStream` compression chunks can be joined into a decodable stream. An M4A file only gets its `moov` atom at stop (#505). Below, the claims that iOS cannot produce raw AAC and the advice to rename `.aac` files to `.m4a` are marked incorrect; other statements are the historical design and were not re-verified.
+
+On iOS, `startRecording` records `format: 'opus'` as AAC in an `.m4a` file; `preferRawStream` does not apply to it.
 
 ## Executive Summary
 
@@ -21,7 +23,7 @@ This document outlines a comprehensive enhancement to expo-audio-studio's audio 
 
 ## Immediate Workaround for Issue #253
 
-**iOS Users**: The compressed AAC files are already in M4A format! Simply rename files from `.aac` to `.m4a` for proper seeking support. No conversion needed.
+~~**iOS Users**: The compressed AAC files are already in M4A format! Simply rename files from `.aac` to `.m4a` for proper seeking support. No conversion needed.~~ Invalid: an iOS `.aac` file holds raw ADTS, so renaming it only mislabels ADTS bytes as M4A (see Current behavior).
 
 ## Current State Analysis
 
@@ -229,8 +231,8 @@ The requester wants M4A for better seeking support. The good news:
 ## Summary
 
 The issue reported in #253 stems from a simple file extension mismatch on iOS:
-- iOS already produces M4A files (MP4 container) but saves them with `.aac` extension
-- Users can immediately work around this by renaming `.aac` to `.m4a` on iOS
+- ~~iOS already produces M4A files (MP4 container) but saves them with `.aac` extension~~ Incorrect: the container follows the extension
+- ~~Users can immediately work around this by renaming `.aac` to `.m4a` on iOS~~ Invalid: renaming leaves ADTS bytes in a file labeled M4A
 - A proper fix will correct the extension and add M4A support for Android
 - No slow post-processing is needed - native APIs output the desired format directly
 
