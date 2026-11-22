@@ -22,31 +22,39 @@ const checkoutOf = (appRoot) => {
   catch { return real; }
 };
 
-const within = (root, target) => target === root || target.startsWith(`${root}${path.sep}`);
-
 // Any app root of the same checkout owns its Metro: the slot Metro may have been started for
 // another app (run 1ad82ba1: apps/sherpa-voice on the playground's port), and refusing it kept
-// the slot occupied. A listener outside the checkout is still foreign.
+// the slot occupied. Both sides resolve to their own checkout, so a separate repo, submodule
+// or linked worktree nested under this one is still foreign.
 export function ownsMetro(pid, appRoot) {
   const cwd = metroCwd(pid);
-  return cwd !== null && within(checkoutOf(appRoot), cwd);
+  if (cwd === null) return false;
+  try { return checkoutOf(cwd) === checkoutOf(appRoot); }
+  catch { return false; }
 }
 
-/** `this-app`, `other-app` (same checkout, another app root) or `none`; foreign listeners throw. */
+/** `this-app`, `other-app` (same checkout, another app root) or `none`, from port listeners only. */
 export function metroBinding(appRoot, port) {
-  const pids = metroProcesses(appRoot, port);
-  if (pids.length === 0) return 'none';
+  const listeners = metroListeners(appRoot, port);
+  if (listeners.length === 0) return 'none';
   const real = fs.realpathSync(appRoot);
-  return pids.every(pid => metroCwd(pid) === real) ? 'this-app' : 'other-app';
+  return listeners.every(pid => metroCwd(pid) === real) ? 'this-app' : 'other-app';
 }
 
-export function metroProcesses(appRoot, port) {
+function metroListeners(appRoot, port) {
   if (!Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) throw new Error('Select a valid Metro port.');
   const listeners = inspect(['lsof', '-nP', '-t', `-iTCP:${port}`, '-sTCP:LISTEN']).split('\n').filter(Boolean).map(Number);
   if (listeners.some(pid => !ownsMetro(pid, appRoot))) throw new Error(`Metro port ${port} is owned by another checkout; refusing to stop or reuse it.`);
+  return listeners;
+}
+
+export function metroProcesses(appRoot, port) {
+  const listeners = metroListeners(appRoot, port);
+  // A PID-file entry not on the port must be this app root's own Metro, not just the checkout's.
   const pidFile = path.join(appRoot, '.agent/metro.pid');
   const saved = fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, 'utf8').trim()) : 0;
-  return [...new Set([...listeners, ...(saved > 0 && !listeners.includes(saved) && ownsMetro(saved, appRoot) ? [saved] : [])])];
+  const ownSaved = saved > 0 && !listeners.includes(saved) && metroCwd(saved) === fs.realpathSync(appRoot);
+  return [...new Set([...listeners, ...(ownSaved ? [saved] : [])])];
 }
 
 export function stopMetro(appRoot, port) {

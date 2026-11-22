@@ -86,7 +86,7 @@ export function createProvider(context) {
   };
   async function runtimeStatus() {
     try {
-      metroProcesses(appRoot, metro);
+      if (metroBinding(appRoot, metro) === 'other-app') throw new Error(`Metro on port ${metro} serves another app of this checkout.`);
       const observed = await bridge(['get-route']);
       if (!observed.pathname) throw new Error('The selected app has no observed route.');
       return { decision: 'ready', reasons: [], devServer: { label: 'Metro', status: 'ready' } };
@@ -114,14 +114,18 @@ export function createProvider(context) {
       readiness: { statusRuntime: true, captureProviders: ['Audiolab CDP bridge'] },
       async launch() {
         try {
-        // start-metro.sh starts or restarts Metro unless this app's own server is already up.
-        launchedMetro = metroBinding(appRoot, metro) !== 'this-app';
+        launchedMetro = false;
         if (platform === 'web') {
+          // Whatever start-metro.sh starts or restarts is this launch's to stop on failure.
+          const before = new Set(metroProcesses(appRoot, metro));
           await leaf('scripts/agentic/start-metro.sh', [], 60000);
+          launchedMetro = metroProcesses(appRoot, metro).some(pid => !before.has(pid));
           const existing = await fetch(`http://127.0.0.1:${cdp}/json/version`, { signal: AbortSignal.timeout(1000) }).catch(() => null);
           if (existing?.ok) {
             // Attach to an existing assigned app; never replace a browser to make readiness pass.
             await recordingTarget({ platform, cdp, metro });
+            // A page attached to a replaced Metro still runs the old app's bundle.
+            if (launchedMetro) await bridge(['reload']);
             await bridge(['get-route']);
             return 0;
           }

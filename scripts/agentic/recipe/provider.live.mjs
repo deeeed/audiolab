@@ -60,3 +60,18 @@ test('Metro binding reports this app, another app of the checkout, or none', asy
   child.kill();await once(child, 'exit');
   assert.equal(metroBinding(playground, port), 'none');
 });
+
+test('a Metro in a separate repo nested under the app root stays foreign', async t => {
+  const { playground } = await twoAppCheckout(t);
+  const { execFileSync } = await import('node:child_process');
+  const nested = path.join(playground, 'vendor/other');
+  await fs.mkdir(nested, { recursive: true });
+  execFileSync('git', ['init', '-q', nested]);
+  const script = path.join(nested, 'metro-fixture.mjs');
+  await fs.writeFile(script, `import net from 'node:net';const s=net.createServer();s.listen(0,'127.0.0.1',()=>console.log(s.address().port));`);
+  const child = spawn(process.execPath, [script], { cwd: nested, stdio: ['ignore', 'pipe', 'pipe'] });
+  t.after(async () => { if (child.exitCode === null && child.signalCode === null) { child.kill();await once(child, 'exit'); } });
+  const port = Number((await once(child.stdout, 'data'))[0].toString().trim());
+  assert.throws(() => stopMetro(playground, port), /another checkout/);
+  assert.doesNotThrow(() => process.kill(child.pid, 0));
+});
