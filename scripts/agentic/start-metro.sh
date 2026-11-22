@@ -33,20 +33,25 @@ print_launch_hint() {
   fi
 }
 
-# Check checkout ownership before reusing or stopping any listener.
-node "$MONOREPO_ROOT/scripts/agentic/lib/metro-process.mjs" check "$APP_ROOT" "$PORT"
-if curl -sf "http://localhost:${PORT}/status" >/dev/null 2>&1; then
-  PREVIOUS_HOST="$(cat "$HOSTFILE" 2>/dev/null || true)"
-  if [ -n "$PREVIOUS_HOST" ] && [ "$PREVIOUS_HOST" != "$DEV_HOST" ]; then
-    echo "Restarting this checkout's Metro for host $DEV_HOST..."
-    bash "$MONOREPO_ROOT/scripts/agentic/stop-metro.sh"
-    # Poll shutdown rather than starting a second server on the same port.
-    node -e 'const net=require("node:net");const end=Date.now()+5000;function poll(){const s=net.connect(Number(process.argv[1]),"127.0.0.1");s.once("error",()=>process.exit(0));s.once("connect",()=>{s.destroy();if(Date.now()>=end)process.exit(1);setTimeout(poll,50)});s.setTimeout(200,()=>s.destroy())}poll()' "$PORT"
-  else
-    echo "Metro already running on port $PORT for this checkout."
-    print_launch_hint
-    exit 0
-  fi
+# Check checkout ownership before reusing or stopping any listener. A Metro another app
+# root of this checkout started serves the wrong bundle: restart it for this app.
+BINDING="$(node "$MONOREPO_ROOT/scripts/agentic/lib/metro-process.mjs" binding "$APP_ROOT" "$PORT")"
+PREVIOUS_HOST="$(cat "$HOSTFILE" 2>/dev/null || true)"
+RESTART=""
+if [[ "$BINDING" == "other-app" ]]; then
+  RESTART="Port $PORT serves another app of this checkout; restarting Metro for $APP_ROOT..."
+elif [[ "$BINDING" == "this-app" && -n "$PREVIOUS_HOST" && "$PREVIOUS_HOST" != "$DEV_HOST" ]]; then
+  RESTART="Restarting this checkout's Metro for host $DEV_HOST..."
+fi
+if [[ -n "$RESTART" ]]; then
+  echo "$RESTART"
+  node "$MONOREPO_ROOT/scripts/agentic/lib/metro-process.mjs" stop-listeners "$APP_ROOT" "$PORT"
+  # Poll shutdown rather than starting a second server on the same port.
+  node -e 'const net=require("node:net");const end=Date.now()+5000;function poll(){const s=net.connect(Number(process.argv[1]),"127.0.0.1");s.once("error",()=>process.exit(0));s.once("connect",()=>{s.destroy();if(Date.now()>=end)process.exit(1);setTimeout(poll,50)});s.setTimeout(200,()=>s.destroy())}poll()' "$PORT"
+elif curl -sf "http://localhost:${PORT}/status" >/dev/null 2>&1; then
+  echo "Metro already running on port $PORT for this checkout."
+  print_launch_hint
+  exit 0
 fi
 
 # --- No Metro detected — start fresh ---
