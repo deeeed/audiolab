@@ -68,6 +68,7 @@ import Moonshine, {
 } from '@siteed/moonshine.rn'
 import { readMonoPcm16Wav } from './utils/wav'
 import { createAudioStudioAgenticContracts } from './agentic/audioStudioContracts'
+import { createSerialQueue, runSherpaTtsProbe } from './agentic/sherpaTtsProbe'
 import type { AgenticAsyncResult } from './agentic/types'
 
 // State holders updated by AgenticBridgeSync component
@@ -216,6 +217,7 @@ function createAgenticRecordingSnapshot(recording: AudioRecording): AudioRecordi
 
 // --- Async result store for fire-and-store pattern (CDP awaitPromise:false) ---
 let _lastAsyncResult: AgenticAsyncResult | null = null
+const _sherpaTtsQueue = createSerialQueue()
 
 export type LongAudioValidationMode =
     | 'decode-only'
@@ -2473,37 +2475,24 @@ if (__DEV__) {
         testSherpaTts: (config: TtsModelConfig, text = 'Hello from sherpa onnx.') => {
             const op = 'sherpaTts'
             _lastAsyncResult = { op, status: 'pending' }
-            void (async () => {
-                try {
-                    const init = await SherpaTTS.initialize(config)
-                    if (!init.success) {
-                        throw new Error(init.error || 'TTS initialize failed')
-                    }
-                    const generated = await SherpaTTS.generateSpeech(text, { playAudio: false })
-                    if (!generated.success || !generated.filePath) {
-                        throw new Error('TTS generateSpeech returned no file')
-                    }
-                    const fileUri = generated.filePath.startsWith('file://')
-                        ? generated.filePath
-                        : `file://${generated.filePath}`
-                    const info = await FileSystem.getInfoAsync(fileUri)
-                    _lastAsyncResult = {
-                        op,
-                        status: 'success',
-                        result: {
-                            platform: Platform.OS,
-                            sampleRate: init.sampleRate,
-                            numSpeakers: init.numSpeakers,
-                            filePath: generated.filePath,
-                            bytes: info.exists ? info.size : 0,
+            void _sherpaTtsQueue(async () => {
+                // A queued run must not leave the previous run's result readable as its own.
+                _lastAsyncResult = { op, status: 'pending' }
+                _lastAsyncResult = await runSherpaTtsProbe(
+                    {
+                        platform: Platform.OS,
+                        initialize: (c: TtsModelConfig) => SherpaTTS.initialize(c),
+                        generateSpeech: (t) => SherpaTTS.generateSpeech(t, { playAudio: false }),
+                        release: () => SherpaTTS.release(),
+                        fileSize: async (uri) => {
+                            const info = await FileSystem.getInfoAsync(uri)
+                            return info.exists ? info.size : 0
                         },
-                    }
-                } catch (e) {
-                    _lastAsyncResult = { op, status: 'error', error: String(e) }
-                } finally {
-                    await SherpaTTS.release().catch(() => {})
-                }
-            })()
+                    },
+                    config,
+                    text
+                )
+            })
             return { op, status: 'pending' }
         },
 
