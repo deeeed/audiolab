@@ -84,6 +84,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [mode, appRoot, port] = process.argv.slice(2);
   if (mode === 'check') metroProcesses(appRoot, port);
   else if (mode === 'binding') console.log(metroBinding(appRoot, port));
+  // The app-swap restart: only this port's listeners, never another port's Metro from the PID file.
+  else if (mode === 'stop-listeners') console.log(`Stopped ${stopMetroPids(appRoot, metroListeners(appRoot, port))} Metro listeners on port ${port}.`);
   else if (mode === 'stop') console.log(stopMetro(appRoot, port).summary);
-  else throw new Error('Use metro-process.mjs check|binding|stop <app-root> <port>.');
+  else throw new Error('Use metro-process.mjs check|binding|stop|stop-listeners <app-root> <port>.');
 }

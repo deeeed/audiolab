@@ -83,3 +83,18 @@ test('stopping the PIDs a launch started leaves a pre-existing Metro running', a
   assert.equal(stopMetroPids(voice, metroListeners(voice, port).filter(pid => !before.has(pid))), 0);
   assert.doesNotThrow(() => process.kill(child.pid, 0));
 });
+
+test('the swap restart stops only the port listener, not the app Metro on another port', async t => {
+  const { playground, child, port } = await twoAppCheckout(t);
+  // The playground's own Metro on another port, named by the app's shared PID file.
+  const script = path.join(path.dirname(path.dirname(playground)), 'metro-fixture.mjs');
+  const other = spawn(process.execPath, [script], { cwd: playground, stdio: ['ignore', 'pipe', 'pipe'] });
+  t.after(async () => { if (other.exitCode === null && other.signalCode === null) { other.kill();await once(other, 'exit'); } });
+  await once(other.stdout, 'data');
+  await fs.writeFile(path.join(playground, '.agent/metro.pid'), String(other.pid));
+  const { execFileSync } = await import('node:child_process');
+  const exit = once(child, 'exit');
+  execFileSync(process.execPath, [new URL('../lib/metro-process.mjs', import.meta.url).pathname, 'stop-listeners', playground, String(port)]);
+  await exit;
+  assert.doesNotThrow(() => process.kill(other.pid, 0), 'the other port keeps its Metro');
+});
