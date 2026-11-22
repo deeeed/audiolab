@@ -245,21 +245,8 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
 
                 // Check if output.compressed is enabled and format is Opus
                 var modifiedOptions = options
-                if let output = options["output"] as? [String: Any],
-                   let compressed = output["compressed"] as? [String: Any],
-                   let enabled = compressed["enabled"] as? Bool, enabled,
-                   let format = compressed["format"] as? String,
-                   format.lowercased() == "opus" {
-
-                    // Create mutable copies
-                    var modifiedOutput = output
-                    var modifiedCompressed = compressed
-
-                    // Change format to AAC and log warning
-                    modifiedCompressed["format"] = "aac"
-                    modifiedOutput["compressed"] = modifiedCompressed
-                    modifiedOptions["output"] = modifiedOutput
-
+                if let fallback = RecordingSettings.applyingOpusFallback(options) {
+                    modifiedOptions = fallback
                     Logger.warn("AudioStudioModule", "startRecording: Opus format is not supported on iOS. Falling back to AAC format.")
                 }
 
