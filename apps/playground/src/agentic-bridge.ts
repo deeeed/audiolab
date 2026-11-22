@@ -68,7 +68,7 @@ import Moonshine, {
 } from '@siteed/moonshine.rn'
 import { readMonoPcm16Wav } from './utils/wav'
 import { createAudioStudioAgenticContracts } from './agentic/audioStudioContracts'
-import { createSerialQueue, runSherpaTtsProbe } from './agentic/sherpaTtsProbe'
+import { createSherpaTtsRequests, runSherpaTtsProbe } from './agentic/sherpaTtsProbe'
 import type { AgenticAsyncResult } from './agentic/types'
 
 // State holders updated by AgenticBridgeSync component
@@ -217,7 +217,9 @@ function createAgenticRecordingSnapshot(recording: AudioRecording): AudioRecordi
 
 // --- Async result store for fire-and-store pattern (CDP awaitPromise:false) ---
 let _lastAsyncResult: AgenticAsyncResult | null = null
-const _sherpaTtsQueue = createSerialQueue()
+const _sherpaTtsRequests = createSherpaTtsRequests((result) => {
+    _lastAsyncResult = result
+})
 
 export type LongAudioValidationMode =
     | 'decode-only'
@@ -2472,13 +2474,11 @@ if (__DEV__) {
             return { op, status: 'pending' }
         },
 
-        testSherpaTts: (config: TtsModelConfig, text = 'Hello from sherpa onnx.') => {
-            const op = 'sherpaTts'
-            _lastAsyncResult = { op, status: 'pending' }
-            void _sherpaTtsQueue(async () => {
-                // A queued run must not leave the previous run's result readable as its own.
-                _lastAsyncResult = { op, status: 'pending' }
-                _lastAsyncResult = await runSherpaTtsProbe(
+        // Returns { op, status: 'pending', requestId }. getLastResult() shows the newest request;
+        // getSherpaTtsResult(requestId) reads one request's own result.
+        testSherpaTts: (config: TtsModelConfig, text = 'Hello from sherpa onnx.') =>
+            _sherpaTtsRequests.start(() =>
+                runSherpaTtsProbe(
                     {
                         platform: Platform.OS,
                         initialize: (c: TtsModelConfig) => SherpaTTS.initialize(c),
@@ -2492,9 +2492,9 @@ if (__DEV__) {
                     config,
                     text
                 )
-            })
-            return { op, status: 'pending' }
-        },
+            ),
+
+        getSherpaTtsResult: (requestId: string) => _sherpaTtsRequests.get(requestId) ?? null,
 
         scrollView: (options: { testId?: string; offset?: number; animated?: boolean } = {}) => {
             const { testId, offset = 300, animated = false } = options

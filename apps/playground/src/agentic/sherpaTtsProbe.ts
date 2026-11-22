@@ -22,7 +22,45 @@ export function createSerialQueue(): (task: () => Promise<void>) => Promise<void
     }
 }
 
-// Resolves only after release, so a caller that sees the result can start the next run.
+export type SherpaTtsRequestResult = AgenticAsyncResult & { requestId: string }
+
+// Each testSherpaTts call gets its own requestId and result slot, so a queued second call
+// cannot replace the first call's result. onLatest mirrors only the newest request.
+export function createSherpaTtsRequests(onLatest: (result: SherpaTtsRequestResult) => void) {
+    const enqueue = createSerialQueue()
+    const results = new Map<string, SherpaTtsRequestResult>()
+    let count = 0
+    let latestId = ''
+    return {
+        start(task: () => Promise<AgenticAsyncResult>): SherpaTtsRequestResult {
+            count += 1
+            const requestId = `sherpaTts-${count}`
+            const pending: SherpaTtsRequestResult = { op: 'sherpaTts', status: 'pending', requestId }
+            results.set(requestId, pending)
+            latestId = requestId
+            onLatest(pending)
+            void enqueue(async () => {
+                let done: SherpaTtsRequestResult
+                try {
+                    done = { ...(await task()), requestId }
+                } catch (e) {
+                    // A rejected task must not stall the queue for later requests.
+                    done = { op: 'sherpaTts', status: 'error', error: String(e), requestId }
+                }
+                results.set(requestId, done)
+                if (latestId === requestId) onLatest(done)
+            })
+            return pending
+        },
+        get(requestId: string): SherpaTtsRequestResult | undefined {
+            return results.get(requestId)
+        },
+    }
+}
+
+// Resolves only after the release attempt. A failed release turns a successful generation into
+// an error; when generation already failed, its error is returned and the release outcome is not.
+// Either way the next queued request runs, and its initialize starts from whatever state release left.
 export async function runSherpaTtsProbe<Config>(
     deps: SherpaTtsProbeDeps<Config>,
     config: Config,
