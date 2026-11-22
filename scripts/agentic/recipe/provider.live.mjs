@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { fileURLToPath } from 'node:url';
 import { stopMetro } from '../lib/metro-process.mjs';
 
 // Host process inspection belongs to the live tier, outside default/CI tests.
@@ -94,7 +95,7 @@ test('the swap restart stops only the port listener, not the app Metro on anothe
   await fs.writeFile(path.join(playground, '.agent/metro.pid'), String(other.pid));
   const { execFileSync } = await import('node:child_process');
   const exit = once(child, 'exit');
-  execFileSync(process.execPath, [new URL('../lib/metro-process.mjs', import.meta.url).pathname, 'stop-listeners', playground, String(port)]);
+  execFileSync(process.execPath, [fileURLToPath(new URL('../lib/metro-process.mjs', import.meta.url)), 'stop-listeners', playground, String(port)]);
   await exit;
   assert.doesNotThrow(() => process.kill(other.pid, 0), 'the other port keeps its Metro');
 });
