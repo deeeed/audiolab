@@ -647,15 +647,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Choose extension based on whether this is a compressed file
         let fileExtension: String
-        if isCompressed, let compressed = recordingSettings?.output.compressed,
-           compressed.format == "aac", compressed.preferRawStream {
-            // AVAudioRecorder picks the container from the extension: `.aac` gives raw
-            // ADTS, so every streamed chunk can be joined and decoded without a moov atom
-            fileExtension = "aac"
-        } else if isCompressed {
-            // AVAudioRecorder writes an M4A container for an `.m4a` file
-            // Opus falls back to AAC in M4A container on iOS
-            fileExtension = "m4a"
+        if isCompressed {
+            fileExtension = (recordingSettings?.output.compressed ?? OutputSettings.CompressedOutput()).fileExtension
         } else {
             fileExtension = "wav"
         }

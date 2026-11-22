@@ -1,5 +1,16 @@
 # Audio Format Enhancement Specification
 
+## Current behavior
+
+The rest of this document is the design record for 2.11.0 (#253, #261) and is kept for history. The shipped API is `output.compressed.preferRawStream`, not `useContainer`. For AAC:
+
+| `preferRawStream` | iOS | Android |
+|---|---|---|
+| `true` | `.aac`, raw ADTS | `.aac`, raw ADTS |
+| `false` / omitted | `.m4a`, MP4 container | `.m4a`, MP4 container |
+
+`AVAudioRecorder` with `kAudioFormatMPEG4AAC` chooses the container from the file extension, so iOS can produce raw ADTS. With raw ADTS, the `onAudioStream` compression chunks can be joined into a decodable stream. An M4A file only gets its `moov` atom at stop (#505). The claims below that iOS cannot produce raw AAC are wrong.
+
 ## Executive Summary
 
 This document outlines a comprehensive enhancement to expo-audio-studio's audio format support, addressing:
@@ -26,7 +37,7 @@ This document outlines a comprehensive enhancement to expo-audio-studio's audio 
 ### Current Implementation Issues
 
 1. **iOS File Extension Mismatch**: iOS uses `kAudioFormatMPEG4AAC` which produces M4A container files, but saves with `.aac` extension
-2. **No Raw AAC on iOS**: iOS cannot produce raw AAC streams directly; AVAudioRecorder always uses M4A container
+2. ~~**No Raw AAC on iOS**: iOS cannot produce raw AAC streams directly; AVAudioRecorder always uses M4A container~~ Incorrect: the container follows the file extension (see Current behavior)
 3. **Inconsistent Container Behavior**: iOS produces containerized audio while Android produces raw streams
 4. **Format Fallback Not Implemented**: iOS code attempts to use Opus but this isn't supported by AVAudioRecorder
 
@@ -78,7 +89,7 @@ export interface CompressedOutput {
 | format: 'aac', useContainer: true | M4A (.m4a) | M4A (.m4a) | Opus/WebM (.webm) |
 | format: 'opus' | M4A (.m4a)** | Opus/OGG (.opus) | Opus/WebM (.webm) |
 
-\* iOS cannot produce raw AAC streams  
+\* Incorrect: iOS writes raw ADTS for an `.aac` file (see Current behavior)  
 \** iOS does not support Opus encoding
 
 ### Implementation Strategy
@@ -145,7 +156,7 @@ private fun getFileExtension(format: String, useContainer: Boolean?): String {
 
 ### 2. Platform Limitations
 - **iOS**: 
-  - Cannot produce raw AAC streams, only M4A containers
+  - Raw AAC (ADTS) or M4A, chosen by the file extension (see Current behavior)
   - Opus format (`kAudioFormatOpus`) is defined but not functional - AVAudioRecorder produces 0-byte files
 - **Android**: Can produce both raw AAC (.aac) and M4A containers (.m4a)
 - **Web**: Limited to WebM/Opus, no AAC support in MediaRecorder
@@ -153,7 +164,7 @@ private fun getFileExtension(format: String, useContainer: Boolean?): String {
 ### 3. No Post-Processing Required
 - Native APIs directly output the desired format
 - Android can switch between AAC_ADTS and MPEG_4 output formats
-- iOS always outputs M4A when using AAC codec
+- iOS outputs ADTS or M4A for the AAC codec, depending on the file extension
 
 ## Implementation Plan
 
@@ -187,7 +198,7 @@ export interface CompressedOutput {
 ```
 
 Platform behavior with `useContainer`:
-- **iOS**: `.aac` raw ADTS for AAC when `preferRawStream` is true (`AVAudioRecorder` picks the container from the extension); otherwise `.m4a`
+- **iOS**: Superseded; shipped as `preferRawStream` (see Current behavior)
 - **Android**: 
   - `useContainer: true` → `.m4a` (MP4 container)
   - `useContainer: false` → `.aac` (raw AAC stream)

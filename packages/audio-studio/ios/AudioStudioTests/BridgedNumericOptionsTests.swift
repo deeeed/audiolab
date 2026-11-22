@@ -138,6 +138,20 @@ final class BridgedNumericOptionsTests: XCTestCase {
         }
         XCTAssertTrue(raw.output.compressed.preferRawStream)
         XCTAssertFalse(absent.output.compressed.preferRawStream, "absent flag keeps the M4A default")
+        XCTAssertEqual(raw.output.compressed.fileExtension, "aac", "AAC + preferRawStream records raw ADTS")
+        XCTAssertEqual(absent.output.compressed.fileExtension, "m4a")
+    }
+
+    func testCompressedFileExtensionFollowsFormatAndFlag() {
+        var compressed = OutputSettings.CompressedOutput()
+        XCTAssertEqual(compressed.fileExtension, "m4a", "default is the M4A container")
+        compressed.preferRawStream = true
+        XCTAssertEqual(compressed.fileExtension, "aac")
+        compressed.preferRawStream = false
+        XCTAssertEqual(compressed.fileExtension, "m4a")
+        compressed.format = "opus"
+        compressed.preferRawStream = true
+        XCTAssertEqual(compressed.fileExtension, "m4a", "Opus falls back to AAC in M4A on iOS")
     }
 
     // MARK: - Range guards (regression from the #423 bridging fix)
