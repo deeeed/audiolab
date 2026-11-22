@@ -13,7 +13,16 @@
     "apps/minimal"
   ],
   "ci": {
-    "local_check": "bash apps/playground/.agent/ci-parity"
+    "local_check": "bash apps/playground/.agent/ci-parity",
+    "enabled": true,
+    "repo": "deeeed/audiolab",
+    "bot_patterns": [
+      {
+        "author": "sonar(cloud|qubecloud)\\[bot\\]",
+        "label": "sonarcloud",
+        "default_action": "alert_only"
+      }
+    ]
   },
   "fixtures": {
     "templates": [
@@ -177,6 +186,34 @@
   },
   "recipe_run_supports_playback_slow": false,
   "repo_url": "https://github.com/deeeed/audiolab.git",
+  "static_review": {
+    "template_id": "review-pr/static",
+    "instruction_files": [
+      "runtime/static-review.md"
+    ]
+  },
+  "workflow_defaults": {
+    "review-pr": {
+      "execution": {
+        "workspacePolicy": {
+          "kind": "pool"
+        },
+        "transport": "native",
+        "models": [
+          {
+            "runner": "codex",
+            "model": "gpt-6.2-sol",
+            "effort": "medium",
+            "mode": "cold"
+          }
+        ]
+      },
+      "review": {
+        "mode": "cold",
+        "publishReview": false
+      }
+    }
+  },
   "default_branch": "main",
   "command_env": {
     "set": {
@@ -216,6 +253,14 @@
           "projectPath": "checklists"
         }
       }
+    ],
+    "defaults": [
+      {
+        "when": {
+          "flow": "review-pr"
+        },
+        "templateId": "review-pr/default"
+      }
     ]
   },
   "vars": {
@@ -234,6 +279,35 @@
         "fixtures",
         "deps"
       ]
+    },
+    "profiles": {
+      "native-client-ios": {
+        "label": "Rebuild and launch current iOS dev client",
+        "phases": [
+          "preflight"
+        ],
+        "hooks": {
+          "preflight": "source \"{{farmslot_dir}}/projects/audiolab-farm/scripts/env.sh\" && export PATH=\"$AUDIOLAB_NODE_BIN:$MOBILE_RUBY_BIN:$PATH\" LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && cd \"{{repo}}/apps/playground\" && SDKROOT=\"$(xcrun --sdk macosx --show-sdk-path)\" nice -n 15 yarn expo prebuild --clean --platform ios && cd \"{{repo}}\" && REBUILD=1 SKIP_BUILD=0 USE_CCACHE=1 AGENTIC_LAUNCH_TIMEOUT=1500 nice -n 15 bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" ios \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\""
+        }
+      },
+      "native-toolchain-android": {
+        "label": "Provision assigned Android emulator",
+        "phases": [
+          "preflight"
+        ],
+        "hooks": {
+          "preflight": "export PATH=\"$AUDIOLAB_NODE_BIN:$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH\" LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && nice -n 15 \"$ANDROID_SDK_MANAGER\" --sdk_root=\"$ANDROID_HOME\" \"cmdline-tools;latest\" \"emulator\" \"system-images;android-36;google_apis;arm64-v8a\" && mkdir -p \"$ANDROID_AVD_HOME\" && if [ ! -f \"$ANDROID_AVD_HOME/{{avd}}.ini\" ]; then echo no | nice -n 15 \"$ANDROID_AVD_MANAGER\" create avd --name {{avd}} --package \"system-images;android-36;google_apis;arm64-v8a\" --device pixel_6; fi"
+        }
+      },
+      "native-client-android": {
+        "label": "Rebuild and launch current Android dev client",
+        "phases": [
+          "preflight"
+        ],
+        "hooks": {
+          "preflight": "source \"{{farmslot_dir}}/projects/audiolab-farm/scripts/env.sh\" && export ANDROID_DEVICE=\"{{avd}}\" ORG_GRADLE_PROJECT_reactNativeArchitectures=arm64-v8a GRADLE_OPTS=\"-Dorg.gradle.project.reactNativeArchitectures=arm64-v8a\" && export PATH=\"$AUDIOLAB_NODE_BIN:$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH\" LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && if ! command -v patchelf >/dev/null; then HOMEBREW_NO_AUTO_UPDATE=1 nice -n 15 brew install patchelf; fi && cd \"{{repo}}\" && nice -n 15 bash packages/moonshine.rn/scripts/build-isolated-android-aar.sh && cd \"{{repo}}/apps/playground\" && if [ ! -x android/gradlew ]; then nice -n 15 yarn expo prebuild --clean --platform android; fi && cd \"{{repo}}\" && REBUILD=1 SKIP_BUILD=0 AGENTIC_LAUNCH_TIMEOUT=1500 nice -n 15 bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" android \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"\" \"\""
+        }
+      }
     }
   },
   "qa": {
@@ -542,5 +616,9 @@
         "recipe": "playground.expo.config"
       }
     ]
+  },
+  "artifacts_repo": "deeeed/farmslot-artifacts",
+  "timeouts": {
+    "prepare_preflight_s": 1800
   }
 }
