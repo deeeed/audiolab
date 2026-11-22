@@ -110,8 +110,18 @@ android {
     targetCompatibility JavaVersion.VERSION_17
   }
 
-  kotlinOptions {
-    jvmTarget = '17'
+  // Declare the release component used by the publication below; with AGP 9
+  // built-in Kotlin nothing else creates it.
+  publishing {
+    singleVariant("release")
+  }
+}
+
+// android.kotlinOptions only exists when the kotlin-android plugin is applied;
+// AGP 9 built-in Kotlin drops it. Set the JVM target on the compile tasks instead.
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
   }
 }
 

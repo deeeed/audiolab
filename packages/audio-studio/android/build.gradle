@@ -18,7 +18,14 @@ project.ext.preventPluginConflict = true
 
 buildscript {
   def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
-  if (expoModulesCorePlugin.exists()) {
+  // applyKotlinExpoModulesCorePlugin() applies kotlin-android before AGP, which
+  // AGP 9 rejects when built-in Kotlin is on (the default unless
+  // android.builtInKotlin=false). AGP classes are not on this block's compile
+  // classpath, so Version is loaded reflectively.
+  def agpVersion = rootProject.buildscript.classLoader.loadClass('com.android.Version').ANDROID_GRADLE_PLUGIN_VERSION
+  def builtInKotlin = agpVersion.tokenize('.')[0].toInteger() >= 9 &&
+    (findProperty('android.builtInKotlin') ?: 'true').toString().toBoolean()
+  if (expoModulesCorePlugin.exists() && !builtInKotlin) {
     apply from: expoModulesCorePlugin
     applyKotlinExpoModulesCorePlugin()
   }
