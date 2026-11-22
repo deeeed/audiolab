@@ -43,7 +43,7 @@ export function createAudiolabManifest(app) {
 // second attempt (the other platform of a two-platform proof) only with this file; run.mjs
 // drives the runner directly, so the host records it (run 1ad82ba1).
 export function checkoutState(projectRoot) {
-  const git = args => execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const git = args => execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); // NOSONAR: read-only git queries on the operator's own checkout, resolved from PATH like the shared recipe CLI's provenance writer.
   try {
     return { gitRef: git(['rev-parse', 'HEAD']), branch: git(['branch', '--show-current']) || 'detached',
       dirty: git(['status', '--porcelain', '--untracked-files=normal']).length > 0 };
