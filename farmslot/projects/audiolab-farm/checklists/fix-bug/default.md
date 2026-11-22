@@ -6,6 +6,6 @@ platforms: [web, mobile, ios, android]
 
 - [ ] Reproduce the bug in the selected app and retain baseline evidence.
 - [ ] Fix its cause with the smallest change.
-- [ ] Run the same proof after the fix and validate its artifact package. The proof this task claims is the after-fix attempt selected in `artifacts/latest-valid-recipe-run.json`; declare baseline captures as before evidence in the optional `artifacts/evidence-manifest.json`.
+- [ ] Run the same proof after the fix and validate its artifact package. The proof this task claims is the after-fix attempt selected in `artifacts/latest-valid-recipe-run.json`. To publish baseline captures, declare them as before evidence in the optional `artifacts/evidence-manifest.json`.
 - [ ] Write artifacts/pr-description.md with the cause, evidence and validation.
 - [ ] Changed-file CI [DETERMINISTIC: ci.local_check] - call this step through `./mark N`; the engine runs the frozen command. Read failures and fix them; do not launch validation commands.
