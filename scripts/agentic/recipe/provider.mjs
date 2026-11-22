@@ -8,7 +8,7 @@ import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createBridge, createBridgeTransport, createAdapters } from './adapters.mjs';
 import { appDomain, appRootFor, createAudiolabManifest, resolveDevice, repoRoot } from './host.mjs';
-import { stopMetro, stopMetroPids, metroBinding, metroListeners, metroProcesses } from '../lib/metro-process.mjs';
+import { stopMetro, stopMetroPids, metroBinding, metroListeners } from '../lib/metro-process.mjs';
 
 export function createProvider(context) {
   const root = context.project?.checkoutRoot ?? repoRoot;

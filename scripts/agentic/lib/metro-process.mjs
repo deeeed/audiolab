@@ -18,7 +18,7 @@ const metroCwd = (pid) => {
 // The checkout an app root belongs to; an app root outside Git is its own checkout.
 const checkoutOf = (appRoot) => {
   const real = fs.realpathSync(appRoot);
-  try { return fs.realpathSync(execFileSync('git', ['-C', real, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', timeout: 10000 }).trim()); }
+  try { return fs.realpathSync(execFileSync('git', ['-C', real, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', timeout: 10000 }).trim()); } // NOSONAR: read-only git query on this checkout, resolved from the operator's PATH like the other agentic scripts.
   catch { return real; }
 };
 

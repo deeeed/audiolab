@@ -36,7 +36,7 @@ async function twoAppCheckout(t) {
   const { execFileSync } = await import('node:child_process');
   execFileSync('git', ['init', '-q', root]);
   const voice = path.join(root, 'apps/sherpa-voice');const playground = path.join(root, 'apps/playground');
-  for (const dir of [voice, playground]) await fs.mkdir(path.join(dir, '.agent'), { recursive: true });
+  await Promise.all([voice, playground].map(dir => fs.mkdir(path.join(dir, '.agent'), { recursive: true })));
   const script = path.join(root, 'metro-fixture.mjs');
   await fs.writeFile(script, `import net from 'node:net';const s=net.createServer();s.listen(0,'127.0.0.1',()=>console.log(s.address().port));`);
   const child = spawn(process.execPath, [script], { cwd: voice, stdio: ['ignore', 'pipe', 'pipe'] });

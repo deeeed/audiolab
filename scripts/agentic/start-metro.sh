@@ -38,12 +38,12 @@ print_launch_hint() {
 BINDING="$(node "$MONOREPO_ROOT/scripts/agentic/lib/metro-process.mjs" binding "$APP_ROOT" "$PORT")"
 PREVIOUS_HOST="$(cat "$HOSTFILE" 2>/dev/null || true)"
 RESTART=""
-if [ "$BINDING" = "other-app" ]; then
+if [[ "$BINDING" == "other-app" ]]; then
   RESTART="Port $PORT serves another app of this checkout; restarting Metro for $APP_ROOT..."
-elif [ "$BINDING" = "this-app" ] && [ -n "$PREVIOUS_HOST" ] && [ "$PREVIOUS_HOST" != "$DEV_HOST" ]; then
+elif [[ "$BINDING" == "this-app" && -n "$PREVIOUS_HOST" && "$PREVIOUS_HOST" != "$DEV_HOST" ]]; then
   RESTART="Restarting this checkout's Metro for host $DEV_HOST..."
 fi
-if [ -n "$RESTART" ]; then
+if [[ -n "$RESTART" ]]; then
   echo "$RESTART"
   bash "$MONOREPO_ROOT/scripts/agentic/stop-metro.sh"
   # Poll shutdown rather than starting a second server on the same port.
