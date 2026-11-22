@@ -57,7 +57,9 @@ export function createProvider(context) {
   const env = { ...process.env, ...runtimeEnv };
   let device;
   let liveAdapters;
-  let launchedMetro = false;
+  // Metro PIDs on the port when launch began: anything new is this launch's to stop.
+  let launchBefore = null;
+  const startedByLaunch = () => launchBefore !== null && metroProcesses(appRoot, metro).some(pid => !launchBefore.has(pid));
   async function selectedDevice() {
     return device ??= await resolveDevice({ platform, device: explicitDevice, simulator, serial, iosDevice }, async (command, argv) => {
       const result = await runOwnedRecipeProcess(command, argv, { cwd: appRoot, env, shell: false, signal: recipeExecutionSignal(), timeoutMs: 10000 });
@@ -113,19 +115,18 @@ export function createProvider(context) {
       runtimeContext: { forbiddenFields: [] },
       readiness: { statusRuntime: true, captureProviders: ['Audiolab CDP bridge'] },
       async launch() {
+        launchBefore = new Set(metroProcesses(appRoot, metro));
         try {
-        launchedMetro = false;
         if (platform === 'web') {
-          // Whatever start-metro.sh starts or restarts is this launch's to stop on failure.
-          const before = new Set(metroProcesses(appRoot, metro));
+          const swapped = metroBinding(appRoot, metro) === 'other-app';
           await leaf('scripts/agentic/start-metro.sh', [], 60000);
-          launchedMetro = metroProcesses(appRoot, metro).some(pid => !before.has(pid));
           const existing = await fetch(`http://127.0.0.1:${cdp}/json/version`, { signal: AbortSignal.timeout(1000) }).catch(() => null);
           if (existing?.ok) {
-            // Attach to an existing assigned app; never replace a browser to make readiness pass.
+            // A page loaded from the replaced Metro still runs the other app's bundle; refuse
+            // rather than report it ready, and never replace a browser to make readiness pass.
+            if (swapped) throw new Error(`Metro on port ${metro} was restarted for ${app}; the browser on CDP port ${cdp} still runs the previous app. Close that browser, then launch again.`);
+            // Attach to an existing assigned app.
             await recordingTarget({ platform, cdp, metro });
-            // A page attached to a replaced Metro still runs the old app's bundle.
-            if (launchedMetro) await bridge(['reload']);
             await bridge(['get-route']);
             return 0;
           }
@@ -139,7 +140,8 @@ export function createProvider(context) {
         if (check.exitCode !== 0 || (platform === 'ios' && !iosDevice && !Object.values(JSON.parse(check.stdout).devices).flat().some(d => d.name === (simulator || explicitDevice) || d.udid === (simulator || explicitDevice)))) throw new Error('Acquire the assigned device capability before launch.');
         return await leaf(`apps/${app}/scripts/agentic/preflight.sh`);
         } catch (error) {
-          if (launchedMetro) stopMetro(appRoot, metro);
+          // Covers native preflight and a start script that fails after spawning Metro.
+          if (startedByLaunch()) stopMetro(appRoot, metro);
           throw error;
         }
       },
@@ -179,6 +181,6 @@ export function createProvider(context) {
         },
       },
     },
-    cancel() { if (launchedMetro) stopMetro(appRoot, metro); },
+    cancel() { if (startedByLaunch()) stopMetro(appRoot, metro); },
   };
 }
