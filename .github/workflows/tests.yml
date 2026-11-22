@@ -20,13 +20,6 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # yarn install fails outright without this — .yarnrc.yml interpolates it for the
-  # npm registry entry, and Yarn errors on an undefined variable rather than
-  # treating it as empty. An empty value is enough; no secret is needed to install
-  # public packages.
-  AUDIOLAB_NPM_TOKEN: ""
-
 jobs:
   js:
     name: JS and TypeScript
