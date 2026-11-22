@@ -142,6 +142,14 @@ struct OutputSettings {
         var enabled: Bool = false
         var format: String = "aac"  // "aac" or "opus" (opus falls back to aac on iOS)
         var bitrate: Int = 128000
+        var preferRawStream: Bool = false
+
+        /// AVAudioRecorder picks the AAC container from the file extension: `.aac` gives raw
+        /// ADTS, so every streamed chunk can be joined and decoded without a moov atom (#505).
+        /// `preferRawStream` only applies to AAC; every other format keeps the `.m4a` filename.
+        var fileExtension: String {
+            format == "aac" && preferRawStream ? "aac" : "m4a"
+        }
     }
 
     var primary: PrimaryOutput = PrimaryOutput()
@@ -253,6 +261,24 @@ struct RecordingSettings {
     var maxDurationMs: Int64 = 0
     var autoStopOnMaxDuration: Bool = false
 
+    /// startRecording records an enabled Opus request as AAC because AVAudioRecorder cannot
+    /// encode Opus. That fallback has always produced an M4A file, so `preferRawStream`
+    /// (an AAC option) is cleared to keep the `.m4a` filename. Returns nil when no rewrite applies.
+    static func applyingOpusFallback(_ options: [String: Any]) -> [String: Any]? {
+        guard var output = options["output"] as? [String: Any],
+              var compressed = output["compressed"] as? [String: Any],
+              compressed["enabled"] as? Bool == true,
+              (compressed["format"] as? String)?.lowercased() == "opus" else {
+            return nil
+        }
+        compressed["format"] = "aac"
+        compressed["preferRawStream"] = false
+        output["compressed"] = compressed
+        var modified = options
+        modified["output"] = output
+        return modified
+    }
+
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Parse output configuration
         var outputSettings = OutputSettings()
@@ -270,6 +296,7 @@ struct RecordingSettings {
                 let format = (compressedDict["format"] as? String)?.lowercased() ?? "aac"
                 outputSettings.compressed.format = format
                 outputSettings.compressed.bitrate = bridgedInt(compressedDict, "bitrate").flatMap { $0 > 0 ? $0 : nil } ?? 128000
+                outputSettings.compressed.preferRawStream = compressedDict["preferRawStream"] as? Bool ?? false
 
                 // Validate compression settings if enabled
                 if outputSettings.compressed.enabled {

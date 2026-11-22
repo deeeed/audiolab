@@ -648,9 +648,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Choose extension based on whether this is a compressed file
         let fileExtension: String
         if isCompressed {
-            // iOS always produces M4A container when using AAC or Opus formats
-            // Opus falls back to AAC in M4A container on iOS
-            fileExtension = "m4a"
+            fileExtension = (recordingSettings?.output.compressed ?? OutputSettings.CompressedOutput()).fileExtension
         } else {
             fileExtension = "wav"
         }
