@@ -17,7 +17,7 @@ test('an Audiolab recipe attempt records the product checkout provenance', async
   git('checkout', '-q', '-b', 'feat/526');
   await fs.mkdir(path.join(root, 'apps/playground'), { recursive: true });
   await fs.writeFile(path.join(root, 'apps/playground/README.md'), 'fixture\n');
-  await fs.writeFile(path.join(root, '.gitignore'), 'attempt/\n');
+  await fs.writeFile(path.join(root, '.gitignore'), 'attempt*/\n');
   git('add', '.');
   git('-c', 'user.email=fixture@example.com', '-c', 'user.name=fixture', 'commit', '-qm', 'fixture');
   const host = createAudiolabHost({ app: 'playground', platform: 'web', device: 'web', projectRoot: root, noHud: true });
@@ -33,4 +33,12 @@ test('an Audiolab recipe attempt records the product checkout provenance', async
   );
   const manifest = JSON.parse(await fs.readFile(path.join(artifactsDir, 'artifact-manifest.json'), 'utf8'));
   assert.ok(manifest.artifacts.some(entry => entry.path === 'product-provenance.json'), 'publication finds it through the manifest');
+
+  // Dirty when the run started, clean at closeout: the capture is not clean-head evidence.
+  await fs.writeFile(path.join(root, 'apps/playground/README.md'), 'edited\n');
+  const dirtyRequest = host.request({ recipeDocument, artifactsDir: path.join(root, 'attempt-dirty') });
+  git('checkout', '-q', '--', 'apps/playground/README.md');
+  assert.equal((await host.runner.run(dirtyRequest)).status, 'pass');
+  const recorded = JSON.parse(await fs.readFile(path.join(root, 'attempt-dirty/product-provenance.json'), 'utf8'));
+  assert.equal(recorded.dirty, true);
 });

@@ -42,23 +42,26 @@ export function createAudiolabManifest(app) {
 // (recipe-cli run-report indexProductProvenanceArtifact). Publication accepts evidence from a
 // second attempt (the other platform of a two-platform proof) only with this file; run.mjs
 // drives the runner directly, so the host records it (run 1ad82ba1).
-export function recordProductProvenance(context, projectRoot, adapter) {
+export function checkoutState(projectRoot) {
   const git = args => execFileSync('git', args, { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-  let gitRef = 'unknown';
-  let branch = 'unknown';
-  let dirty = true;
   try {
-    gitRef = git(['rev-parse', 'HEAD']);
-    branch = git(['branch', '--show-current']) || 'detached';
-    dirty = git(['status', '--porcelain', '--untracked-files=normal']).length > 0;
+    return { gitRef: git(['rev-parse', 'HEAD']), branch: git(['branch', '--show-current']) || 'detached',
+      dirty: git(['status', '--porcelain', '--untracked-files=normal']).length > 0 };
   } catch {
     // A non-Git checkout keeps explicit unknown provenance.
+    return { gitRef: 'unknown', branch: 'unknown', dirty: true };
   }
-  const provenance = { schemaVersion: 1, adapter, repository: path.basename(path.resolve(projectRoot)), git_ref: gitRef, branch, dirty };
-  return fs.writeFile(path.join(context.artifactsDir, 'product-provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`).then(() => {
-    context.register({ path: 'product-provenance.json', type: 'json', label: 'Product checkout provenance', category: 'system',
-      metadata: { adapter, git_ref: gitRef, branch, dirty } });
-  });
+}
+
+// `before` is the checkout when the request was built: a checkout that was dirty then, or
+// whose HEAD moved during the run, is recorded dirty even if it is clean at closeout.
+export async function recordProductProvenance(context, projectRoot, adapter, before) {
+  const now = checkoutState(projectRoot);
+  const dirty = now.dirty || !before || before.dirty || before.gitRef !== now.gitRef;
+  const provenance = { schemaVersion: 1, adapter, repository: path.basename(path.resolve(projectRoot)), git_ref: now.gitRef, branch: now.branch, dirty };
+  await fs.writeFile(path.join(context.artifactsDir, 'product-provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
+  context.register({ path: 'product-provenance.json', type: 'json', label: 'Product checkout provenance', category: 'system',
+    metadata: { adapter, git_ref: now.gitRef, branch: now.branch, dirty } });
 }
 
 export function createAudiolabHost({ app, platform, device, projectRoot = repoRoot, noHud = false, updateBaselines = false }) {
@@ -72,6 +75,7 @@ export function createAudiolabHost({ app, platform, device, projectRoot = repoRo
   });
   return { runner, appRoot,
     request(input) {
+      const before = checkoutState(projectRoot);
       // Preserve the app-local/project-hook screenshot default. The shared CLI
       // supplies its own recording admission through the default engine.
       return { recordVideo: 'off', recordingReason: 'App-local Audiolab validation captures recipe screenshots.',
@@ -79,7 +83,7 @@ export function createAudiolabHost({ app, platform, device, projectRoot = repoRo
         librarySources: [{ name: 'audiolab', root: libraryRoot, provenance }],
         async finalizeArtifacts(context) {
           await input.finalizeArtifacts?.(context);
-          await recordProductProvenance(context, projectRoot, platform);
+          await recordProductProvenance(context, projectRoot, platform, before);
         },
       };
     },
