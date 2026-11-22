@@ -151,7 +151,7 @@ final class BridgedNumericOptionsTests: XCTestCase {
         XCTAssertEqual(compressed.fileExtension, "m4a")
         compressed.format = "opus"
         compressed.preferRawStream = true
-        XCTAssertEqual(compressed.fileExtension, "m4a", "Opus falls back to AAC in M4A on iOS")
+        XCTAssertEqual(compressed.fileExtension, "m4a", "preferRawStream only changes the filename for AAC; Opus keeps .m4a")
     }
 
     // MARK: - Range guards (regression from the #423 bridging fix)

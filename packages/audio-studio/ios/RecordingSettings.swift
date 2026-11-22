@@ -146,7 +146,7 @@ struct OutputSettings {
 
         /// AVAudioRecorder picks the AAC container from the file extension: `.aac` gives raw
         /// ADTS, so every streamed chunk can be joined and decoded without a moov atom (#505).
-        /// Opus falls back to AAC in an M4A container on iOS.
+        /// `preferRawStream` only applies to AAC; every other format keeps the `.m4a` filename.
         var fileExtension: String {
             format == "aac" && preferRawStream ? "aac" : "m4a"
         }
