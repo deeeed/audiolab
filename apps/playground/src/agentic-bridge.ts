@@ -40,12 +40,14 @@ import {
 } from '@siteed/audio-studio'
 import {
     ASR as SherpaASR,
+    TTS as SherpaTTS,
     SegmentedOfflineAsrSession,
     OnnxInference,
     typedArrayToBase64,
     base64ToTypedArray,
     type AsrModelConfig,
     type OnnxTensorData,
+    type TtsModelConfig,
     type SegmentedOfflineAsrEvent,
 } from '@siteed/sherpa-onnx.rn'
 import {
@@ -764,6 +766,7 @@ export async function validateLongAudioStream(options: LongAudioValidationOption
                 sherpa: sherpaResult
                     ? {
                           transcriptCharCount: sherpaResult.text?.length ?? 0,
+                          transcript: sherpaResult.text ?? '',
                           tokenCount: sherpaResult.tokens?.length ?? 0,
                           timestampCount: sherpaResult.timestamps?.length ?? 0,
                       }
@@ -2462,6 +2465,43 @@ if (__DEV__) {
                     }
                 } catch (e) {
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        testSherpaTts: (config: TtsModelConfig, text = 'Hello from sherpa onnx.') => {
+            const op = 'sherpaTts'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    const init = await SherpaTTS.initialize(config)
+                    if (!init.success) {
+                        throw new Error(init.error || 'TTS initialize failed')
+                    }
+                    const generated = await SherpaTTS.generateSpeech(text, { playAudio: false })
+                    if (!generated.success || !generated.filePath) {
+                        throw new Error('TTS generateSpeech returned no file')
+                    }
+                    const fileUri = generated.filePath.startsWith('file://')
+                        ? generated.filePath
+                        : `file://${generated.filePath}`
+                    const info = await FileSystem.getInfoAsync(fileUri)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            platform: Platform.OS,
+                            sampleRate: init.sampleRate,
+                            numSpeakers: init.numSpeakers,
+                            filePath: generated.filePath,
+                            bytes: info.exists ? info.size : 0,
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = { op, status: 'error', error: String(e) }
+                } finally {
+                    await SherpaTTS.release().catch(() => {})
                 }
             })()
             return { op, status: 'pending' }

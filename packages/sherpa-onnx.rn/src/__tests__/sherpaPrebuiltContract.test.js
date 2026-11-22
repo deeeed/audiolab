@@ -63,6 +63,18 @@ describe('sherpa prebuilt contract', () => {
     expect(result.missing).toContain('prebuilt/include/module.modulemap');
   });
 
+  it.each(['libkaldi-hmm-gmm-core.a', 'libkaldi-native-io-core.a'])(
+    'requires %s, which sherpa-onnx-core links since v2.0.2',
+    (library) => {
+      createCompletePrebuiltTree(tempDir);
+      fs.unlinkSync(path.join(tempDir, 'prebuilt/ios/device', library));
+
+      const result = validatePrebuiltTree(tempDir);
+      expect(result.ok).toBe(false);
+      expect(result.missing).toEqual([`prebuilt/ios/device/${library}`]);
+    }
+  );
+
   it('validates a complete prebuilt tree and creates podspec current symlinks', () => {
     createCompletePrebuiltTree(tempDir);
 
