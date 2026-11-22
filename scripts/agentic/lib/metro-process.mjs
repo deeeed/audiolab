@@ -41,7 +41,7 @@ export function metroBinding(appRoot, port) {
   return listeners.every(pid => metroCwd(pid) === real) ? 'this-app' : 'other-app';
 }
 
-function metroListeners(appRoot, port) {
+export function metroListeners(appRoot, port) {
   if (!Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) throw new Error('Select a valid Metro port.');
   const listeners = inspect(['lsof', '-nP', '-t', `-iTCP:${port}`, '-sTCP:LISTEN']).split('\n').filter(Boolean).map(Number);
   if (listeners.some(pid => !ownsMetro(pid, appRoot))) throw new Error(`Metro port ${port} is owned by another checkout; refusing to stop or reuse it.`);
@@ -55,6 +55,17 @@ export function metroProcesses(appRoot, port) {
   const saved = fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, 'utf8').trim()) : 0;
   const ownSaved = saved > 0 && !listeners.includes(saved) && metroCwd(saved) === fs.realpathSync(appRoot);
   return [...new Set([...listeners, ...(ownSaved ? [saved] : [])])];
+}
+
+/** Signal only the given PIDs, each rechecked as this checkout's Metro right before the signal. */
+export function stopMetroPids(appRoot, pids) {
+  let signalled = 0;
+  for (const pid of pids) {
+    if (!ownsMetro(pid, appRoot)) continue;
+    try { process.kill(pid, 'SIGTERM'); signalled++; }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+  }
+  return signalled;
 }
 
 export function stopMetro(appRoot, port) {

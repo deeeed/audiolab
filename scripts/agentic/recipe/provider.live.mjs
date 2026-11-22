@@ -75,3 +75,11 @@ test('a Metro in a separate repo nested under the app root stays foreign', async
   assert.throws(() => stopMetro(playground, port), /another checkout/);
   assert.doesNotThrow(() => process.kill(child.pid, 0));
 });
+
+test('stopping the PIDs a launch started leaves a pre-existing Metro running', async t => {
+  const { voice, child, port } = await twoAppCheckout(t);
+  const { stopMetroPids, metroListeners } = await import('../lib/metro-process.mjs');
+  const before = new Set(metroListeners(voice, port));
+  assert.equal(stopMetroPids(voice, metroListeners(voice, port).filter(pid => !before.has(pid))), 0);
+  assert.doesNotThrow(() => process.kill(child.pid, 0));
+});

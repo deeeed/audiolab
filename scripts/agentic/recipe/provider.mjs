@@ -8,7 +8,7 @@ import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createBridge, createBridgeTransport, createAdapters } from './adapters.mjs';
 import { appDomain, appRootFor, createAudiolabManifest, resolveDevice, repoRoot } from './host.mjs';
-import { stopMetro, metroBinding, metroProcesses } from '../lib/metro-process.mjs';
+import { stopMetro, stopMetroPids, metroBinding, metroListeners, metroProcesses } from '../lib/metro-process.mjs';
 
 export function createProvider(context) {
   const root = context.project?.checkoutRoot ?? repoRoot;
@@ -57,9 +57,13 @@ export function createProvider(context) {
   const env = { ...process.env, ...runtimeEnv };
   let device;
   let liveAdapters;
-  // Metro PIDs on the port when launch began: anything new is this launch's to stop.
+  // Metro listeners on this port when launch began: a new listener is this launch's, and only
+  // those are stopped (never a reused server, nor another port's Metro from the shared PID file).
   let launchBefore = null;
-  const startedByLaunch = () => launchBefore !== null && metroProcesses(appRoot, metro).some(pid => !launchBefore.has(pid));
+  const stopLaunchedMetro = () => {
+    if (launchBefore === null) return;
+    stopMetroPids(appRoot, metroListeners(appRoot, metro).filter(pid => !launchBefore.has(pid)));
+  };
   async function selectedDevice() {
     return device ??= await resolveDevice({ platform, device: explicitDevice, simulator, serial, iosDevice }, async (command, argv) => {
       const result = await runOwnedRecipeProcess(command, argv, { cwd: appRoot, env, shell: false, signal: recipeExecutionSignal(), timeoutMs: 10000 });
@@ -115,7 +119,7 @@ export function createProvider(context) {
       runtimeContext: { forbiddenFields: [] },
       readiness: { statusRuntime: true, captureProviders: ['Audiolab CDP bridge'] },
       async launch() {
-        launchBefore = new Set(metroProcesses(appRoot, metro));
+        launchBefore = new Set(metroListeners(appRoot, metro));
         try {
         if (platform === 'web') {
           const swapped = metroBinding(appRoot, metro) === 'other-app';
@@ -141,7 +145,7 @@ export function createProvider(context) {
         return await leaf(`apps/${app}/scripts/agentic/preflight.sh`);
         } catch (error) {
           // Covers native preflight and a start script that fails after spawning Metro.
-          if (startedByLaunch()) stopMetro(appRoot, metro);
+          stopLaunchedMetro();
           throw error;
         }
       },
@@ -181,6 +185,6 @@ export function createProvider(context) {
         },
       },
     },
-    cancel() { if (startedByLaunch()) stopMetro(appRoot, metro); },
+    cancel() { stopLaunchedMetro(); },
   };
 }
