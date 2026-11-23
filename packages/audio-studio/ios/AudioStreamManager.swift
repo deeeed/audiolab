@@ -1003,16 +1003,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     /// require a reason on every failure.
     func prepareRecording(settings: RecordingSettings) throws {
 
-        // Store settings first before doing anything else
-        recordingSettings = settings
-        
         // Skip if already prepared or recording
         // Already prepared is success, not failure — there is nothing left to do. Recording
         // in progress is caught by startRecording's own alreadyRecording guard.
+        // A skipped prepare keeps the stored settings: auto-resume reapplies them to the
+        // session, so they must stay the ones the session was configured with (#495).
         guard !isPrepared && !isRecording else {
             Logger.debug("AudioStreamManager", "Already prepared or recording in progress.")
             return
         }
+
+        recordingSettings = settings
 
         // Check for active call using the new method
         if isPhoneCallActive() {
