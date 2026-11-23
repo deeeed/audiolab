@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update vendored sherpa-onnx to v2.0.2 (ONNX Runtime stays 1.28.2). The Kotlin API picks up the new `qnnConfig` fields on the Whisper, Moonshine and NeMo CTC configs and `QnnConfig.htpPerfMode`, which the v2.0.2 JNI reads. iOS links the two new static libraries, `libkaldi-hmm-gmm-core.a` and `libkaldi-native-io-core.a`.
+
 ## [2.0.1] - 2026-11-07
 
 ### Migration

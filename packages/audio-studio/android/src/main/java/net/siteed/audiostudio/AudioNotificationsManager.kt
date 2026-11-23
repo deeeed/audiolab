@@ -35,6 +35,13 @@ class AudioNotificationManager private constructor(context: Context) {
                 instance ?: AudioNotificationManager(context).also { instance = it }
             }
         }
+
+        internal fun formatDuration(durationMs: Long): String {
+            val totalSeconds = durationMs / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+        }
     }
     
     private val contextRef = WeakReference(context.applicationContext)
@@ -119,9 +126,6 @@ class AudioNotificationManager private constructor(context: Context) {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .setCustomContentView(remoteViews)
-            .setCustomBigContentView(remoteViews)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             // Prevent repeated alerts and vibrations
             .setOnlyAlertOnce(true)  // Only alert on first notification
             .setVibrate(null)        // Disable vibration
@@ -140,6 +144,41 @@ class AudioNotificationManager private constructor(context: Context) {
         }
 
         addNotificationActions(context)
+        presentContent(currentDuration())
+    }
+
+    private fun currentDuration(): Long {
+        if (recordingStartTime == 0L) return 0L
+        val duration = if (isPaused.get()) {
+            lastPauseTime - recordingStartTime - pausedDuration
+        } else {
+            System.currentTimeMillis() - recordingStartTime - pausedDuration
+        }
+        return maxOf(0L, duration)
+    }
+
+    /**
+     * Puts the title, text and duration on the notification. The custom RemoteViews layout is
+     * only used when the waveform is shown: it has no text colour of its own and on Android 12+
+     * the collapsed template clips it to a blank row, so without the waveform the standard
+     * template carries the same content. The duration goes in the header sub-text, so a long
+     * text line can be ellipsized without hiding it.
+     */
+    private fun presentContent(duration: Long) {
+        if (recordingConfig.showWaveformInNotification) {
+            notificationBuilder
+                .setCustomContentView(remoteViews)
+                .setCustomBigContentView(remoteViews)
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            return
+        }
+        notificationBuilder
+            .setCustomContentView(null)
+            .setCustomBigContentView(null)
+            .setStyle(null)
+            .setContentTitle(recordingConfig.notification.title)
+            .setContentText(recordingConfig.notification.text.ifEmpty { null })
+            .setSubText(formatDuration(duration))
     }
 
     private fun addNotificationActions(context: Context) {
@@ -214,10 +253,8 @@ class AudioNotificationManager private constructor(context: Context) {
             addNotificationActions(context)
 
             // Update the notification
-            val updatedNotification = notificationBuilder
-                .setCustomContentView(remoteViews)
-                .setCustomBigContentView(remoteViews)
-                .build()
+            presentContent(currentDuration())
+            val updatedNotification = notificationBuilder.build()
 
             notificationManager.notify(recordingConfig.notification.notificationId, updatedNotification)
         } catch (e: Exception) {
@@ -311,12 +348,11 @@ class AudioNotificationManager private constructor(context: Context) {
             // Only rebuild notification if RemoteViews was refreshed
             if (needsRemoteViewsRefresh) {
                 notificationBuilder
-                    .setCustomContentView(remoteViews)
-                    .setCustomBigContentView(remoteViews)
                     .setOnlyAlertOnce(true)
                     .setOngoing(true)
                 addNotificationActions(context)
             }
+            presentContent(recordingDuration)
 
             // Update the notification with disabled alerts
             notificationManager.notify(
@@ -433,10 +469,4 @@ class AudioNotificationManager private constructor(context: Context) {
             .takeIf { it != 0 } ?: R.drawable.ic_default_action_icon
     }
 
-    private fun formatDuration(durationMs: Long): String {
-        val totalSeconds = durationMs / 1000
-        val minutes = totalSeconds / 60
-        val seconds = totalSeconds % 60
-        return String.format(Locale.US, "%02d:%02d", minutes, seconds)
-    }
 }
