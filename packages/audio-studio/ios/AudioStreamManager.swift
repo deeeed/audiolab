@@ -304,12 +304,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     guard let self = self else { return }
                     Logger.debug("AudioStreamManager", "Attempting to auto-resume recording after phone call")
 
-                    // Configure audio session
+                    // Restore the session the recording started with (category, mode, options).
+                    // A non-mixable session cannot be activated from the background.
                     do {
-                        let session = AVAudioSession.sharedInstance()
-                        let resumeOptions: AVAudioSession.CategoryOptions = self.recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
-                        try session.setCategory(.playAndRecord, mode: .default, options: resumeOptions)
-                        try session.setActive(true, options: .notifyOthersOnDeactivation)
+                        if let settings = self.recordingSettings {
+                            try self.configureAudioSession(for: settings)
+                        }
 
                         // Resume if we're still recording and paused
                         if self.isRecording && self.isPaused {
@@ -1218,9 +1218,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             throw StartRecordingError.preparationFailed
         }
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
-        
+
         if settings.enableProcessing == true {
             // Initialize the AudioProcessor for buffer-based processing
             self.audioProcessor = AudioProcessor(resolve: { result in
