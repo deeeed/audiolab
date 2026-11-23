@@ -304,12 +304,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     guard let self = self else { return }
                     Logger.debug("AudioStreamManager", "Attempting to auto-resume recording after phone call")
 
-                    // Configure audio session
+                    // Restore the session the recording started with (category, mode, options).
+                    // A non-mixable session cannot be activated from the background.
                     do {
-                        let session = AVAudioSession.sharedInstance()
-                        let resumeOptions: AVAudioSession.CategoryOptions = self.recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
-                        try session.setCategory(.playAndRecord, mode: .default, options: resumeOptions)
-                        try session.setActive(true, options: .notifyOthersOnDeactivation)
+                        if let settings = self.recordingSettings {
+                            try self.configureAudioSession(for: settings)
+                        }
 
                         // Resume if we're still recording and paused
                         if self.isRecording && self.isPaused {
@@ -1003,16 +1003,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     /// require a reason on every failure.
     func prepareRecording(settings: RecordingSettings) throws {
 
-        // Store settings first before doing anything else
-        recordingSettings = settings
-        
         // Skip if already prepared or recording
         // Already prepared is success, not failure — there is nothing left to do. Recording
         // in progress is caught by startRecording's own alreadyRecording guard.
+        // A skipped prepare keeps the stored settings: auto-resume reapplies them to the
+        // session, so they must stay the ones the session was configured with (#495).
         guard !isPrepared && !isRecording else {
             Logger.debug("AudioStreamManager", "Already prepared or recording in progress.")
             return
         }
+
+        recordingSettings = settings
 
         // Check for active call using the new method
         if isPhoneCallActive() {
@@ -1218,9 +1219,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             throw StartRecordingError.preparationFailed
         }
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
-        
+
         if settings.enableProcessing == true {
             // Initialize the AudioProcessor for buffer-based processing
             self.audioProcessor = AudioProcessor(resolve: { result in
