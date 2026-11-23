@@ -8,7 +8,7 @@ import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createBridge, createBridgeTransport, createAdapters } from './adapters.mjs';
 import { appDomain, appRootFor, createAudiolabManifest, resolveDevice, repoRoot } from './host.mjs';
-import { stopMetro, metroProcesses } from '../lib/metro-process.mjs';
+import { stopMetro, stopMetroPids, metroBinding, metroListeners } from '../lib/metro-process.mjs';
 
 export function createProvider(context) {
   const root = context.project?.checkoutRoot ?? repoRoot;
@@ -57,7 +57,13 @@ export function createProvider(context) {
   const env = { ...process.env, ...runtimeEnv };
   let device;
   let liveAdapters;
-  let launchedMetro = false;
+  // Metro listeners on this port when launch began: a new listener is this launch's, and only
+  // those are stopped (never a reused server, nor another port's Metro from the shared PID file).
+  let launchBefore = null;
+  const stopLaunchedMetro = () => {
+    if (launchBefore === null) return;
+    stopMetroPids(appRoot, metroListeners(appRoot, metro).filter(pid => !launchBefore.has(pid)));
+  };
   async function selectedDevice() {
     return device ??= await resolveDevice({ platform, device: explicitDevice, simulator, serial, iosDevice }, async (command, argv) => {
       const result = await runOwnedRecipeProcess(command, argv, { cwd: appRoot, env, shell: false, signal: recipeExecutionSignal(), timeoutMs: 10000 });
@@ -86,7 +92,7 @@ export function createProvider(context) {
   };
   async function runtimeStatus() {
     try {
-      metroProcesses(appRoot, metro);
+      if (metroBinding(appRoot, metro) === 'other-app') throw new Error(`Metro on port ${metro} serves another app of this checkout.`);
       const observed = await bridge(['get-route']);
       if (!observed.pathname) throw new Error('The selected app has no observed route.');
       return { decision: 'ready', reasons: [], devServer: { label: 'Metro', status: 'ready' } };
@@ -113,13 +119,17 @@ export function createProvider(context) {
       runtimeContext: { forbiddenFields: [] },
       readiness: { statusRuntime: true, captureProviders: ['Audiolab CDP bridge'] },
       async launch() {
+        launchBefore = new Set(metroListeners(appRoot, metro));
         try {
-        launchedMetro = metroProcesses(appRoot, metro).length === 0;
         if (platform === 'web') {
+          const swapped = metroBinding(appRoot, metro) === 'other-app';
           await leaf('scripts/agentic/start-metro.sh', [], 60000);
           const existing = await fetch(`http://127.0.0.1:${cdp}/json/version`, { signal: AbortSignal.timeout(1000) }).catch(() => null);
           if (existing?.ok) {
-            // Attach to an existing assigned app; never replace a browser to make readiness pass.
+            // A page loaded from the replaced Metro still runs the other app's bundle; refuse
+            // rather than report it ready, and never replace a browser to make readiness pass.
+            if (swapped) throw new Error(`Metro on port ${metro} was restarted for ${app}; the browser on CDP port ${cdp} still runs the previous app. Close that browser, then launch again.`);
+            // Attach to an existing assigned app.
             await recordingTarget({ platform, cdp, metro });
             await bridge(['get-route']);
             return 0;
@@ -134,7 +144,8 @@ export function createProvider(context) {
         if (check.exitCode !== 0 || (platform === 'ios' && !iosDevice && !Object.values(JSON.parse(check.stdout).devices).flat().some(d => d.name === (simulator || explicitDevice) || d.udid === (simulator || explicitDevice)))) throw new Error('Acquire the assigned device capability before launch.');
         return await leaf(`apps/${app}/scripts/agentic/preflight.sh`);
         } catch (error) {
-          if (launchedMetro) stopMetro(appRoot, metro);
+          // Covers native preflight and a start script that fails after spawning Metro.
+          stopLaunchedMetro();
           throw error;
         }
       },
@@ -174,6 +185,6 @@ export function createProvider(context) {
         },
       },
     },
-    cancel() { if (launchedMetro) stopMetro(appRoot, metro); },
+    cancel() { stopLaunchedMetro(); },
   };
 }
