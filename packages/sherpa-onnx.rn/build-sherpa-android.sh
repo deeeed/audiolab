@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build-sherpa-android.sh
-# Build Sherpa-onnx for Android platforms from k2-fsa/sherpa-onnx v2.0.1
+# Build Sherpa-onnx for Android platforms from k2-fsa/sherpa-onnx v2.0.2
 # Run ./setup.sh first to clone the upstream repository.
 # Use NDK r28+ (ANDROID_NDK) so the libraries keep 16 KB page alignment.
 

@@ -41,6 +41,8 @@ Pod::Spec.new do |s|
     "libkissfft-float.a",
     "libkaldi-native-fbank-core.a",
     "libkaldi-decoder-core.a",
+    "libkaldi-hmm-gmm-core.a",
+    "libkaldi-native-io-core.a",
     "libsherpa-onnx-fst.a",
     "libsherpa-onnx-fstfar.a",
     "libsherpa-onnx-kaldifst-core.a",

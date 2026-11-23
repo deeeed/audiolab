@@ -1,9 +1,9 @@
 # Upstream Contributions Tracker
 
-Changes the wrapper carries against vendored sherpa-onnx (currently pinned at `v2.0.1`) and adjacent upstreams. Each item should land upstream so we can drop the local patch.
+Changes the wrapper carries against vendored sherpa-onnx (currently pinned at `v2.0.2`) and adjacent upstreams. Each item should land upstream so we can drop the local patch.
 
 ## Pin
-- `third_party/sherpa-onnx` → `v2.0.1` (upstream `k2-fsa/sherpa-onnx`)
+- `third_party/sherpa-onnx` → `v2.0.2` (upstream `k2-fsa/sherpa-onnx`)
 - ONNX Runtime → `1.28.2` on iOS, Android and wasm (upstream default; no wrapper override)
 - emsdk → `4.0.23` (upstream hint in `build-wasm-simd-*.sh`)
 

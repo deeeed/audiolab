@@ -1,4 +1,4 @@
-Sherpa-ONNX Patch Inventory for v2.0.1
+Sherpa-ONNX Patch Inventory for v2.0.2
 =======================================
 
 These patches track our modifications to upstream sherpa-onnx sources and
@@ -14,7 +14,7 @@ The shipped Android wrapper lives in:
 `android/scripts/sync-kotlin-api.sh` copies the vendored upstream files into the
 shipped Android wrapper and reapplies `KotlinApiOverrides.patch`.
 
-Pinned version: v2.0.1
+Pinned version: v2.0.2
 
 
 Files patched
