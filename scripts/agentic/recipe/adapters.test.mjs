@@ -23,8 +23,19 @@ async function fixture(t, platform = 'web', screenshot = null) {
       const mark = ${JSON.stringify(path.join(root, 'recovered'))};
       if (!fs.existsSync(mark)) { fs.writeFileSync(mark, '1'); process.exit(1); }
     }
+    const recordNavigation = async () => {
+      const { runInNewContext } = await import('node:vm');
+      let route = '/files';
+      const result = await runInNewContext(expression, {
+        __AGENTIC__: {
+          getRoute: () => ({ pathname: route }),
+          navigate: nextRoute => { route = nextRoute; },
+        },
+      });
+      return { command, ...result, route };
+    };
     const output = expression.includes("a.navigate('/(tabs)/record')")
-      ? { command, startingRoute: '/files' }
+      ? await recordNavigation()
       : command === 'eval-async' ? { timeout: Number(process.env.EVAL_TIMEOUT) }
       : command === 'eval' && expression.includes('testExtractPreview') ? { previous: null, started: { status: 'pending' } }
       : command === 'eval' && expression.includes('getLastResult') ? { status: 'success', op: 'extractPreview' }
@@ -165,7 +176,7 @@ test('Record-tab navigation captures the starting route on the synchronous bridg
   const recipeFile = new URL('./recipes/playground/audio-studio-web-validation.recipe.json', import.meta.url);
   const recipe = JSON.parse(await fs.readFile(recipeFile, 'utf8'));
   const result = await adapter('audiolab.query').execute(recipe.workflow.nodes['nav-record']);
-  assert.deepEqual(result.output, { command: 'eval', startingRoute: '/files' });
+  assert.deepEqual(result.output, { command: 'eval', startingRoute: '/files', route: '/(tabs)/record' });
 });
 
 test('matrix selection keeps separate platform targets', () => {
