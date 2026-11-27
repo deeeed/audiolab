@@ -26,12 +26,13 @@ async function fixture(t, platform = 'web', screenshot = null) {
     const recordNavigation = async () => {
       const { runInNewContext } = await import('node:vm');
       let route = '/files';
-      const result = await runInNewContext(expression, {
+      const result = runInNewContext(expression, {
         __AGENTIC__: {
           getRoute: () => ({ pathname: route }),
           navigate: nextRoute => { route = nextRoute; },
         },
       });
+      if (typeof result?.then === 'function') throw new Error('Record navigation must capture its route synchronously');
       return { command, ...result, route };
     };
     const output = expression.includes("a.navigate('/(tabs)/record')")
