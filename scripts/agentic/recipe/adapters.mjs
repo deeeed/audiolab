@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -10,6 +10,15 @@ const { checkAssert, parseRaw } = require('../lib/assert.js');
 const { comparePngFiles } = require('../lib/screenshot.js');
 const queries = JSON.parse(await fs.readFile(new URL('./queries.json', import.meta.url), 'utf8'));
 const source = { kind: 'bundled', trust: 'trusted', name: 'audiolab' };
+const invocationIds = new WeakMap();
+
+function invocationId(outputs) {
+  const existing = invocationIds.get(outputs);
+  if (existing) return existing;
+  const id = randomUUID();
+  invocationIds.set(outputs, id);
+  return id;
+}
 
 const nodeFile = nodeId => nodeId.replaceAll('/', '-');
 export function getQueryCatalogue(app) {
@@ -63,10 +72,13 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
   const bridge = createBridge({ appRoot, device, platform });
   async function query(node, context) {
     const spec = resolveQuery(app, node);
-    // Each retained attempt has its own artifact directory, including single-step runs.
-    const expression = node.ref && spec.bindInvocation
-      ? `(function(invocation, startingRoute){return ${spec.expression};})(${JSON.stringify(createHash('sha256').update(context.artifactsDir).digest('hex'))},${JSON.stringify(context.outputs.get('status')?.pathname ?? null)})`
-      : spec.expression;
+    let expression = spec.expression;
+    if (node.ref && spec.bindInvocation) {
+      const { outputs } = context;
+      const startingRoute = outputs.get('status')?.pathname ?? outputs.get('nav-record')?.startingRoute ?? null;
+      const invocation = JSON.stringify(invocationId(outputs));
+      expression = `(function(invocation, startingRoute){return ${expression};})(${invocation},${JSON.stringify(startingRoute)})`;
+    }
     const isAsync = node.async ?? spec.async;
     const timeout = node.timeout_ms ?? (node.poll ? 10000 : isAsync ? Number(process.env.EVAL_TIMEOUT ?? 30000) : 60000);
     const deadline = Date.now() + timeout;

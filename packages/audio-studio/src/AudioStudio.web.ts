@@ -434,7 +434,9 @@ export class AudioStudioWeb extends LegacyEventEmitter {
                   }
                 : undefined,
         }
-        Object.defineProperty(streamConfig, 'webRecordingId', { value: this.recordingId })
+        Object.defineProperty(streamConfig, 'webRecordingId', {
+            value: this.recordingId,
+        })
         return streamConfig
     }
 

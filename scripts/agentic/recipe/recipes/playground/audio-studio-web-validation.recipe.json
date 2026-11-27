@@ -47,10 +47,14 @@
         "next": "nav-record"
       },
       "nav-record": {
-        "action": "ui.navigate",
-        "path": "/(tabs)/record",
+        "action": "audiolab.query",
         "intent": "Open the Record tab.",
-        "next": "wait-record-screen"
+        "next": "wait-record-screen",
+        "ref": "playground.open_record_tab",
+        "assert": {
+          "operator": "not_null",
+          "field": "startingRoute"
+        }
       },
       "wait-record-screen": {
         "action": "audiolab.query",

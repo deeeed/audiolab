@@ -5,6 +5,11 @@
       "expression": "JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)",
       "async": false
     },
+    "playground.open_record_tab": {
+      "description": "Read the current route before opening the Record tab.",
+      "expression": "(async function(){var a=globalThis.__AGENTIC__;var startingRoute=a.getRoute().pathname;await a.navigate('/(tabs)/record');return {startingRoute:startingRoute};})()",
+      "async": true
+    },
     "playground.press_recipe_record_button": {
       "description": "Press Record and retain ownership of this recipe's take.",
       "expression": "globalThis.__AGENTIC__.pressWebRecordButton(invocation)",
