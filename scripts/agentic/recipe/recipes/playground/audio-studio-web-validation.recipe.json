@@ -39,7 +39,7 @@
         },
         "intent": "The playground app is running with the agentic bridge installed.",
         "next": "status",
-        "expression": "JSON.stringify(globalThis.__AGENTIC__?.beginWebRecordingRun() || null)"
+        "ref": "playground.agentic_ready"
       },
       "status": {
         "action": "app.status",
@@ -136,7 +136,6 @@
       },
       "press-start": {
         "action": "audiolab.query",
-        "expression": "globalThis.__AGENTIC__.pressWebRecordButton({{outputs.prepare-ready.recordingRunId}})",
         "async": true,
         "timeout_ms": 30000,
         "assert": {
@@ -145,7 +144,8 @@
           "value": true
         },
         "intent": "Press the Record tab button and identify the take it starts.",
-        "next": "wait-recording"
+        "next": "wait-recording",
+        "ref": "playground.press_recipe_record_button"
       },
       "wait-recording": {
         "action": "audiolab.query",
@@ -741,7 +741,7 @@
       },
       "restore": {
         "action": "ui.navigate",
-        "path": "{{outputs.status.pathname}}",
+        "path": "{{outputs.stop-owned-recording.pathname}}",
         "intent": "Return to the starting route.",
         "next": "observe-restored"
       },
@@ -756,7 +756,7 @@
         "assert": {
           "path": "$.pathname",
           "operator": "eq",
-          "value": "{{outputs.status.pathname}}"
+          "value": "{{outputs.stop-owned-recording.pathname}}"
         },
         "proves": [
           "restored"
@@ -770,11 +770,11 @@
       },
       "stop-owned-recording": {
         "action": "audiolab.query",
-        "expression": "globalThis.__AGENTIC__.stopOwnedWebRecording({{outputs.prepare-ready.recordingRunId}})",
         "async": true,
         "timeout_ms": 30000,
         "intent": "Stop any recording this recipe started before restoring the route.",
-        "next": "restore"
+        "next": "restore",
+        "ref": "playground.stop_recipe_recording"
       },
       "assert-recording-cleanup": {
         "action": "assert_output",

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -60,8 +61,12 @@ export function createBridge({ appRoot, device, platform }) {
 
 export function createAdapters({ app, appRoot, device, platform, actions, updateBaselines = false }) {
   const bridge = createBridge({ appRoot, device, platform });
-  async function query(node) {
+  async function query(node, context) {
     const spec = resolveQuery(app, node);
+    // Each retained attempt has its own artifact directory, including single-step runs.
+    const expression = node.ref && spec.bindInvocation
+      ? `(function(invocation, startingRoute){return ${spec.expression};})(${JSON.stringify(createHash('sha256').update(context.artifactsDir).digest('hex'))},${JSON.stringify(context.outputs.get('status')?.pathname ?? null)})`
+      : spec.expression;
     const isAsync = node.async ?? spec.async;
     const timeout = node.timeout_ms ?? (node.poll ? 10000 : isAsync ? Number(process.env.EVAL_TIMEOUT ?? 30000) : 60000);
     const deadline = Date.now() + timeout;
@@ -69,7 +74,7 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
     do {
       assertRecipeActive(recipeExecutionSignal());
       try {
-        output = await bridge([isAsync ? 'eval-async' : 'eval', spec.expression], Math.max(1, deadline - Date.now()));
+        output = await bridge([isAsync ? 'eval-async' : 'eval', expression], Math.max(1, deadline - Date.now()));
       } catch (error) {
         assertRecipeActive(recipeExecutionSignal());
         if (!node.poll) throw error;
@@ -94,7 +99,7 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
   return [
     ...createStandardCoreAdapters({ actions }),
     ...createStandardUiAdapters({ actions, transport }),
-    custom('audiolab.query', async node => ({ output: await query(node) }), ['arbitrary-code', 'app-mutation']),
+    custom('audiolab.query', async (node, context) => ({ output: await query(node, context) }), ['arbitrary-code', 'app-mutation']),
     custom('audiolab.choose', async (node, context) => {
       const last = [...context.outputs.values()].at(-1);
       const state = { last, env: { platform, device } };

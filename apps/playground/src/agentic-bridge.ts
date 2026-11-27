@@ -958,13 +958,8 @@ const audioPlayerProxy = {
         _audioPlayerProbe ? _audioPlayerProbe.seekTo(timeMs) : audioPlayerNotReady(),
 }
 
-type WebRecordingStart = { ok: true; identity: object } | { ok: false; error: string }
-let nextWebRecordingRunId = 0
-let webRecordingRun: { id: number; started: Promise<WebRecordingStart>; readonly pending: boolean } | null = null
-
-function beginWebRecordingRun() {
-    return { ..._routeInfo, recordingRunId: ++nextWebRecordingRunId }
-}
+type WebRecordingStart = { ok: true; identity: symbol } | { ok: false; error: string }
+let webRecordingRun: { id: string; started: Promise<WebRecordingStart>; readonly pending: boolean } | null = null
 let webRecordButtonAcknowledgement: ((result?: StartRecordingResult) => void) | null = null
 
 export function takeAgenticWebRecordButtonAcknowledgement() {
@@ -980,16 +975,10 @@ function currentWebRecording() {
     if (!audio || typeof audio !== 'object') return null
     if (!('isRecording' in audio) || !('isPaused' in audio)) return null
     if (!audio.isRecording && !audio.isPaused) return null
-    if (
-        !('recordingConfig' in audio) || !audio.recordingConfig || typeof audio.recordingConfig !== 'object' ||
-        !('streamUuid' in audio) || typeof audio.streamUuid !== 'string' ||
-        !('extension' in audio) || typeof audio.extension !== 'string'
-    ) return null
-    // The recorder receives a new config for every start and retains it across microphone switches.
-    return { identity: audio.recordingConfig, fileUri: `${audio.streamUuid}.${audio.extension}` }
+    return 'recordingId' in audio && typeof audio.recordingId === 'symbol' ? audio.recordingId : null
 }
 
-async function pressWebRecordButton(recordingRunId: number) {
+async function pressWebRecordButton(recordingRunId: string) {
     if (Platform.OS !== 'web') return { ok: false, error: 'Recording proof requires a browser' }
     const props = findFiberByTestId('start-recording-button')?.memoizedProps
     const onPress = props && typeof props === 'object' && 'onPress' in props ? props.onPress : undefined
@@ -1003,12 +992,11 @@ async function pressWebRecordButton(recordingRunId: number) {
             resolve(result)
         }
         webRecordButtonAcknowledgement = (started) => {
-            const live = currentWebRecording()
-            if (!started || !live || live.fileUri !== started.fileUri) {
+            if (!started || !('webRecordingId' in started) || typeof started.webRecordingId !== 'symbol') {
                 settle({ ok: false, error: 'The Record button did not start an identifiable take' })
                 return
             }
-            settle({ ok: true, identity: live.identity })
+            settle({ ok: true, identity: started.webRecordingId })
         }
         try {
             onPress()
@@ -1030,7 +1018,7 @@ async function pressWebRecordButton(recordingRunId: number) {
     return result.ok ? { ok: true } : result
 }
 
-async function stopOwnedWebRecording(recordingRunId: number) {
+async function stopOwnedWebRecording(recordingRunId: string) {
     const run = webRecordingRun
     if (!run || run.id !== recordingRunId) return { ok: true, stopped: false }
     const cleanup = async () => {
@@ -1038,7 +1026,7 @@ async function stopOwnedWebRecording(recordingRunId: number) {
             const started = await run.started
             const recorder = _recorder
             if (started.ok && !recorder) return { ok: false, error: 'Recorder bridge unavailable' }
-            const stopped = started.ok && currentWebRecording()?.identity === started.identity
+            const stopped = started.ok && currentWebRecording() === started.identity
             if (stopped && recorder) await recorder.stopRecording()
             if (webRecordingRun === run) webRecordingRun = null
             return { ok: true, stopped }
@@ -1062,7 +1050,6 @@ if (__DEV__) {
     const agenticGlobal = globalThis as Record<string, unknown>
     agenticGlobal.__AGENTIC__ = {
         platform: Platform.OS,
-        beginWebRecordingRun,
         pressWebRecordButton,
         stopOwnedWebRecording,
         audioPlayer: audioPlayerProxy,
