@@ -7,8 +7,8 @@
     },
     "playground.open_record_tab": {
       "description": "Read the current route before opening the Record tab.",
-      "expression": "(async function(){var a=globalThis.__AGENTIC__;var startingRoute=a.getRoute().pathname;await a.navigate('/(tabs)/record');return {startingRoute:startingRoute};})()",
-      "async": true
+      "expression": "(function(){var a=globalThis.__AGENTIC__;var startingRoute=a.getRoute().pathname;a.navigate('/(tabs)/record');return {startingRoute:startingRoute};})()",
+      "async": false
     },
     "playground.press_recipe_record_button": {
       "description": "Press Record and retain ownership of this recipe's take.",
