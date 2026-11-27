@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-27
+
+### Fixed
+
+- Support AGP 9 projects using built-in Kotlin. Compile Kotlin tasks for JVM 17 on both the built-in and explicit plugin paths (#533).
+
 ## [0.4.2] - 2026-11-07
 
 ### Fixed
