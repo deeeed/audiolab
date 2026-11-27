@@ -119,11 +119,11 @@
         "timeout_ms": 10000,
         "intent": "The recorder starts idle and unpaused.",
         "next": "wait-start-button",
-        "expression": "JSON.stringify((function(){globalThis.__audioStudioWebOwnsRecording=false;return globalThis.__AGENTIC__?.getState()||null;})())"
+        "ref": "recording-state"
       },
       "wait-start-button": {
         "action": "audiolab.query",
-        "expression": "JSON.stringify((function(){var a=globalThis.__AGENTIC__;var s=a?.getState();var visible=!!a?.findFiberByTestId?.('start-recording-button')&&s?.isRecording===false&&s?.isPaused===false;if(visible)globalThis.__audioStudioWebOwnsRecording=true;return {visible:visible};})())",
+        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('start-recording-button')})",
         "assert": {
           "operator": "eq",
           "field": "visible",
@@ -135,9 +135,16 @@
         "next": "press-start"
       },
       "press-start": {
-        "action": "ui.press",
-        "test_id": "start-recording-button",
-        "intent": "Start recording from the Record tab.",
+        "action": "audiolab.query",
+        "expression": "globalThis.__AGENTIC__.pressWebRecordButton()",
+        "async": true,
+        "timeout_ms": 30000,
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "intent": "Press the Record tab button and identify the take it starts.",
         "next": "wait-recording"
       },
       "wait-recording": {
@@ -755,7 +762,7 @@
           "restored"
         ],
         "intent": "The starting route is restored.",
-        "next": "cleanup-done"
+        "next": "assert-recording-cleanup"
       },
       "cleanup-done": {
         "action": "end",
@@ -763,16 +770,22 @@
       },
       "stop-owned-recording": {
         "action": "audiolab.query",
-        "expression": "(async function(){if(!globalThis.__audioStudioWebOwnsRecording)return {ok:true};var a=globalThis.__AGENTIC__;var s=a?.getState();if(!s)return {ok:false,error:'Recorder state unavailable'};if(s.isRecording||s.isPaused){var r=await a.stopRecording();if(r?.error)return {ok:false,error:r.error};}globalThis.__audioStudioWebOwnsRecording=false;return {ok:true};})()",
+        "expression": "globalThis.__AGENTIC__.stopOwnedWebRecording()",
         "async": true,
         "timeout_ms": 30000,
-        "assert": {
-          "operator": "eq",
-          "field": "ok",
-          "value": true
-        },
         "intent": "Stop any recording this recipe started before restoring the route.",
         "next": "restore"
+      },
+      "assert-recording-cleanup": {
+        "action": "assert_output",
+        "source": "stop-owned-recording",
+        "assert": {
+          "path": "$.ok",
+          "operator": "eq",
+          "value": true
+        },
+        "intent": "Report a recording cleanup failure after restoring the route.",
+        "next": "cleanup-done"
       }
     },
     "teardown": "stop-owned-recording"

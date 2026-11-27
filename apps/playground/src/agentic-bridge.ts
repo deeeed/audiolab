@@ -26,6 +26,7 @@ import type {
     AudioRecording,
     RecordingConfig,
     RecordingStopReason,
+    StartRecordingResult,
     UseAudioRecorderState,
 } from '@siteed/audio-studio'
 import {
@@ -37,6 +38,7 @@ import {
     streamAudioData,
     getAudioDecodeCapabilities,
     AudioDeviceManager,
+    AudioStudioModule,
 } from '@siteed/audio-studio'
 import {
     ASR as SherpaASR,
@@ -956,10 +958,97 @@ const audioPlayerProxy = {
         _audioPlayerProbe ? _audioPlayerProbe.seekTo(timeMs) : audioPlayerNotReady(),
 }
 
+type WebRecordingStart = { ok: true; identity: object } | { ok: false; error: string }
+let webRecordingStart: Promise<WebRecordingStart> | null = null
+let webRecordButtonAcknowledgement: ((result?: StartRecordingResult) => void) | null = null
+
+export function takeAgenticWebRecordButtonAcknowledgement() {
+    const acknowledge = webRecordButtonAcknowledgement
+    webRecordButtonAcknowledgement = null
+    return acknowledge
+}
+
+function currentWebRecording() {
+    if (Platform.OS !== 'web' || !_recorder) return null
+    // The mounted recorder already initialized the web singleton.
+    const audio: unknown = AudioStudioModule()
+    if (!audio || typeof audio !== 'object') return null
+    if (!('isRecording' in audio) || !('isPaused' in audio)) return null
+    if (!audio.isRecording && !audio.isPaused) return null
+    if (
+        !('customRecorder' in audio) || !audio.customRecorder || typeof audio.customRecorder !== 'object' ||
+        !('streamUuid' in audio) || typeof audio.streamUuid !== 'string' ||
+        !('extension' in audio) || typeof audio.extension !== 'string'
+    ) return null
+    return { identity: audio.customRecorder, fileUri: `${audio.streamUuid}.${audio.extension}` }
+}
+
+async function pressWebRecordButton() {
+    if (Platform.OS !== 'web') return { ok: false, error: 'Recording proof requires a browser' }
+    const props = findFiberByTestId('start-recording-button')?.memoizedProps
+    const onPress = props && typeof props === 'object' && 'onPress' in props ? props.onPress : undefined
+    if (!_recorder || typeof onPress !== 'function' || webRecordingStart || currentWebRecording()) {
+        return { ok: false, error: 'An idle recorder and its Record button are required' }
+    }
+    webRecordingStart = new Promise<WebRecordingStart>((resolve) => {
+        webRecordButtonAcknowledgement = (started) => {
+            const live = currentWebRecording()
+            if (!started || !live || live.fileUri !== started.fileUri) {
+                resolve({ ok: false, error: 'The Record button did not start an identifiable take' })
+                return
+            }
+            resolve({ ok: true, identity: live.identity })
+        }
+        try {
+            onPress()
+        } catch (error) {
+            // A handler that already claimed the press still settles its actual start.
+            if (webRecordButtonAcknowledgement) resolve({ ok: false, error: String(error) })
+        } finally {
+            if (webRecordButtonAcknowledgement) {
+                webRecordButtonAcknowledgement = null
+                resolve({ ok: false, error: 'The Record button did not invoke its handler' })
+            }
+        }
+    })
+    const result = await webRecordingStart
+    return result.ok ? { ok: true } : result
+}
+
+async function stopOwnedWebRecording() {
+    const pending = webRecordingStart
+    if (!pending) return { ok: true }
+    const cleanup = async () => {
+        try {
+            const started = await pending
+            const recorder = _recorder
+            if (started.ok && !recorder) return { ok: false, error: 'Recorder bridge unavailable' }
+            const stopped = started.ok && currentWebRecording()?.identity === started.identity
+            if (stopped && recorder) await recorder.stopRecording()
+            if (webRecordingStart === pending) webRecordingStart = null
+            return { ok: true, stopped }
+        } catch (error) {
+            return { ok: false, error: String(error) }
+        }
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // Keep cleanup attached to the original start, even if route restoration must proceed.
+    const deadline = new Promise<{ ok: false; error: string }>((resolve) => {
+        timer = setTimeout(() => resolve({ ok: false, error: 'Recording cleanup still pending' }), 20000)
+    })
+    try {
+        return await Promise.race([cleanup(), deadline])
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
 if (__DEV__) {
     const agenticGlobal = globalThis as Record<string, unknown>
     agenticGlobal.__AGENTIC__ = {
         platform: Platform.OS,
+        pressWebRecordButton,
+        stopOwnedWebRecording,
         audioPlayer: audioPlayerProxy,
         recordAttributedValidation: {
             getState: () =>
