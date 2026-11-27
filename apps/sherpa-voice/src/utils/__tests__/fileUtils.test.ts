@@ -30,12 +30,23 @@ describe('getFileSize', () => {
         it('measures the fetched body instead of calling getInfoAsync', async () => {
             global.fetch = jest.fn().mockResolvedValue({
                 ok: true,
+                headers: { get: () => 'audio/wav' },
                 blob: () => Promise.resolve({ size: 352044 }),
             })
 
             await expect(getFileSize(SAMPLE)).resolves.toBe(352044)
             expect(global.fetch).toHaveBeenCalledWith(SAMPLE)
             expect(getInfoAsync).not.toHaveBeenCalled()
+        })
+
+        it('treats the Expo HTML fallback as missing audio', async () => {
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                headers: { get: () => 'text/html; charset=UTF-8' },
+                blob: jest.fn(),
+            })
+
+            await expect(getFileSize(SAMPLE)).resolves.toBe(0)
         })
 
         it('returns 0 when the file is missing', async () => {

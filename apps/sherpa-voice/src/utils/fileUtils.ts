@@ -85,7 +85,7 @@ export async function fileExists(uri: string): Promise<boolean> {
 export async function getFileSize(uri: string): Promise<number> {
   if (Platform.OS === 'web') {
     const response = await fetch(uri);
-    if (!response.ok) return 0;
+    if (!response.ok || response.headers.get('content-type')?.includes('text/html')) return 0;
     return (await response.blob()).size;
   }
   const info = await FileSystem.getInfoAsync(uri);

@@ -101,7 +101,6 @@
       },
       "assert-idle": {
         "action": "audiolab.query",
-        "ref": "recording-state",
         "assert": {
           "all": [
             {
@@ -119,11 +118,12 @@
         "poll": true,
         "timeout_ms": 10000,
         "intent": "The recorder starts idle and unpaused.",
-        "next": "wait-start-button"
+        "next": "wait-start-button",
+        "expression": "JSON.stringify((function(){globalThis.__audioStudioWebOwnsRecording=false;return globalThis.__AGENTIC__?.getState()||null;})())"
       },
       "wait-start-button": {
         "action": "audiolab.query",
-        "expression": "JSON.stringify({visible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('start-recording-button')})",
+        "expression": "JSON.stringify((function(){var a=globalThis.__AGENTIC__;var s=a?.getState();var visible=!!a?.findFiberByTestId?.('start-recording-button')&&s?.isRecording===false&&s?.isPaused===false;if(visible)globalThis.__audioStudioWebOwnsRecording=true;return {visible:visible};})())",
         "assert": {
           "operator": "eq",
           "field": "visible",
@@ -468,7 +468,7 @@
       },
       "press-pause-playback": {
         "action": "audiolab.query",
-        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button')).filter(function(e){return (e.textContent||'').replace(/[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]/g,'').trim()==='Pause'&&e.offsetParent!==null;});if(!els.length)return {status:'missing',label:'Pause'};els[0].click();return {status:'clicked',label:'Pause'};})())",
+        "expression": "JSON.stringify((function(){if(typeof document==='undefined')return {status:'no-dom'};var els=[].slice.call(document.querySelectorAll('[role=button],button')).filter(function(e){return (e.textContent||'').replace(/[\\uE000-\\uF8FF]|[\\uDB80-\\uDBFF][\\uDC00-\\uDFFF]/g,'').trim()==='Pause'&&e.offsetParent!==null;});if(!els.length)return {status:'missing',label:'Pause'};var m=globalThis.__agenticMedia;if(!m||m.paused||m.ended)return {status:'not-playing'};globalThis.__audioStudioWebPausedMedia=m;els[0].click();return {status:'clicked',label:'Pause'};})())",
         "assert": {
           "operator": "eq",
           "field": "status",
@@ -481,7 +481,7 @@
       },
       "wait-playback-paused": {
         "action": "audiolab.query",
-        "expression": "JSON.stringify((function(){var m=globalThis.__agenticMedia;if(!m)return {found:false,playing:false};return {found:true,playing:!m.paused&&m.currentTime>0.5,paused:m.paused,currentTime:m.currentTime,duration:m.duration,srcScheme:String(m.src).split(':')[0]};})())",
+        "expression": "JSON.stringify((function(){var m=globalThis.__agenticMedia;return {paused:!!m&&m===globalThis.__audioStudioWebPausedMedia&&m.paused&&!m.ended};})())",
         "assert": {
           "operator": "eq",
           "field": "paused",
@@ -489,7 +489,7 @@
         },
         "poll": true,
         "timeout_ms": 5000,
-        "intent": "The media element reports paused.",
+        "intent": "Confirm the same take pauses before it ends.",
         "next": "reveal-waveform"
       },
       "reveal-waveform": {
@@ -760,8 +760,21 @@
       "cleanup-done": {
         "action": "end",
         "status": "pass"
+      },
+      "stop-owned-recording": {
+        "action": "audiolab.query",
+        "expression": "(async function(){if(!globalThis.__audioStudioWebOwnsRecording)return {ok:true};var a=globalThis.__AGENTIC__;var s=a?.getState();if(!s)return {ok:false,error:'Recorder state unavailable'};if(s.isRecording||s.isPaused){var r=await a.stopRecording();if(r?.error)return {ok:false,error:r.error};}globalThis.__audioStudioWebOwnsRecording=false;return {ok:true};})()",
+        "async": true,
+        "timeout_ms": 30000,
+        "assert": {
+          "operator": "eq",
+          "field": "ok",
+          "value": true
+        },
+        "intent": "Stop any recording this recipe started before restoring the route.",
+        "next": "restore"
       }
     },
-    "teardown": "restore"
+    "teardown": "stop-owned-recording"
   }
 }

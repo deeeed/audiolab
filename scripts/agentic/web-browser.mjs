@@ -264,6 +264,15 @@ async function launchDaemon() {
 }
 
 async function cmdLaunch() {
+  const fakeAudio = process.env.WEB_FAKE_AUDIO_FILE
+    ? path.resolve(process.env.WEB_FAKE_AUDIO_FILE)
+    : undefined;
+  // Validate in the parent as well as the daemon so launch reports failure.
+  if (fakeAudio && !fs.statSync(fakeAudio, { throwIfNoEntry: false })?.isFile()) {
+    console.error(`WEB_FAKE_AUDIO_FILE is not a file: ${fakeAudio}`);
+    process.exitCode = 1;
+    return;
+  }
   ensureDirs();
 
   if (!process.env._WEB_BROWSER_DAEMON) return launchDaemon();
@@ -280,13 +289,7 @@ async function cmdLaunch() {
     '--use-fake-ui-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
   ];
-  if (process.env.WEB_FAKE_AUDIO_FILE) {
-    const fakeAudio = path.resolve(process.env.WEB_FAKE_AUDIO_FILE);
-    // Chrome silently captures silence for a missing file, so fail before launching.
-    if (!fs.existsSync(fakeAudio)) {
-      console.error(`WEB_FAKE_AUDIO_FILE not found: ${fakeAudio}`);
-      process.exit(1);
-    }
+  if (fakeAudio) {
     launchArgs.push(
       '--use-fake-device-for-media-stream',
       `--use-file-for-fake-audio-capture=${fakeAudio}`,

@@ -65,6 +65,7 @@ export function useAudioTagging() {
     const [loadedAudioFiles, setLoadedAudioFiles] = useState<
         AudioTaggingAudioFile[]
     >([])
+    const audioSelection = useRef(0)
     const [audioMetadata, setAudioMetadata] = useState<{
         size?: number
         duration?: number
@@ -335,6 +336,7 @@ export function useAudioTagging() {
     }
 
     const handleSelectAudio = async (audioItem: AudioTaggingAudioFile) => {
+        const selection = ++audioSelection.current
         if (selectedAudio?.id === audioItem.id) {
             setSelectedAudio(null)
             setAudioMetadata({ isLoading: false })
@@ -345,14 +347,17 @@ export function useAudioTagging() {
             if (audioItem.localUri) {
                 try {
                     const size = await getFileSize(audioItem.localUri)
+                    if (selection !== audioSelection.current) return
                     const tempPlayer = createAudioPlayer({
                         uri: audioItem.localUri,
                     })
                     await new Promise((r) => setTimeout(r, 500))
                     const duration = (tempPlayer.duration || 0) * 1000
                     tempPlayer.remove()
+                    if (selection !== audioSelection.current) return
                     setAudioMetadata({ size, duration, isLoading: false })
                 } catch (_) {
+                    if (selection !== audioSelection.current) return
                     setAudioMetadata({ isLoading: false })
                 }
             }
