@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Honor `output.compressed.preferRawStream` on iOS. AAC recording streams can use raw ADTS chunks, while the default remains M4A (#534).
 - Use the standard Android recording notification when the waveform is disabled, so the title, text, and duration remain visible (#535).
 - Restore the original iOS audio session when auto-resuming from an interruption in the background. Handle each interruption once and keep the active settings if a prepare call is skipped (#540).
+- Identify the active web recording when validating Record button starts (#523).
 
 ## [3.2.1] - 2026-06-20
 

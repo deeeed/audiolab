@@ -71,6 +71,7 @@ export class AudioStudioWeb extends LegacyEventEmitter {
     lastEmittedCompressionSize: number
     lastEmittedAnalysisTime: number
     streamUuid: string | null
+    recordingId?: symbol
     extension: 'webm' | 'wav' = 'wav' // Default extension is 'wav'
     recordingConfig?: RecordingConfig
     bitDepth: BitDepth // Bit depth of the audio
@@ -391,6 +392,7 @@ export class AudioStudioWeb extends LegacyEventEmitter {
         })
         await this.customRecorder.init()
         this.customRecorder.start()
+        this.recordingId = Symbol()
 
         this.isRecording = true
         this.recordingStartTime = Date.now()
@@ -432,6 +434,9 @@ export class AudioStudioWeb extends LegacyEventEmitter {
                   }
                 : undefined,
         }
+        Object.defineProperty(streamConfig, 'webRecordingId', {
+            value: this.recordingId,
+        })
         return streamConfig
     }
 
