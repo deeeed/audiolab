@@ -5,6 +5,23 @@
       "expression": "JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)",
       "async": false
     },
+    "playground.open_record_tab": {
+      "description": "Read the current route before opening the Record tab.",
+      "expression": "(function(){var a=globalThis.__AGENTIC__;var startingRoute=a.getRoute().pathname;a.navigate('/(tabs)/record');return {startingRoute:startingRoute};})()",
+      "async": false
+    },
+    "playground.press_recipe_record_button": {
+      "description": "Press Record and retain ownership of this recipe's take.",
+      "expression": "globalThis.__AGENTIC__.pressWebRecordButton(invocation)",
+      "async": true,
+      "bindInvocation": true
+    },
+    "playground.stop_recipe_recording": {
+      "description": "Stop the take started by this recipe invocation.",
+      "expression": "(async function(){var a=globalThis.__AGENTIC__;var result=await a.stopOwnedWebRecording(invocation);return {...result,pathname:startingRoute||a.getRoute().pathname};})()",
+      "async": true,
+      "bindInvocation": true
+    },
     "recording-state": {
       "description": "Current recorder state mirrored into the playground agentic bridge",
       "expression": "JSON.stringify(globalThis.__AGENTIC__?.getState() || null)",

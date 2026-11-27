@@ -8,6 +8,7 @@ import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert } from 'react-native'
+import { getFileSize } from '../utils/fileUtils'
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import {
     useAudioTaggingModels,
@@ -64,6 +65,7 @@ export function useAudioTagging() {
     const [loadedAudioFiles, setLoadedAudioFiles] = useState<
         AudioTaggingAudioFile[]
     >([])
+    const audioSelection = useRef(0)
     const [audioMetadata, setAudioMetadata] = useState<{
         size?: number
         duration?: number
@@ -334,6 +336,7 @@ export function useAudioTagging() {
     }
 
     const handleSelectAudio = async (audioItem: AudioTaggingAudioFile) => {
+        const selection = ++audioSelection.current
         if (selectedAudio?.id === audioItem.id) {
             setSelectedAudio(null)
             setAudioMetadata({ isLoading: false })
@@ -343,20 +346,18 @@ export function useAudioTagging() {
 
             if (audioItem.localUri) {
                 try {
-                    const fileInfo = await FileSystem.getInfoAsync(
-                        audioItem.localUri
-                    )
-                    const size = fileInfo.exists
-                        ? (fileInfo as any).size || 0
-                        : 0
+                    const size = await getFileSize(audioItem.localUri)
+                    if (selection !== audioSelection.current) return
                     const tempPlayer = createAudioPlayer({
                         uri: audioItem.localUri,
                     })
                     await new Promise((r) => setTimeout(r, 500))
                     const duration = (tempPlayer.duration || 0) * 1000
                     tempPlayer.remove()
+                    if (selection !== audioSelection.current) return
                     setAudioMetadata({ size, duration, isLoading: false })
                 } catch (_) {
+                    if (selection !== audioSelection.current) return
                     setAudioMetadata({ isLoading: false })
                 }
             }

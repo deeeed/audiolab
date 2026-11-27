@@ -35,13 +35,14 @@
  *   WEB_STARTUP_TIMEOUT  Overall startup budget in ms (default: all stage budgets and retries)
  *   WEB_BROWSER_PID_FILE  Chrome PID path for the farm's ownership watch
  *   CDP_PORT        Chrome remote debugging port (default: 9222)
+ *   WEB_FAKE_AUDIO_FILE  PCM WAV fed to getUserMedia instead of the real mic (loops)
  *
  * Known limitation — live microphone on macOS:
  *   macOS TCC (privacy framework) attributes getUserMedia requests to the
  *   process that spawned Chrome (node), not to the Chrome bundle itself.
  *   The permission is silently denied and the audio stream produces silence.
- *   File-based audio testing works fine. For live mic validation use a
- *   regular browser session opened manually.
+ *   File-based audio testing works fine. For live mic validation set
+ *   WEB_FAKE_AUDIO_FILE, or use a regular browser session opened manually.
  */
 
 import path from 'node:path';
@@ -263,6 +264,15 @@ async function launchDaemon() {
 }
 
 async function cmdLaunch() {
+  const fakeAudio = process.env.WEB_FAKE_AUDIO_FILE
+    ? path.resolve(process.env.WEB_FAKE_AUDIO_FILE)
+    : undefined;
+  // Validate in the parent as well as the daemon so launch reports failure.
+  if (fakeAudio && !fs.statSync(fakeAudio, { throwIfNoEntry: false })?.isFile()) {
+    console.error(`WEB_FAKE_AUDIO_FILE is not a file: ${fakeAudio}`);
+    process.exitCode = 1;
+    return;
+  }
   ensureDirs();
 
   if (!process.env._WEB_BROWSER_DAEMON) return launchDaemon();
@@ -279,6 +289,12 @@ async function cmdLaunch() {
     '--use-fake-ui-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
   ];
+  if (fakeAudio) {
+    launchArgs.push(
+      '--use-fake-device-for-media-stream',
+      `--use-file-for-fake-audio-capture=${fakeAudio}`,
+    );
+  }
   const launchOptions = {
     headless: HEADLESS,
     args: launchArgs,

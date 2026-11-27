@@ -6,9 +6,9 @@ import {
 } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
-import * as FileSystem from 'expo-file-system/legacy'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert } from 'react-native'
+import { getFileSize } from '../utils/fileUtils'
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import {
     useSpeakerIdModelWithConfig,
@@ -58,6 +58,7 @@ export function useSpeakerId() {
     const [newSpeakerName, setNewSpeakerName] = useState('')
     const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu')
 
+    const audioSelection = useRef(0)
     const [audioMetadata, setAudioMetadata] = useState<{
         size?: number
         duration?: number
@@ -336,23 +337,26 @@ export function useSpeakerId() {
     }
 
     const handleSelectAudio = async (audioItem: SpeakerIdAudioFile) => {
+        const selection = ++audioSelection.current
         setSelectedAudio(audioItem)
         setEmbeddingResult(null)
         setIdentifyResult(null)
         setAudioMetadata({ isLoading: true })
         try {
-            const fileInfo = await FileSystem.getInfoAsync(audioItem.localUri)
-            const fileSize = fileInfo.exists ? (fileInfo as any).size || 0 : 0
+            const fileSize = await getFileSize(audioItem.localUri)
+            if (selection !== audioSelection.current) return
             const tempPlayer = createAudioPlayer({ uri: audioItem.localUri })
             await new Promise((r) => setTimeout(r, 500))
             const durationMs = (tempPlayer.duration || 0) * 1000
             tempPlayer.remove()
+            if (selection !== audioSelection.current) return
             setAudioMetadata({
                 size: fileSize,
                 duration: durationMs,
                 isLoading: false,
             })
         } catch (_) {
+            if (selection !== audioSelection.current) return
             setAudioMetadata({ isLoading: false })
         }
     }

@@ -5,7 +5,7 @@ import {
     type AudioDataEvent,
 } from '@siteed/audio-studio'
 import { baseLogger } from '../config'
-import { resolveModelDir } from '../utils/fileUtils'
+import { getFileSize, resolveModelDir } from '../utils/fileUtils'
 import { SAMPLE_AUDIO_FILES } from '../utils/asrSamples'
 export { SAMPLE_AUDIO_FILES } from '../utils/asrSamples'
 
@@ -14,7 +14,6 @@ import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUti
 import { getWebAsrBackend } from '../config/webFeatures'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
-import * as FileSystem from 'expo-file-system/legacy'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAsrModels, useAsrModelWithConfig } from './useModelWithConfig'
@@ -76,6 +75,7 @@ export function useAsr() {
     const [selectedAudio, setSelectedAudio] = useState<LoadedAudioFile | null>(
         null
     )
+    const audioSelection = useRef(0)
     const [audioMetadata, setAudioMetadata] = useState<{
         size?: number
         duration?: number
@@ -236,10 +236,12 @@ export function useAsr() {
     // --- File mode handlers ---
 
     const handleSelectAudio = async (audioItem: LoadedAudioFile) => {
+        const selection = ++audioSelection.current
         setSelectedAudio(audioItem)
         setAudioMetadata({ isLoading: true })
         try {
-            const info = await FileSystem.getInfoAsync(audioItem.localUri)
+            const size = await getFileSize(audioItem.localUri)
+            if (selection !== audioSelection.current) return
             let duration = 0
             try {
                 const tempPlayer = createAudioPlayer({
@@ -249,12 +251,14 @@ export function useAsr() {
                 duration = (tempPlayer.duration ?? 0) * 1000
                 tempPlayer.remove()
             } catch (_) {}
+            if (selection !== audioSelection.current) return
             setAudioMetadata({
-                size: info.exists ? info.size : 0,
+                size,
                 duration,
                 isLoading: false,
             })
         } catch (_) {
+            if (selection !== audioSelection.current) return
             setAudioMetadata({ isLoading: false })
         }
     }

@@ -125,7 +125,7 @@ test('web preflight launches Metro and a headless browser', async t => {
   const configDir = path.join(root, 'scripts/agentic/lib');
   await fs.mkdir(configDir, { recursive: true });
   await fs.copyFile(path.join(repoRoot, 'scripts/agentic/lib/runtime-config.cjs'), path.join(configDir, 'runtime-config.cjs'));
-  const { stdout } = await execute('bash', [path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/runtime.sh'), 'launch', root, '7466', '7676', 'web'], { env: { ...process.env, AUDIOLAB_NODE_BIN: path.dirname(process.execPath), AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
+  const { stdout } = await execute('bash', [path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/runtime.sh'), 'launch', root, '7466', '7676', 'web'], { env: { ...process.env, AUDIOLAB_APP: 'playground', AUDIOLAB_NODE_BIN: path.dirname(process.execPath), AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
   assert.equal(stdout.split('\n')[0], 'metro-started');
   assert.deepEqual(JSON.parse(stdout.split('\n')[1]), { stage: 'browser', headless: 'true', channel: 'chrome', port: '7466' });
   assert.ok(!stdout.includes('native-called'));

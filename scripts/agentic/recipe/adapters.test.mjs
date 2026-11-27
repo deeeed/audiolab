@@ -23,7 +23,21 @@ async function fixture(t, platform = 'web', screenshot = null) {
       const mark = ${JSON.stringify(path.join(root, 'recovered'))};
       if (!fs.existsSync(mark)) { fs.writeFileSync(mark, '1'); process.exit(1); }
     }
-    const output = command === 'eval-async' ? { timeout: Number(process.env.EVAL_TIMEOUT) }
+    const recordNavigation = async () => {
+      const { runInNewContext } = await import('node:vm');
+      let route = '/files';
+      const result = runInNewContext(expression, {
+        __AGENTIC__: {
+          getRoute: () => ({ pathname: route }),
+          navigate: nextRoute => { route = nextRoute; },
+        },
+      });
+      if (typeof result?.then === 'function') throw new Error('Record navigation must capture its route synchronously');
+      return { command, ...result, route };
+    };
+    const output = expression.includes("a.navigate('/(tabs)/record')")
+      ? await recordNavigation()
+      : command === 'eval-async' ? { timeout: Number(process.env.EVAL_TIMEOUT) }
       : command === 'eval' && expression.includes('testExtractPreview') ? { previous: null, started: { status: 'pending' } }
       : command === 'eval' && expression.includes('getLastResult') ? { status: 'success', op: 'extractPreview' }
       : command === 'eval' ? { ready: true, failed: true }
@@ -156,6 +170,14 @@ test('async probes preserve the requested evaluation timeout', async t => {
   const adapter = await fixture(t);
   const result = await adapter('audiolab.query').execute({ expression: 'async-result', async: true, timeout_ms: 600000 });
   assert.ok(result.output.timeout > 590000);
+});
+
+test('Record-tab navigation captures the starting route on the synchronous bridge', async t => {
+  const adapter = await fixture(t);
+  const recipeFile = new URL('./recipes/playground/audio-studio-web-validation.recipe.json', import.meta.url);
+  const recipe = JSON.parse(await fs.readFile(recipeFile, 'utf8'));
+  const result = await adapter('audiolab.query').execute(recipe.workflow.nodes['nav-record']);
+  assert.deepEqual(result.output, { command: 'eval', startingRoute: '/files', route: '/(tabs)/record' });
 });
 
 test('matrix selection keeps separate platform targets', () => {

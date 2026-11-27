@@ -55,6 +55,7 @@ import { useSileroVAD } from '../../hooks/useSileroVAD'
 import { useMoonshineSherpaLiveDiarization } from '../../hooks/useMoonshineSherpaLiveDiarization'
 import {
     setAgenticPageState,
+    takeAgenticWebRecordButtonAcknowledgement,
     setAgenticRecordAttributedValidationProbe,
     type RecordAttributedTranscriptionValidationOptions,
 } from '../../agentic-bridge'
@@ -994,6 +995,8 @@ export default function RecordScreen() {
 
     // Also update when recording starts/stops to reset the prepared config
     const handleStart = useCallback(async () => {
+        const acknowledge = __DEV__ ? takeAgenticWebRecordButtonAcknowledgement() : null
+        let startedRecording: StartRecordingResult | undefined
         try {
             setProcessing(true)
 
@@ -1208,9 +1211,9 @@ export default function RecordScreen() {
             }
 
             logger.debug('Starting recording with config:', finalConfig)
-            const streamConfig: StartRecordingResult = await startRecording(finalConfig)
-            logger.debug('Recording started:', streamConfig)
-            setStreamConfig(streamConfig)
+            startedRecording = await startRecording(finalConfig)
+            logger.debug('Recording started:', startedRecording)
+            setStreamConfig(startedRecording)
             setIsRecordingPrepared(false) // Reset prepared state after starting
 
             // For native platforms, start realtime transcription after recording begins
@@ -1296,6 +1299,7 @@ export default function RecordScreen() {
             }
             setError('Failed to start recording. Please try again.')
         } finally {
+            acknowledge?.(startedRecording)
             setProcessing(false)
         }
     }, [

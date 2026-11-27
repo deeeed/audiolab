@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -9,6 +10,15 @@ const { checkAssert, parseRaw } = require('../lib/assert.js');
 const { comparePngFiles } = require('../lib/screenshot.js');
 const queries = JSON.parse(await fs.readFile(new URL('./queries.json', import.meta.url), 'utf8'));
 const source = { kind: 'bundled', trust: 'trusted', name: 'audiolab' };
+const invocationIds = new WeakMap();
+
+function invocationId(outputs) {
+  const existing = invocationIds.get(outputs);
+  if (existing) return existing;
+  const id = randomUUID();
+  invocationIds.set(outputs, id);
+  return id;
+}
 
 const nodeFile = nodeId => nodeId.replaceAll('/', '-');
 export function getQueryCatalogue(app) {
@@ -60,8 +70,15 @@ export function createBridge({ appRoot, device, platform }) {
 
 export function createAdapters({ app, appRoot, device, platform, actions, updateBaselines = false }) {
   const bridge = createBridge({ appRoot, device, platform });
-  async function query(node) {
+  async function query(node, context) {
     const spec = resolveQuery(app, node);
+    let expression = spec.expression;
+    if (node.ref && spec.bindInvocation) {
+      const { outputs } = context;
+      const startingRoute = outputs.get('status')?.pathname ?? outputs.get('nav-record')?.startingRoute ?? null;
+      const invocation = JSON.stringify(invocationId(outputs));
+      expression = `(function(invocation, startingRoute){return ${expression};})(${invocation},${JSON.stringify(startingRoute)})`;
+    }
     const isAsync = node.async ?? spec.async;
     const timeout = node.timeout_ms ?? (node.poll ? 10000 : isAsync ? Number(process.env.EVAL_TIMEOUT ?? 30000) : 60000);
     const deadline = Date.now() + timeout;
@@ -69,7 +86,7 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
     do {
       assertRecipeActive(recipeExecutionSignal());
       try {
-        output = await bridge([isAsync ? 'eval-async' : 'eval', spec.expression], Math.max(1, deadline - Date.now()));
+        output = await bridge([isAsync ? 'eval-async' : 'eval', expression], Math.max(1, deadline - Date.now()));
       } catch (error) {
         assertRecipeActive(recipeExecutionSignal());
         if (!node.poll) throw error;
@@ -94,7 +111,7 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
   return [
     ...createStandardCoreAdapters({ actions }),
     ...createStandardUiAdapters({ actions, transport }),
-    custom('audiolab.query', async node => ({ output: await query(node) }), ['arbitrary-code', 'app-mutation']),
+    custom('audiolab.query', async (node, context) => ({ output: await query(node, context) }), ['arbitrary-code', 'app-mutation']),
     custom('audiolab.choose', async (node, context) => {
       const last = [...context.outputs.values()].at(-1);
       const state = { last, env: { platform, device } };
