@@ -959,7 +959,12 @@ const audioPlayerProxy = {
 }
 
 type WebRecordingStart = { ok: true; identity: object } | { ok: false; error: string }
-let webRecordingStart: Promise<WebRecordingStart> | null = null
+let nextWebRecordingRunId = 0
+let webRecordingRun: { id: number; started: Promise<WebRecordingStart>; readonly pending: boolean } | null = null
+
+function beginWebRecordingRun() {
+    return { ..._routeInfo, recordingRunId: ++nextWebRecordingRunId }
+}
 let webRecordButtonAcknowledgement: ((result?: StartRecordingResult) => void) | null = null
 
 export function takeAgenticWebRecordButtonAcknowledgement() {
@@ -976,56 +981,66 @@ function currentWebRecording() {
     if (!('isRecording' in audio) || !('isPaused' in audio)) return null
     if (!audio.isRecording && !audio.isPaused) return null
     if (
-        !('customRecorder' in audio) || !audio.customRecorder || typeof audio.customRecorder !== 'object' ||
+        !('recordingConfig' in audio) || !audio.recordingConfig || typeof audio.recordingConfig !== 'object' ||
         !('streamUuid' in audio) || typeof audio.streamUuid !== 'string' ||
         !('extension' in audio) || typeof audio.extension !== 'string'
     ) return null
-    return { identity: audio.customRecorder, fileUri: `${audio.streamUuid}.${audio.extension}` }
+    // The recorder receives a new config for every start and retains it across microphone switches.
+    return { identity: audio.recordingConfig, fileUri: `${audio.streamUuid}.${audio.extension}` }
 }
 
-async function pressWebRecordButton() {
+async function pressWebRecordButton(recordingRunId: number) {
     if (Platform.OS !== 'web') return { ok: false, error: 'Recording proof requires a browser' }
     const props = findFiberByTestId('start-recording-button')?.memoizedProps
     const onPress = props && typeof props === 'object' && 'onPress' in props ? props.onPress : undefined
-    if (!_recorder || typeof onPress !== 'function' || webRecordingStart || currentWebRecording()) {
+    if (!_recorder || typeof onPress !== 'function' || webRecordingRun?.pending || currentWebRecording()) {
         return { ok: false, error: 'An idle recorder and its Record button are required' }
     }
-    webRecordingStart = new Promise<WebRecordingStart>((resolve) => {
+    let pending = true
+    const started = new Promise<WebRecordingStart>((resolve) => {
+        const settle = (result: WebRecordingStart) => {
+            pending = false
+            resolve(result)
+        }
         webRecordButtonAcknowledgement = (started) => {
             const live = currentWebRecording()
             if (!started || !live || live.fileUri !== started.fileUri) {
-                resolve({ ok: false, error: 'The Record button did not start an identifiable take' })
+                settle({ ok: false, error: 'The Record button did not start an identifiable take' })
                 return
             }
-            resolve({ ok: true, identity: live.identity })
+            settle({ ok: true, identity: live.identity })
         }
         try {
             onPress()
         } catch (error) {
             // A handler that already claimed the press still settles its actual start.
-            if (webRecordButtonAcknowledgement) resolve({ ok: false, error: String(error) })
+            if (takeAgenticWebRecordButtonAcknowledgement()) settle({ ok: false, error: String(error) })
         } finally {
-            if (webRecordButtonAcknowledgement) {
-                webRecordButtonAcknowledgement = null
-                resolve({ ok: false, error: 'The Record button did not invoke its handler' })
+            if (takeAgenticWebRecordButtonAcknowledgement()) {
+                settle({ ok: false, error: 'The Record button did not invoke its handler' })
             }
         }
     })
-    const result = await webRecordingStart
+    webRecordingRun = {
+        id: recordingRunId,
+        started,
+        get pending() { return pending },
+    }
+    const result = await started
     return result.ok ? { ok: true } : result
 }
 
-async function stopOwnedWebRecording() {
-    const pending = webRecordingStart
-    if (!pending) return { ok: true }
+async function stopOwnedWebRecording(recordingRunId: number) {
+    const run = webRecordingRun
+    if (!run || run.id !== recordingRunId) return { ok: true, stopped: false }
     const cleanup = async () => {
         try {
-            const started = await pending
+            const started = await run.started
             const recorder = _recorder
             if (started.ok && !recorder) return { ok: false, error: 'Recorder bridge unavailable' }
             const stopped = started.ok && currentWebRecording()?.identity === started.identity
             if (stopped && recorder) await recorder.stopRecording()
-            if (webRecordingStart === pending) webRecordingStart = null
+            if (webRecordingRun === run) webRecordingRun = null
             return { ok: true, stopped }
         } catch (error) {
             return { ok: false, error: String(error) }
@@ -1047,6 +1062,7 @@ if (__DEV__) {
     const agenticGlobal = globalThis as Record<string, unknown>
     agenticGlobal.__AGENTIC__ = {
         platform: Platform.OS,
+        beginWebRecordingRun,
         pressWebRecordButton,
         stopOwnedWebRecording,
         audioPlayer: audioPlayerProxy,
