@@ -392,10 +392,9 @@ export interface OutputConfig {
         /** Bitrate for compression in bits per second (default: 128000) */
         bitrate?: number
         /**
-         * Prefer raw stream over container format (Android only)
-         * - true: Use raw AAC stream (.aac files) like in v2.10.6
+         * Prefer raw stream over container format (AAC on Android and iOS)
+         * - true: Use raw ADTS AAC (.aac files) like in v2.10.6, so streamed compression chunks can be joined and decoded
          * - false/undefined: Use M4A container (.m4a files) for better seeking support
-         * Note: iOS always produces M4A containers and ignores this flag
          */
         preferRawStream?: boolean
     }

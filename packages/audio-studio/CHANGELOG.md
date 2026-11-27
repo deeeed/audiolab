@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-11-27
+
+### Fixed
+
+- Support AGP 9 projects using built-in Kotlin (#533).
+- Honor `output.compressed.preferRawStream` on iOS. AAC recording streams can use raw ADTS chunks, while the default remains M4A (#534).
+- Use the standard Android recording notification when the waveform is disabled, so the title, text, and duration remain visible (#535).
+- Restore the original iOS audio session when auto-resuming from an interruption in the background. Handle each interruption once and keep the active settings if a prepare call is skipped (#540).
+
 ## [3.2.1] - 2026-06-20
 
 Stable release of the 3.2.1 beta fixes plus recent release-blocker validation.

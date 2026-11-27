@@ -1,5 +1,13 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
+// AGP 9 ships built-in Kotlin support and registers the `kotlin` extension
+// itself. Applying the Kotlin plugin on top of it fails configuration with
+// "Cannot add extension with name 'kotlin'". Only apply it when nothing has
+// registered that extension yet.
+def builtInKotlin = project.extensions.findByName('kotlin') != null
+if (!builtInKotlin) {
+  apply plugin: 'kotlin-android'
+}
+
 apply plugin: 'maven-publish'
 
 group = 'net.siteed.audiostudio'
@@ -9,13 +17,15 @@ version = '0.1.0'
 project.ext.isLibrary = true
 project.ext.preventPluginConflict = true
 
-buildscript {
-  def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
-  if (expoModulesCorePlugin.exists()) {
-    apply from: expoModulesCorePlugin
-    applyKotlinExpoModulesCorePlugin()
-  }
+// Legacy Expo's helper applies kotlin-android itself. Run it only when
+// the Android plugin did not register built-in Kotlin.
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+if (expoModulesCorePlugin.exists() && !builtInKotlin) {
+  apply from: expoModulesCorePlugin
+  applyKotlinExpoModulesCorePlugin()
+}
 
+buildscript {
   // Simple helper that allows the root project to override versions declared by this library.
   ext.safeExtGet = { prop, fallback ->
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback

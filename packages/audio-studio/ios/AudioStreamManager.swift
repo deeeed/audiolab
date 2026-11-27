@@ -293,12 +293,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     guard let self = self else { return }
                     Logger.debug("AudioStreamManager", "Attempting to auto-resume recording after phone call")
 
-                    // Configure audio session
+                    // Restore the session the recording started with (category, mode, options).
+                    // A non-mixable session cannot be activated from the background.
                     do {
-                        let session = AVAudioSession.sharedInstance()
-                        let resumeOptions: AVAudioSession.CategoryOptions = self.recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
-                        try session.setCategory(.playAndRecord, mode: .default, options: resumeOptions)
-                        try session.setActive(true, options: .notifyOthersOnDeactivation)
+                        if let settings = self.recordingSettings {
+                            try self.configureAudioSession(for: settings)
+                        }
 
                         // Resume if we're still recording and paused
                         if self.isRecording && self.isPaused {
@@ -637,9 +637,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Choose extension based on whether this is a compressed file
         let fileExtension: String
         if isCompressed {
-            // iOS always produces M4A container when using AAC or Opus formats
-            // Opus falls back to AAC in M4A container on iOS
-            fileExtension = "m4a"
+            fileExtension = (recordingSettings?.output.compressed ?? OutputSettings.CompressedOutput()).fileExtension
         } else {
             fileExtension = "wav"
         }
@@ -979,14 +977,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     ///   - settings: The recording settings to use.
     /// - Returns: A boolean indicating if preparation was successful.
     func prepareRecording(settings: RecordingSettings) -> Bool {
-        // Store settings first before doing anything else
-        recordingSettings = settings
-        
-        // Skip if already prepared or recording
+        // Keep the active recording settings when preparation is skipped.
         guard !isPrepared && !isRecording else {
             Logger.debug("AudioStreamManager", "Already prepared or recording in progress.")
             return isPrepared
         }
+
+        recordingSettings = settings
 
         // Check for active call using the new method
         if isPhoneCallActive() {
@@ -1184,9 +1181,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "Error: Failed to set up audio session with preferred settings: \(error.localizedDescription)")
             return false
         }
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioSessionInterruption), name: AVAudioSession.interruptionNotification, object: nil)
-        
+
         if settings.enableProcessing == true {
             // Initialize the AudioProcessor for buffer-based processing
             self.audioProcessor = AudioProcessor(resolve: { result in
@@ -1972,11 +1967,20 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         Logger.debug("Stopping recording...")
         
-        // IMPORTANT: Emit any remaining audio data before stopping the engine.
+        let emitsRawAAC = recordingSettings?.output.compressed.fileExtension == "aac"
+        if emitsRawAAC {
+            // Stop delivery from the tap before reading final bytes from the ADTS encoder.
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+            compressedRecorder?.stop()
+        }
+
+        // Emit any remaining audio data before stopping the engine.
         // Atomic snapshot avoids the race documented in #314.
         if isRecording {
             let finalData = takeAccumulatedSnapshot()
-            if !finalData.isEmpty {
+            let finalCompression = !finalData.isEmpty || emitsRawAAC ? buildCompressionInfo() : nil
+            if !finalData.isEmpty || finalCompression?["data"] != nil {
                 Logger.debug("Emitting final audio chunk of \(finalData.count) bytes before stopping")
                 let recordingTime = currentRecordingDuration()
                 let finalTotalSize = self.totalDataSize
@@ -1986,22 +1990,25 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     didReceiveAudioData: finalData,
                     recordingTime: recordingTime,
                     totalDataSize: finalTotalSize,
-                    compressionInfo: buildCompressionInfo()
+                    compressionInfo: finalCompression
                 )
             }
         }
 
         disableWakeLock()
         
-        // Handle audio engine operations directly - no need for try-catch
-        if audioEngine.isRunning {
-            audioEngine.stop()
+        if !emitsRawAAC {
+            if audioEngine.isRunning {
+                audioEngine.stop()
+            }
+            audioEngine.inputNode.removeTap(onBus: 0)
         }
-        audioEngine.inputNode.removeTap(onBus: 0)
         
         // Stop compressed recording if active and update cached size
         if let recorder = compressedRecorder {
-            recorder.stop()
+            if !emitsRawAAC {
+                recorder.stop()
+            }
             
             // Update cached compressed file size after stopping
             if let compressedURL = compressedFileURL {
@@ -2520,12 +2527,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
         } else {
             Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
-            // If keepAwake is false, don't add background audio options
-            try session.setActive(true)
         }
         
-        // Apply the final configuration
+        // Restore category and mode before activating a standard session.
         try session.setCategory(category, mode: mode, options: options)
+        if !settings.keepAwake {
+            try session.setActive(true)
+        }
         
         Logger.debug("AudioStreamManager", "Audio session configured with category: \(category), mode: \(mode), options: \(options)")
     }

@@ -1,6 +1,6 @@
 {
     "name": "@siteed/audio-studio",
-    "version": "3.2.1",
+    "version": "3.2.2",
     "description": "Comprehensive audio processing library for React Native and Expo with recording, analysis, visualization, and streaming capabilities across iOS, Android, and web",
     "license": "MIT",
     "type": "commonjs",
@@ -87,7 +87,7 @@
         "build:esm": "tsc -p tsconfig.esm.json",
         "build:types": "tsc -p tsconfig.types.json",
         "build:plugin": "tsc --project plugin/tsconfig.json && cp plugin/build/index.js plugin/build/index.cjs",
-        "build:plugin:dev": "expo-module build plugin",
+        "build:plugin:dev": "yarn build:plugin",
         "build:dev": "expo-module build",
         "clean": "expo-module clean && rimraf build plugin/build",
         "lint": "expo-module lint",

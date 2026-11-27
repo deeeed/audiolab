@@ -432,8 +432,8 @@ export function useAudioRecorder({
                 encodedLength: encoded?.length,
                 compression,
             })
-            if (deltaSize === 0) {
-                // Ignore packet with no data
+            if (deltaSize === 0 && !compression?.data) {
+                // An iOS ADTS flush may carry compressed bytes without PCM.
                 return
             }
             try {
@@ -470,12 +470,12 @@ export function useAudioRecorder({
                             compression: compressionPayload,
                         })
                     } else {
-                        if (!encoded) {
+                        if (!encoded && !compressionPayload?.data) {
                             logger?.error(`Encoded audio data is missing`)
                             throw new Error('Encoded audio data is missing')
                         }
                         onAudioStreamRef.current?.({
-                            data: encoded,
+                            data: encoded ?? '',
                             position,
                             fileUri,
                             eventDataSize: deltaSize,
