@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Support AGP 9 projects using built-in Kotlin. Compile Kotlin tasks for JVM 17 on both the built-in and explicit plugin paths (#533).
+- Apply `kotlin-android` only when Gradle has no `kotlin` extension, and set JVM 17 on the Kotlin compile tasks (#533).
 
 ## [0.4.2] - 2026-11-07
 
