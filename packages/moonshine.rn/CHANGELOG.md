@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-27
+
+### Fixed
+
+- Apply `kotlin-android` only when Gradle has no `kotlin` extension, and set JVM 17 on the Kotlin compile tasks (#533).
+
 ## [0.4.2] - 2026-11-07
 
 ### Fixed
@@ -116,7 +122,8 @@ Long-streaming release focused on keeping Moonshine transcription memory bounded
 - Moonshine RN package with iOS, Android, and web transcription support, source-built native tooling, offline progress events, and word timestamp parity fixes.
 - Beta release plan and external consumer validation checklist.
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.2...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.3...HEAD
+[0.4.3]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.2...@siteed/moonshine.rn@0.4.3
 [0.4.2]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1...@siteed/moonshine.rn@0.4.2
 [0.4.1]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1-beta.2...@siteed/moonshine.rn@0.4.1
 [0.4.1-beta.2]: https://github.com/deeeed/audiolab/compare/@siteed/moonshine.rn@0.4.1-beta.1...@siteed/moonshine.rn@0.4.1-beta.2

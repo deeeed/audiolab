@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-11-27
+
 ### Changed
 
 - Update vendored sherpa-onnx to v2.0.2 (ONNX Runtime stays 1.28.2). The Kotlin API picks up the new `qnnConfig` fields on the Whisper, Moonshine and NeMo CTC configs and `QnnConfig.htpPerfMode`, which the v2.0.2 JNI reads. iOS links the two new static libraries, `libkaldi-hmm-gmm-core.a` and `libkaldi-native-io-core.a`.
 
 ### Fixed
 
+- Apply `kotlin-android` only when Gradle has no `kotlin` extension, and set JVM 17 on the Kotlin compile tasks (#533).
 - Web `initTts` fails with `Failed to load TTS model files: <url>` when `model.onnx`, `tokens.txt` or a configured `lexiconFile` cannot be fetched, including when none of them loads, and removes the files that did load along with their directory. Before, a missing lexicon aborted engine creation with `RuntimeError: memory access out of bounds`, a missing model or tokens file gave `Missing required files for VITS model configuration` without naming it, and a total download failure gave a bare `Failed to load TTS model files`.
 - Web `initTts` rejects non-VITS models with `Web TTS supports VITS models only, not <type>`. The WASM glue builds no engine config for matcha or kokoro, so those crashed during engine creation.
 - Web `FileSystem.removePath` removes directories. `isDirectory` read an `isDir` flag that Emscripten `stat` results do not have, so every directory was treated as a file and could not be removed.
@@ -263,7 +266,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.1...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.2...HEAD
+[2.0.2]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.1...@siteed/sherpa-onnx.rn@2.0.2
 [2.0.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.0...@siteed/sherpa-onnx.rn@2.0.1
 [2.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@2.0.0
 [1.3.2-beta.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@1.3.2-beta.0
