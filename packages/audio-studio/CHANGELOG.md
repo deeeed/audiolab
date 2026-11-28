@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Support AGP 9 projects using built-in Kotlin (#533).
+- Apply `kotlin-android` and the Expo Kotlin helper only when the `kotlin` extension is absent (#533). The AGP 9 fixture exercised the legacy plugin. With built-in Kotlin enabled, duplicate plugin registration in the fixture app stopped configuration before audio-studio compiled.
 - Honor `output.compressed.preferRawStream` on iOS. AAC recording streams can use raw ADTS chunks, while the default remains M4A (#534).
 - Flush the final raw ADTS bytes when iOS recording stops and deliver compression-only chunks to the stream callback, so the stream matches the saved AAC file.
 - Use the standard Android recording notification when the waveform is disabled, so the title, text, and duration remain visible (#535).
