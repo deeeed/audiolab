@@ -23,6 +23,46 @@ class CompressedOnlyOutputTests: XCTestCase {
     
     // MARK: - Test Compressed-Only Output (Issue #244)
 
+    func testPreferRawStreamSurvivesTheBridge() {
+        // #505: the compressed file extension, and so the AAC container, follows this flag.
+        let compressed: [String: Any] = ["enabled": true, "format": "aac", "preferRawStream": true]
+        guard case .success(let raw) = RecordingSettings.fromDictionary(["output": ["compressed": compressed]]),
+              case .success(let absent) = RecordingSettings.fromDictionary(["output": ["compressed": ["enabled": true]]]) else {
+            return XCTFail("fromDictionary rejected a valid compressed payload")
+        }
+        XCTAssertTrue(raw.output.compressed.preferRawStream)
+        XCTAssertFalse(absent.output.compressed.preferRawStream, "absent flag keeps the M4A default")
+        XCTAssertEqual(raw.output.compressed.fileExtension, "aac", "AAC + preferRawStream records raw ADTS")
+        XCTAssertEqual(absent.output.compressed.fileExtension, "m4a")
+    }
+
+    func testOpusFallbackKeepsM4AWithPreferRawStream() {
+        // startRecording rewrites enabled Opus to AAC before parsing; the fallback has
+        // always written M4A, so the AAC-only flag must not turn it into raw ADTS.
+        let compressed: [String: Any] = ["enabled": true, "format": "opus", "preferRawStream": true]
+        guard let fallback = RecordingSettings.applyingOpusFallback(["output": ["compressed": compressed]]),
+              case .success(let settings) = RecordingSettings.fromDictionary(fallback) else {
+            return XCTFail("Opus fallback did not produce valid settings")
+        }
+        XCTAssertEqual(settings.output.compressed.format, "aac")
+        XCTAssertEqual(settings.output.compressed.fileExtension, "m4a")
+
+        let aac: [String: Any] = ["enabled": true, "format": "aac", "preferRawStream": true]
+        XCTAssertNil(RecordingSettings.applyingOpusFallback(["output": ["compressed": aac]]), "AAC requests are not rewritten")
+    }
+
+    func testCompressedFileExtensionFollowsFormatAndFlag() {
+        var compressed = OutputSettings.CompressedOutput()
+        XCTAssertEqual(compressed.fileExtension, "m4a", "default is the M4A container")
+        compressed.preferRawStream = true
+        XCTAssertEqual(compressed.fileExtension, "aac")
+        compressed.preferRawStream = false
+        XCTAssertEqual(compressed.fileExtension, "m4a")
+        compressed.format = "opus"
+        compressed.preferRawStream = true
+        XCTAssertEqual(compressed.fileExtension, "m4a", "preferRawStream only changes the filename for AAC; Opus keeps .m4a")
+    }
+
     func testAACCompressedSampleRateFallsBackForLowRequestedRate() {
         XCTAssertEqual(
             AudioStreamManager.compatibleAACCompressedSampleRate(

@@ -87,7 +87,7 @@
         "build:esm": "tsc -p tsconfig.esm.json",
         "build:types": "tsc -p tsconfig.types.json",
         "build:plugin": "tsc --project plugin/tsconfig.json && cp plugin/build/index.js plugin/build/index.cjs",
-        "build:plugin:dev": "yarn build:plugin",
+        "build:plugin:dev": "expo-module build plugin",
         "build:dev": "expo-module build",
         "clean": "expo-module clean && rimraf build plugin/build",
         "lint": "expo-module lint",
