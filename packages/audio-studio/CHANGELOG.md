@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support AGP 9 projects using built-in Kotlin (#533).
 - Honor `output.compressed.preferRawStream` on iOS. AAC recording streams can use raw ADTS chunks, while the default remains M4A (#534).
+- Flush the final raw ADTS bytes when iOS recording stops and deliver compression-only chunks to the stream callback, so the stream matches the saved AAC file.
 - Use the standard Android recording notification when the waveform is disabled, so the title, text, and duration remain visible (#535).
 - Restore the original iOS audio session when auto-resuming from an interruption in the background. Handle each interruption once and keep the active settings if a prepare call is skipped (#540).
 - Identify the active web recording when validating Record button starts (#523).
@@ -775,7 +776,8 @@ Beta release for client validation of the progressive decode API.
 - Audio features extraction during recording
 - Consistent WAV PCM recording format across all platforms
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.2.1...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.2.2...HEAD
+[3.2.2]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.2.1...@siteed/audio-studio@3.2.2
 [3.2.1]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.2.0...@siteed/audio-studio@3.2.1
 [3.2.1-beta.3]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.2.1-beta.2...@siteed/audio-studio@3.2.1-beta.3
 [3.2.1-beta.2]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.2.0...@siteed/audio-studio@3.2.1-beta.2
