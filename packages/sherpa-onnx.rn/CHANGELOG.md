@@ -266,7 +266,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.1...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.2...HEAD
+[2.0.2]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.1...@siteed/sherpa-onnx.rn@2.0.2
 [2.0.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@2.0.0...@siteed/sherpa-onnx.rn@2.0.1
 [2.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@2.0.0
 [1.3.2-beta.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.3.1...@siteed/sherpa-onnx.rn@1.3.2-beta.0
